@@ -16,7 +16,7 @@ import { useState, useEffect } from "react";
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  bucket: any | null;
+  bucket: { name: string; slug: string } | null;
   onSuccess: () => void;
 }
 

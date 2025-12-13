@@ -1,9 +1,19 @@
 import { NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth";
+import { authorize } from "@/lib/authorized";
 import { prisma } from "@/lib/connection";
 
 export async function POST(req: Request) {
   try {
+    // Require permission to manage media folders
+    const auth = await authorize(req, "media-library", "create");
+    if (!auth.ok) {
+      return NextResponse.json(
+        { error: auth.message },
+        { status: auth.status }
+      );
+    }
+
     const user = await getAuthUser(req);
 
     if (!user) {
@@ -14,7 +24,7 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { name, parentId = null } = body;
+    const { name, parentId = null, bucketId } = body;
 
     if (!name || name.trim() === "") {
       return NextResponse.json(
@@ -23,22 +33,69 @@ export async function POST(req: Request) {
       );
     }
 
+    const numericBucketId = Number(bucketId);
+    const numericParentId =
+      parentId === null || parentId === undefined ? null : Number(parentId);
+
+    if (!bucketId || Number.isNaN(numericBucketId)) {
+      return NextResponse.json(
+        { error: "bucketId is required." },
+        { status: 400 }
+      );
+    }
+
+    const bucket = await prisma.bucket.findUnique({
+      where: { id: numericBucketId },
+    });
+
+    if (!bucket || bucket.isAvailable !== "AVAILABLE") {
+      return NextResponse.json(
+        { error: "Bucket not found or unavailable." },
+        { status: 404 }
+      );
+    }
+
     const folderName = name.trim();
 
     /* -----------------------------------------------------
      * Validate Parent Folder
      * ----------------------------------------------------*/
-    if (parentId !== null) {
+    if (numericParentId !== null) {
       const parent = await prisma.space.findUnique({
-        where: { id: parentId },
+        where: { id: numericParentId },
       });
 
-      if (!parent) {
+      if (!parent || parent.bucketId !== bucket.id) {
         return NextResponse.json(
-          { error: "Parent folder does not exist." },
+          { error: "Parent folder does not exist in this bucket." },
           { status: 404 }
         );
       }
+
+      if (parent.userId !== user.id) {
+        return NextResponse.json(
+          { error: "Not authorized to use this parent folder." },
+          { status: 403 }
+        );
+      }
+    }
+
+    // Prevent duplicate folder names under the same parent
+    const duplicate = await prisma.space.findFirst({
+      where: {
+        name: folderName,
+        parentId: numericParentId,
+        bucketId: bucket.id,
+        userId: user.id,
+        isAvailable: "AVAILABLE",
+      },
+    });
+
+    if (duplicate) {
+      return NextResponse.json(
+        { error: "A folder with this name already exists here." },
+        { status: 409 }
+      );
     }
 
     /* -----------------------------------------------------
@@ -47,7 +104,8 @@ export async function POST(req: Request) {
     const newFolder = await prisma.space.create({
       data: {
         name: folderName,
-        parentId,
+        parentId: numericParentId,
+        bucketId: bucket.id,
         userId: user.id,
         isAvailable: "AVAILABLE",
         uploadedAt: new Date(), // simple timestamp
@@ -60,11 +118,13 @@ export async function POST(req: Request) {
       message: "Folder created successfully.",
       data: newFolder,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Folder creation error:", error);
 
     return NextResponse.json(
-      { error: error.message || "Failed to create folder" },
+      {
+        error: error instanceof Error ? error.message : "Failed to create folder",
+      },
       { status: 500 }
     );
   }

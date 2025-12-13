@@ -1,8 +1,12 @@
 /* eslint-disable */
 import { prisma } from "@/lib/connection";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { Prisma, MediaType } from "@/lib/generated/prisma";
 
-export async function GET(req: Request, context: { params: { slug: string } }) {
+export async function GET(
+  req: NextRequest,
+  context: { params: Promise<{ slug: string }> }
+) {
   try {
     const { slug } = await context.params;
 
@@ -35,16 +39,21 @@ export async function GET(req: Request, context: { params: { slug: string } }) {
     // ---------------------------------------
     // BUILD WHERE CLAUSE FOR MEDIA
     // ---------------------------------------
-    const where: any = {
+    const where: Prisma.MediaWhereInput = {
       bucket: { slug },
     };
 
     if (search) {
-      where.filename = { contains: search, mode: "insensitive" };
+      where.filename = { contains: search };
     }
 
     if (type && type !== "all") {
-      where.fileType = type;
+      const mediaType = Object.values(MediaType).includes(type as MediaType)
+        ? (type as MediaType)
+        : undefined;
+      if (mediaType) {
+        where.fileType = mediaType;
+      }
     }
 
     // ---------------------------------------
@@ -98,14 +107,14 @@ export async function GET(req: Request, context: { params: { slug: string } }) {
         })),
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("❌ Bucket Detail Error:", error);
 
     return NextResponse.json(
       {
         status: "error",
         message: "Failed to fetch bucket details",
-        details: error.message,
+        details: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 }
     );

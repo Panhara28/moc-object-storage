@@ -1,10 +1,10 @@
 import { prisma } from "@/lib/connection";
 import bcrypt from "bcryptjs";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { authorize } from "@/lib/authorized";
 
 export async function PATCH(
-  req: Request,
+  req: NextRequest,
   context: { params: Promise<{ slug: string }> }
 ) {
   try {
@@ -75,11 +75,11 @@ export async function PATCH(
       message: "Password reset successfully.",
       user: updatedUser,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
       {
         error: "An unexpected error occurred while resetting the password.",
-        details: error.message,
+        details: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 }
     );

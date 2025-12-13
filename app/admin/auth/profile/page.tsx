@@ -4,11 +4,10 @@ import Layout from "@/components/cmsfullform/layout";
 
 async function getMe() {
   // Your environment requires await
-  const cookieStore: any = await cookies();
+  const cookieStore = await cookies();
 
   // Extract session token safely
-  const session =
-    cookieStore?.session?.value || cookieStore?.get?.("session")?.value || "";
+  const session = cookieStore.get("session")?.value || "";
 
   const res = await fetch(`http://localhost:3000/api/auth/me`, {
     cache: "no-store",

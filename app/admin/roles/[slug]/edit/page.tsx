@@ -4,11 +4,10 @@ import { cookies } from "next/headers";
 
 async function getRole(slug: string) {
   // Your environment requires await
-  const cookieStore: any = await cookies();
+  const cookieStore = await cookies();
 
   // Extract session token safely
-  const session =
-    cookieStore?.session?.value || cookieStore?.get?.("session")?.value || "";
+  const session = cookieStore.get("session")?.value || "";
 
   const res = await fetch(`http://localhost:3000/api/roles/${slug}`, {
     cache: "no-store",
@@ -26,7 +25,7 @@ export default async function AdminEditRolePage({
 }: {
   params: { slug: string };
 }) {
-  const { slug } = await params; // ⬅️ No await needed
+  const { slug } = params;
 
   const result = await getRole(slug);
   const role = result?.data ?? null;

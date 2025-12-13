@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import { prisma } from "./connection";
+import { JwtPayload } from "jsonwebtoken";
 
 const JWT_SECRET = process.env.JWT_SECRET!;
 const JWT_EXPIRES_IN = "7d";
@@ -38,10 +39,12 @@ export async function getAuthUser(req: Request) {
 
   if (!token) return null;
 
-  const decoded: any = verifyToken(token);
-  if (!decoded) return null;
+  const decoded = verifyToken(token);
+  if (!decoded || typeof decoded === "string") return null;
+  const payload = decoded as JwtPayload & { id?: number; roleId?: number | null };
+  if (typeof payload.id !== "number") return null;
   return prisma.user.findUnique({
-    where: { id: decoded.id },
+    where: { id: payload.id },
     include: {
       role: {
         include: {

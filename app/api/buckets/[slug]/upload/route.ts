@@ -30,7 +30,7 @@ function detectMediaType(mime: string, extension: string) {
 // ===============================================================
 export async function POST(
   req: NextRequest,
-  context: { params: { slug: string } }
+  context: { params: Promise<{ slug: string }> }
 ) {
   try {
     const { slug } = await context.params;
@@ -214,10 +214,14 @@ export async function POST(
       },
       { status: 201 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("❌ Upload Error:", error);
     return NextResponse.json(
-      { status: "error", message: "Upload failed", details: error.message },
+      {
+        status: "error",
+        message: "Upload failed",
+        details: error instanceof Error ? error.message : "Unknown error",
+      },
       { status: 500 }
     );
   }

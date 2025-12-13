@@ -12,7 +12,23 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Eye, EyeOff } from "lucide-react";
 
-export function SecuritySettingsForm({ data, onChange, errors }: any) {
+type SecuritySettings = {
+  email: string;
+  password: string;
+  confirmPassword: string;
+};
+
+type SecuritySettingsFormProps = {
+  data: SecuritySettings;
+  onChange: (next: SecuritySettings) => void;
+  errors?: Record<string, string>;
+};
+
+export function SecuritySettingsForm({
+  data,
+  onChange,
+  errors,
+}: SecuritySettingsFormProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 

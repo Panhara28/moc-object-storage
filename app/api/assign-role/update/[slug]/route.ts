@@ -1,16 +1,36 @@
 // /api/assign-role/update/[slug]/route.ts
 
 import { prisma } from "@/lib/connection";
-import { NextResponse } from "next/server";
+import { authorize } from "@/lib/authorized";
+import { NextRequest, NextResponse } from "next/server";
 
 export async function PATCH(
-  req: Request,
-  context: { params: { slug: string } } // ❌ remove Promise
+  req: NextRequest,
+  context: { params: Promise<{ slug: string }> } // ❌ remove Promise
 ) {
-  const { slug } = await context.params;
-  const { users: selectedUserIds } = await req.json();
-
   try {
+    const auth = await authorize(req, "users", "update");
+    if (!auth.ok) {
+      return NextResponse.json(
+        { error: auth.message },
+        { status: auth.status }
+      );
+    }
+
+    const { slug } = await context.params;
+    const { users: selectedUserIds } = await req.json();
+
+    if (!Array.isArray(selectedUserIds)) {
+      return NextResponse.json(
+        { error: "Field 'users' must be an array of user IDs." },
+        { status: 400 }
+      );
+    }
+
+    const numericUserIds = selectedUserIds
+      .map((id) => Number(id))
+      .filter((id): id is number => Number.isInteger(id));
+
     // 1. Get the role
     const role = await prisma.role.findUnique({
       where: { slug },
@@ -29,24 +49,26 @@ export async function PATCH(
     const existingIds = existingAssignedUsers.map((u) => u.id);
 
     // 3. Users to REMOVE (those who had this role but not selected now)
-    const removeIds = existingIds.filter((id) => !selectedUserIds.includes(id));
+    const removeIds = existingIds.filter((id) => !numericUserIds.includes(id));
 
     // 4. Users to ADD (selected but not previously assigned)
-    const addIds = selectedUserIds.filter(
-      (id: number) => !existingIds.includes(id)
-    );
+    const addIds = numericUserIds.filter((id: number) => !existingIds.includes(id));
 
     // 5. UPDATE DB (remove role)
-    await prisma.user.updateMany({
-      where: { id: { in: removeIds } },
-      data: { roleId: null },
-    });
+    if (removeIds.length) {
+      await prisma.user.updateMany({
+        where: { id: { in: removeIds } },
+        data: { roleId: null },
+      });
+    }
 
     // 6. UPDATE DB (assign role)
-    await prisma.user.updateMany({
-      where: { id: { in: addIds } },
-      data: { roleId: role.id },
-    });
+    if (addIds.length) {
+      await prisma.user.updateMany({
+        where: { id: { in: addIds } },
+        data: { roleId: role.id },
+      });
+    }
 
     return NextResponse.json({ message: "Role assignment updated" });
   } catch (error) {

@@ -94,10 +94,12 @@ export async function GET(req: Request) {
       count: data.length,
       data,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("LIST FOLDER ERROR:", error);
     return NextResponse.json(
-      { error: error.message || "Something went wrong" },
+      {
+        error: error instanceof Error ? error.message : "Something went wrong",
+      },
       { status: 500 }
     );
   }

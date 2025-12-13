@@ -269,8 +269,11 @@ export function ThemeCustomizer() {
     applyThemeColors(finalConfig, isDark)
 
     // Apply menu state
-    if (typeof window !== "undefined" && (window as any).setMenuStateFromCustomizer) {
-      ;(window as any).setMenuStateFromCustomizer(finalConfig.menuState)
+    if (typeof window !== "undefined") {
+      const customWindow = window as Window & {
+        setMenuStateFromCustomizer?: (state: ThemeConfig["menuState"]) => void
+      }
+      customWindow.setMenuStateFromCustomizer?.(finalConfig.menuState)
     }
   }, [mounted, theme, applyThemeColors])
 
@@ -282,8 +285,11 @@ export function ThemeCustomizer() {
     applyThemeColors(config, isDark)
 
     // Apply menu state
-    if (typeof window !== "undefined" && (window as any).setMenuStateFromCustomizer) {
-      ;(window as any).setMenuStateFromCustomizer(config.menuState)
+    if (typeof window !== "undefined") {
+      const customWindow = window as Window & {
+        setMenuStateFromCustomizer?: (state: ThemeConfig["menuState"]) => void
+      }
+      customWindow.setMenuStateFromCustomizer?.(config.menuState)
     }
   }, [config, mounted, applyThemeColors])
 
@@ -342,14 +348,16 @@ export function ThemeCustomizer() {
     alert("Theme configuration reset to default!")
   }
 
-  const updateConfig = (path: string, value: any) => {
+  const updateConfig = (path: string, value: string | number | boolean) => {
     setConfig((prev) => {
-      const newConfig = JSON.parse(JSON.stringify(prev))
+      const newConfig: ThemeConfig = JSON.parse(JSON.stringify(prev))
       const keys = path.split(".")
-      let current: any = newConfig
+      let current: Record<string, unknown> = newConfig as unknown as Record<string, unknown>
 
       for (let i = 0; i < keys.length - 1; i++) {
-        current = current[keys[i]]
+        const next = current[keys[i]]
+        if (typeof next !== "object" || next === null) break
+        current = next as Record<string, unknown>
       }
       current[keys[keys.length - 1]] = value
 

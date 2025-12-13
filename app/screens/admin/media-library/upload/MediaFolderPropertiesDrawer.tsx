@@ -30,10 +30,10 @@ export default function MediaFolderPropertiesDrawer({
             <strong>Slug:</strong> {folder.slug}
           </p>
           <p>
-            <strong>Created:</strong> {folder.createdAt}
+            <strong>Created:</strong> {folder.createdAt ?? "N/A"}
           </p>
           <p>
-            <strong>Updated:</strong> {folder.updatedAt}
+            <strong>Updated:</strong> {folder.updatedAt ?? "N/A"}
           </p>
 
           <p>

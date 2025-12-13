@@ -2,13 +2,42 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/connection";
 import { authorize, getAuthUser } from "@/lib/authorized";
-import { randomUUID } from "crypto";
+import { randomUUID, randomBytes } from "crypto";
 import * as fs from "fs/promises";
 import path from "path";
 import sharp from "sharp";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+// ---------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------
+function generateAccessKeyId() {
+  return "AKIA-" + randomBytes(8).toString("hex").toUpperCase();
+}
+
+function generateSecretAccessKey() {
+  return randomBytes(32).toString("base64");
+}
+
+function getStorageRoot() {
+  if (process.env.STORAGE_ROOT) return process.env.STORAGE_ROOT;
+
+  if (process.platform === "darwin") {
+    return path.join(process.cwd(), "storage");
+  }
+
+  if (process.platform === "linux") {
+    return "/mnt/storage";
+  }
+
+  if (process.platform === "win32") {
+    return path.join(process.cwd(), "storage");
+  }
+
+  return path.join(process.cwd(), "storage");
+}
 
 // ===============================================================
 // Detect file type
@@ -64,7 +93,7 @@ export async function POST(req: NextRequest) {
     // ===============================================================
     // 3. STORAGE ROOT (WINDOWS or LINUX)
     // ===============================================================
-    const STORAGE_ROOT = process.env.STORAGE_ROOT || "/mnt/storage";
+    const STORAGE_ROOT = getStorageRoot();
 
     // ===============================================================
     // 4. RESOLVE OR CREATE BUCKET
@@ -73,10 +102,25 @@ export async function POST(req: NextRequest) {
       where: { name: bucketName },
     });
 
+    if (bucket && bucket.isAvailable !== "AVAILABLE") {
+      return NextResponse.json(
+        { status: "error", message: "Bucket is not available for uploads." },
+        { status: 403 }
+      );
+    }
+
     if (!bucket) {
+      const accessKeyName = `${bucketName}-key`;
+      const accessKeyId = generateAccessKeyId();
+      const secretAccessKey = generateSecretAccessKey();
+
       bucket = await prisma.bucket.create({
         data: {
           name: bucketName,
+          accessKeyName,
+          accessKeyId,
+          secretAccessKey,
+          permission: "FULL_ACCESS",
           createdById: user.id,
         },
       });
@@ -221,10 +265,14 @@ export async function POST(req: NextRequest) {
       },
       { status: 201 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("❌ Upload Error:", error);
     return NextResponse.json(
-      { status: "error", message: "Upload failed", details: error.message },
+      {
+        status: "error",
+        message: "Upload failed",
+        details: error instanceof Error ? error.message : "Unknown error",
+      },
       { status: 500 }
     );
   }

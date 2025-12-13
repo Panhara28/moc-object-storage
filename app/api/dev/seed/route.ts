@@ -14,8 +14,33 @@ function generateSecretAccessKey() {
   return crypto.randomBytes(32).toString("base64");
 }
 
-export async function POST() {
+export async function POST(req: Request) {
   try {
+    // Protect the destructive seed endpoint
+    if (process.env.NODE_ENV === "production") {
+      return NextResponse.json(
+        { error: "Seeding is disabled in production." },
+        { status: 403 }
+      );
+    }
+
+    const seedSecret = process.env.SEED_SECRET;
+    const providedSecret = req.headers.get("x-seed-secret");
+
+    if (!seedSecret) {
+      return NextResponse.json(
+        { error: "Seed secret is not configured." },
+        { status: 500 }
+      );
+    }
+
+    if (providedSecret !== seedSecret) {
+      return NextResponse.json(
+        { error: "Unauthorized seed request." },
+        { status: 401 }
+      );
+    }
+
     console.log("⏳ RESETTING + SEEDING FULL SYSTEM...");
 
     /* ========================================================================
@@ -195,10 +220,13 @@ export async function POST() {
       defaultBucketKeyId: defaultBucket.accessKeyId,
       defaultFolder: defaultFolder.name,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("❌ Seed error:", error);
     return NextResponse.json(
-      { error: "Failed to run seed script", details: error.message },
+      {
+        error: "Failed to run seed script",
+        details: error instanceof Error ? error.message : "Unknown error",
+      },
       { status: 500 }
     );
   }

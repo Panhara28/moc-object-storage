@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/connection";
 import { NextResponse } from "next/server";
 import { authorize } from "@/lib/authorized";
+import { Prisma } from "@/lib/generated/prisma";
 
 /**
  * @swagger
@@ -71,7 +72,7 @@ export async function GET(req: Request) {
 
     const skip = (page - 1) * limit;
 
-    const where: any = {};
+    const where: Prisma.UserWhereInput = {};
 
     const orFilters = [];
     if (search) {
@@ -121,13 +122,13 @@ export async function GET(req: Request) {
         createdAt: u.createdAt,
       })),
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("❌ Failed to fetch users:", error);
     return NextResponse.json(
       {
         status: "error",
         message: "Failed to fetch users",
-        details: error.message,
+        details: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 }
     );

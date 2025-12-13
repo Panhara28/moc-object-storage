@@ -4,7 +4,13 @@ import { useState } from "react";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 
-export default function AdminEditRoleScreen({ role }: { role: any }) {
+type RoleData = {
+  slug: string;
+  name: string;
+  description?: string | null;
+};
+
+export default function AdminEditRoleScreen({ role }: { role: RoleData }) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -40,7 +46,7 @@ export default function AdminEditRoleScreen({ role }: { role: any }) {
         description: json.message || "Role updated successfully.",
         variant: "success",
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: "Error",
         description: "Failed to update role.",

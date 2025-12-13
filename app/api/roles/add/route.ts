@@ -53,12 +53,12 @@ export async function POST(req: Request) {
       message: "Role created successfully.",
       role,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
       {
         error:
           "An unexpected error occurred while creating the role. Please try again later.",
-        details: error.message,
+        details: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 }
     );

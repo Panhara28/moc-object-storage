@@ -14,7 +14,7 @@ function generateSecretAccessKey() {
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { slug: string } }
+  { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
     const { slug } = await params;
@@ -46,10 +46,13 @@ export async function PATCH(
         secretAccessKey: newSecretAccessKey, // show ONLY once
       },
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Regenerate Key Error:", err);
     return NextResponse.json(
-      { status: "error", message: err.message },
+      {
+        status: "error",
+        message: err instanceof Error ? err.message : "Failed to regenerate access key",
+      },
       { status: 500 }
     );
   }

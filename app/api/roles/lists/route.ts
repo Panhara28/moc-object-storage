@@ -1,6 +1,7 @@
 import { authorize } from "@/lib/authorized";
 import { prisma } from "@/lib/connection";
 import { NextResponse } from "next/server";
+import { Prisma } from "@/lib/generated/prisma";
 
 export async function GET(req: Request) {
   try {
@@ -30,12 +31,11 @@ export async function GET(req: Request) {
     // --------------------------------------------------------------------------
     // 3. WHERE CLAUSE
     // --------------------------------------------------------------------------
-    const where: any = {};
+    const where: Prisma.RoleWhereInput = {};
 
     if (search) {
       where.name = {
         contains: search,
-        mode: "insensitive",
       };
     }
 
@@ -109,14 +109,14 @@ export async function GET(req: Request) {
         })),
       })),
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("❌ Failed to fetch roles:", error);
 
     return NextResponse.json(
       {
         status: "error",
         message: "Failed to fetch roles",
-        details: error.message,
+        details: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 }
     );

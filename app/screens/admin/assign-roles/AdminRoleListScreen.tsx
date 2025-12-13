@@ -16,10 +16,12 @@ interface RoleFilter {
   search: string;
 }
 
-interface RoleRow {
+interface RoleRow extends Record<string, unknown> {
   id: number;
+  slug: string;
   name: string;
-  description: string;
+  description: string | null;
+  users?: { id?: number; fullNameEn?: string | null; profilePicture?: string | null; slug?: string }[];
 }
 
 interface RolesAPIResponse {

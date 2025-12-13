@@ -5,7 +5,7 @@ import { authorize } from "@/lib/authorized";
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { slug: string } }
+  { params }: { params: Promise<{ slug: string }> }
 ) {
   const { slug } = await params;
 
@@ -51,10 +51,13 @@ export async function PATCH(
       message: "Bucket renamed successfully",
       bucket: updatedBucket,
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Rename Bucket Error:", err);
     return NextResponse.json(
-      { status: "error", message: err.message },
+      {
+        status: "error",
+        message: err instanceof Error ? err.message : "Failed to rename bucket",
+      },
       { status: 500 }
     );
   }

@@ -36,7 +36,7 @@ interface PermissionItem {
 }
 
 interface AdminAssignPermissionDialogProps {
-  row?: Record<string, any>;
+  row?: { slug: string; name: string };
   onSuccess?: () => void;
 }
 
@@ -57,10 +57,11 @@ export default function AdminAssignPermissionDialog({
   ------------------------------------------------------------ */
   useEffect(() => {
     if (!row?.slug) return;
+    const { slug } = row;
 
     async function loadPermissions() {
       try {
-        const res = await fetch(`/api/roles/permissions/${row.slug}`);
+        const res = await fetch(`/api/roles/permissions/${slug}`);
         const json = await res.json();
 
         setPermissions(json.permissions || []);
@@ -90,10 +91,11 @@ export default function AdminAssignPermissionDialog({
      SAVE TO API WITH TOAST SUCCESS
   ------------------------------------------------------------ */
   const handleSave = async () => {
+    if (!row?.slug) return;
     setLoading(true);
 
     try {
-      const res = await fetch(`/api/roles/permissions/update/${row?.slug}`, {
+      const res = await fetch(`/api/roles/permissions/update/${row.slug}`, {
         method: "PATCH",
         body: JSON.stringify({ permissions }),
         headers: { "Content-Type": "application/json" },
@@ -130,11 +132,13 @@ export default function AdminAssignPermissionDialog({
   /* ------------------------------------------------------------
      UI
   ------------------------------------------------------------ */
+  if (!row) return null;
+
   return (
     <DialogContent className="max-w-5xl bg-white dark:bg-gray-900 p-8 rounded-xl shadow-xl">
       <DialogHeader>
         <DialogTitle className="text-2xl font-semibold">
-          Assign Permissions For ({row!.name})
+          Assign Permissions For ({row.name})
         </DialogTitle>
       </DialogHeader>
 

@@ -1,11 +1,11 @@
 /* eslint-disable */
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/connection";
 import { getAuthUser } from "@/lib/authorized";
 
 export async function POST(
-  req: Request,
-  context: { params: { slug: string } }
+  req: NextRequest,
+  context: { params: Promise<{ slug: string }> }
 ) {
   try {
     const user = await getAuthUser(req);
@@ -27,25 +27,38 @@ export async function POST(
       );
     }
 
+    const numericParentId =
+      parentId === null || parentId === undefined ? null : Number(parentId);
+
+    if (numericParentId !== null && Number.isNaN(numericParentId)) {
+      return NextResponse.json(
+        { error: "parentId must be a number when provided." },
+        { status: 400 }
+      );
+    }
+
     const folderName = name.trim();
 
     // -----------------------------------------------------
     // ✔ 1. Verify bucket exists (by slug)
     // -----------------------------------------------------
     const bucket = await prisma.bucket.findUnique({
-      where: { slug },
+      where: { slug, isAvailable: "AVAILABLE" },
     });
 
     if (!bucket) {
-      return NextResponse.json({ error: "Bucket not found." }, { status: 404 });
+      return NextResponse.json(
+        { error: "Bucket not found or unavailable." },
+        { status: 404 }
+      );
     }
 
     // -----------------------------------------------------
     // ✔ 2. Validate parent folder (must belong to same bucket)
     // -----------------------------------------------------
-    if (parentId !== null) {
+    if (numericParentId !== null) {
       const parent = await prisma.space.findUnique({
-        where: { id: parentId },
+        where: { id: numericParentId },
       });
 
       if (!parent) {
@@ -69,7 +82,7 @@ export async function POST(
     const newFolder = await prisma.space.create({
       data: {
         name: folderName,
-        parentId,
+        parentId: numericParentId,
         bucketId: bucket.id, // ⭐ IMPORTANT
         userId: user.id,
         isAvailable: "AVAILABLE",
@@ -83,11 +96,13 @@ export async function POST(
       message: "Folder created successfully.",
       data: newFolder,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Folder creation error:", error);
 
     return NextResponse.json(
-      { error: error.message || "Failed to create folder" },
+      {
+        error: error instanceof Error ? error.message : "Failed to create folder",
+      },
       { status: 500 }
     );
   }

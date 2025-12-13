@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { UserInformationForm } from "./UserInformationForm";
 import { SecuritySettingsForm } from "./SecuritySettingsForm";
 import { userCreateSchema } from "./userValidation";
+import { ValidationError } from "yup";
 
 export default function AdminUserAddScreen() {
   const { toast } = useToast();
@@ -84,11 +85,18 @@ export default function AdminUserAddScreen() {
         description: json.message || "User created successfully!",
         variant: "success",
       });
-    } catch (err: any) {
-      if (err.inner) {
+    } catch (err: unknown) {
+      if (err instanceof ValidationError && err.inner) {
         const formatted: Record<string, string> = {};
-        err.inner.forEach((e: any) => (formatted[e.path] = e.message));
+        err.inner.forEach((e) => {
+          if (e.path) formatted[e.path] = e.message;
+        });
         setErrors(formatted);
+        toast({
+          title: "Validation Error",
+          description: "Please correct the highlighted fields.",
+          variant: "destructive",
+        });
       } else {
         toast({
           title: "Error",

@@ -1,9 +1,9 @@
 import { authorize } from "@/lib/authorized";
 import { prisma } from "@/lib/connection";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 export async function PATCH(
-  req: Request,
+  req: NextRequest,
   context: { params: Promise<{ slug: string }> }
 ) {
   try {
@@ -58,11 +58,11 @@ export async function PATCH(
       message: "Role updated successfully.",
       role: updated,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
       {
         error: "An unexpected error occurred while updating the role.",
-        details: error.message,
+        details: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 }
     );

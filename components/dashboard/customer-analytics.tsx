@@ -1,6 +1,6 @@
 "use client"
 import { Doughnut } from "react-chartjs-2"
-import { Chart as ChartJS, ArcElement, Tooltip, Legend } from "chart.js"
+import { Chart as ChartJS, ArcElement, Tooltip, Legend, type TooltipItem } from "chart.js"
 
 ChartJS.register(ArcElement, Tooltip, Legend)
 
@@ -46,7 +46,7 @@ const chartOptions = {
     },
     tooltip: {
       callbacks: {
-        label: (context: any) => `${context.label}: ${context.parsed}%`,
+        label: (context: TooltipItem<"doughnut">) => `${context.label}: ${context.parsed}%`,
       },
     },
   },

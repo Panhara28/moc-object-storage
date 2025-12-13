@@ -8,7 +8,10 @@ export async function GET(req: Request) {
     return NextResponse.json({ user: null }, { status: 401 });
   }
 
-  const permissions: any = {};
+  const permissions: Record<
+    string,
+    { create: boolean; read: boolean; update: boolean; delete: boolean }
+  > = {};
 
   // ⭐ Safe optional chain
   user.role?.permissions?.forEach((p) => {

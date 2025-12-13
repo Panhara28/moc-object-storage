@@ -1,9 +1,9 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/connection";
 
 export async function GET(
-  req: Request,
-  context: { params: { slug: string } } // ❌ remove Promise
+  req: NextRequest,
+  context: { params: Promise<{ slug: string }> } // ❌ remove Promise
 ) {
   try {
     const { slug } = await context.params;
@@ -33,10 +33,13 @@ export async function GET(
       status: "ok",
       data: folder,
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("GET /spaces/folders/[slug] error:", err);
     return NextResponse.json(
-      { error: "Server error", details: err.message },
+      {
+        error: "Server error",
+        details: err instanceof Error ? err.message : "Unknown error",
+      },
       { status: 500 }
     );
   }

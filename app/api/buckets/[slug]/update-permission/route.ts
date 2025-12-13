@@ -5,7 +5,7 @@ import { authorize } from "@/lib/authorized";
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { slug: string } }
+  { params }: { params: Promise<{ slug: string }> }
 ) {
   const { slug } = await params;
 
@@ -37,10 +37,13 @@ export async function PATCH(
       message: "Permission updated successfully",
       bucket,
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Update Permission Error:", err);
     return NextResponse.json(
-      { status: "error", message: err.message },
+      {
+        status: "error",
+        message: err instanceof Error ? err.message : "Failed to update permission",
+      },
       { status: 500 }
     );
   }

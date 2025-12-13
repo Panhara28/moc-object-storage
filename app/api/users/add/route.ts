@@ -65,11 +65,11 @@ export async function POST(req: Request) {
       { status: 200 }
     );
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
       {
         error: "An unexpected error occurred while creating the user.",
-        details: error.message,
+        details: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 }
     );

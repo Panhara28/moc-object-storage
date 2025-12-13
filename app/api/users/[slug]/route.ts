@@ -1,10 +1,10 @@
 import { prisma } from "@/lib/connection";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { authorize } from "@/lib/authorized";
 
 export async function GET(
-  req: Request,
-  context: { params: { slug: string } } // ❌ remove Promise
+  req: NextRequest,
+  context: { params: Promise<{ slug: string }> }
 ) {
   try {
     const { slug } = await context.params;
@@ -62,14 +62,14 @@ export async function GET(
       },
       { status: 200 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("❌ USER DETAIL ERROR:", error);
 
     return NextResponse.json(
       {
         ok: false,
         message: "Failed to fetch user details.",
-        error: error.message,
+        error: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 }
     );

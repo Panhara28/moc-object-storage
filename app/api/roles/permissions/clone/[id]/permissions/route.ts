@@ -1,6 +1,6 @@
 import { authorize } from "@/lib/authorized";
 import { prisma } from "@/lib/connection";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 /* -------------------------------------------
    TYPES
@@ -14,7 +14,7 @@ interface RouteParams {
 }
 
 export async function POST(
-  req: Request,
+  req: NextRequest,
   context: { params: Promise<RouteParams> } // ✔ ESLint-safe
 ) {
   try {

@@ -76,11 +76,11 @@ export async function POST(req: Request) {
       permissionModule,
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
       {
         error: "Failed to create permission module",
-        details: error.message,
+        details: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 }
     );

@@ -15,6 +15,8 @@ export interface MediaItem {
   slug?: string;
   type: MediaType;
   parentId?: number | null;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export type MediaViewDrawerProps = {

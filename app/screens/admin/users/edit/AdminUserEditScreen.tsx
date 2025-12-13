@@ -5,8 +5,21 @@ import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import { userUpdateInfovalidation } from "../add/userValidation";
 import { UserInformationForm } from "../add/UserInformationForm";
+import { ValidationError } from "yup";
 
-export default function AdminUserEditScreen({ user }: { user: any }) {
+type EditableUser = {
+  slug: string;
+  fullNameEn?: string | null;
+  fullNameKh?: string | null;
+  gender?: string | null;
+  generalDepartment?: string | null;
+  department?: string | null;
+  office?: string | null;
+  phoneNumber?: string | null;
+  currentRole?: string | null;
+};
+
+export default function AdminUserEditScreen({ user }: { user: EditableUser }) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -54,11 +67,18 @@ export default function AdminUserEditScreen({ user }: { user: any }) {
         description: json.message || "User updated successfully",
         variant: "success",
       });
-    } catch (err: any) {
-      if (err.inner) {
+    } catch (err: unknown) {
+      if (err instanceof ValidationError && err.inner) {
         const formatted: Record<string, string> = {};
-        err.inner.forEach((e: any) => (formatted[e.path] = e.message));
+        err.inner.forEach((e) => {
+          if (e.path) formatted[e.path] = e.message;
+        });
         setErrors(formatted);
+        toast({
+          title: "Validation Error",
+          description: "Please correct the highlighted fields.",
+          variant: "destructive",
+        });
       } else {
         toast({
           title: "Error",

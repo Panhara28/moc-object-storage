@@ -146,13 +146,13 @@ export async function POST(req: NextRequest) {
       },
       { status: 201 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("❌ Bucket Create Error:", error);
     return NextResponse.json(
       {
         status: "error",
         message: "Failed to create bucket",
-        details: error.message,
+        details: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 }
     );

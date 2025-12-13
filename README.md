@@ -1,36 +1,76 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+## API Reference
 
-## Getting Started
+All endpoints live under `/api`. Authentication uses the `session` cookie from `/api/auth/login`. Authorization is module-based (`media-library`, `roles`, `users`, `permissions`, etc.).
 
-First, run the development server:
+### Auth
+- `POST /api/auth/login` — email/password login.
+- `POST /api/auth/logout` — clear session.
+- `GET /api/auth/me` — current user + permissions.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+### Buckets (storage)
+- `POST /api/buckets/add` — create bucket (generates access keys).
+- `GET /api/buckets/lists` — list buckets with counts.
+- `GET /api/buckets/[slug]` — bucket detail + media listing with filters.
+- `GET /api/buckets/[slug]/media` — paginated media list (filters: `search`, `type`, `path`, `dateFrom`, `dateTo`).
+- `GET /api/buckets/[slug]/folder` — list folders (optional `parentSlug`).
+- `POST /api/buckets/[slug]/create-folder` — create folder in bucket.
+- `PATCH /api/buckets/[slug]/rename` — rename bucket.
+- `PATCH /api/buckets/[slug]/delete` — soft-delete bucket (`isAvailable = REMOVE`).
+- `PATCH /api/buckets/[slug]/update-permission` — change bucket permission enum.
+- `PATCH /api/buckets/[slug]/regenerate-access-key` — rotate access keys.
+- `POST /api/buckets/[slug]/upload` — form-data upload.
+- `POST /api/buckets/[slug]/signed-url` — generate signed download/upload URLs.
+- `GET /api/buckets/[slug]/download?token=...` — signed download.
+- `POST /api/buckets/[slug]/upload-signed?token=...` — signed upload (form-data `file`).
+- `PATCH /api/buckets/[slug]/archive` — mark unavailable (block uploads).
+- `PATCH /api/buckets/[slug]/restore` — make available again.
+- `POST /api/buckets/[slug]/cleanup` — delete all media/spaces in bucket (body `{confirm:true,bucketSlug:"..."}`).
+- `GET /api/buckets/[slug]/stats` — media count, total bytes, last upload.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Media
+- `GET /api/media/lists` — paginated media (filters: `search`, `type`, `path`, `dateFrom`, `dateTo`).
+- `POST /api/media/move` — move media to another bucket/path. Body: `{mediaSlug,targetBucketSlug?,targetPath?}`.
+- `POST /api/media/copy` — copy media to another bucket/path. Body: `{mediaSlug,targetBucketSlug?,targetPath?}`.
+- `POST /api/multiple-upload/upload` — multi-file upload (form-data `files[]`, `bucket`, `folderSlug` optional).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Spaces / Folders
+- `GET /api/spaces/folders/lists` — list folders/files under parent (`parentSlug` optional).
+- `POST /api/spaces/folders/add` — create folder (`name`, `bucketId`, optional `parentId`).
+- `POST /api/spaces/folders/delete` — soft-delete folder (`folderId`).
+- `POST /api/spaces/folders/rename` — rename folder (`folderId`, `name`).
+- `POST /api/spaces/folders/move` — move folder (`folderId`, `newParentId`).
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Roles & Permissions
+- `GET /api/roles/lists` — list roles with permissions/users.
+- `POST /api/roles/add` — create role (adds default permissions).
+- `PATCH /api/roles/update/[slug]` — update role name/description.
+- `GET /api/roles/[slug]` — role detail.
+- `GET /api/roles/permissions/[slug]` — permissions for role.
+- `PATCH /api/roles/permissions/update/[slug]` — update permissions for role.
+- `POST /api/roles/permissions/clone/[id]/permissions` — clone permissions from another role.
+- `GET /api/assign-role/lists/[slug]` — users assigned to a role.
+- `PATCH /api/assign-role/update/[slug]` — assign users to a role (array of user IDs).
 
-## Learn More
+### Users
+- `GET /api/users/lists` — paginated users (filters: `search`, `role`, `status`).
+- `POST /api/users/add` — create user.
+- `GET /api/users/[slug]` — user detail.
+- `PATCH /api/users/update/[slug]` — update user profile fields.
+- `PATCH /api/users/status/[slug]` — enable/disable user.
+- `PATCH /api/users/reset-password/[slug]/reset` — reset password.
+- `PATCH /api/users/assign-role/[slug]/role` — set a user’s role.
 
-To learn more about Next.js, take a look at the following resources:
+### Permissions Modules
+- `GET /api/permissions/lists` — list permission modules.
+- `POST /api/permissions/add` — add permission module (auto-creates role_permission entries).
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Dev/Seed
+- `POST /api/dev/seed` — full reset + seed (blocked in production; requires `SEED_SECRET` header).
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Environment
+- `JWT_SECRET`, `SIGNING_SECRET` required for auth/signed URLs.
+- `STORAGE_ROOT` (optional) storage base dir. Defaults to `./storage` on mac/win, `/mnt/storage` on linux.
+- Production login cookie is `secure` when `NODE_ENV=production`.
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Testing
+Run `npm run build` for type checks. Use `curl`/Postman against endpoints above; most routes require the session cookie set by `/api/auth/login` and correct module permissions.

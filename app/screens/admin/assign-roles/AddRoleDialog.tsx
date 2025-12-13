@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import * as Yup from "yup";
+import { ValidationError } from "yup";
 
 import {
   Dialog,
@@ -47,7 +48,7 @@ export function AddRoleDialog({
     description: "",
   });
 
-  const [errors, setErrors] = useState({
+  const [errors, setErrors] = useState<Record<string, string>>({
     name: "",
   });
 
@@ -61,15 +62,18 @@ export function AddRoleDialog({
 
     try {
       await RoleSchema.validate(form, { abortEarly: false });
-    } catch (validationErr: any) {
-      const newErrors: any = {};
-      validationErr.inner.forEach((err: any) => {
-        if (err.path && !newErrors[err.path]) {
-          newErrors[err.path] = err.message;
-        }
-      });
-      setErrors(newErrors);
-      return;
+    } catch (validationErr: unknown) {
+      if (validationErr instanceof ValidationError && validationErr.inner) {
+        const newErrors: Record<string, string> = {};
+        validationErr.inner.forEach((err) => {
+          if (err.path && !newErrors[err.path]) {
+            newErrors[err.path] = err.message;
+          }
+        });
+        setErrors(newErrors);
+        return;
+      }
+      throw validationErr;
     }
 
     setIsLoading(true);

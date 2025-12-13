@@ -24,11 +24,11 @@ export async function GET(req: Request) {
     });
 
     return NextResponse.json({ modules });
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
       {
         error: "An unexpected error occurred while fetching permission modules.",
-        details: error.message,
+        details: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 }
     );

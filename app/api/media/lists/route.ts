@@ -1,35 +1,77 @@
 /* eslint-disable */
 import { prisma } from "@/lib/connection";
+import { authorize } from "@/lib/authorized";
 import { NextResponse } from "next/server";
+import { Prisma, MediaType } from "@/lib/generated/prisma";
 
 export async function GET(req: Request) {
   try {
+    // ------------------------------------------------------------
+    // 0. AUTHORIZATION
+    // ------------------------------------------------------------
+    const auth = await authorize(req, "media-library", "read");
+    if (!auth.ok) {
+      return NextResponse.json(
+        { status: "error", message: auth.message },
+        { status: auth.status }
+      );
+    }
+
     // ------------------------------------------------------------
     // 1. QUERY PARAMS
     // ------------------------------------------------------------
     const { searchParams } = new URL(req.url);
 
-    const page = Number(searchParams.get("page") || 1);
-    const limit = Number(searchParams.get("limit") || 20);
+    const page = Math.max(1, Number(searchParams.get("page") || 1));
+    const limit = Math.max(1, Number(searchParams.get("limit") || 20));
 
     const search = searchParams.get("search") || ""; // by name
     const type = searchParams.get("type") || ""; // image | video | document | ...
+    const pathFilter = searchParams.get("path") || "";
+    const dateFrom = searchParams.get("dateFrom");
+    const dateTo = searchParams.get("dateTo");
 
     const skip = (page - 1) * limit;
 
     // ------------------------------------------------------------
     // 2. BUILD WHERE CLAUSE
     // ------------------------------------------------------------
-    const where: any = {};
+    const where: Prisma.MediaWhereInput = {};
 
-    // search by media name
+    // search by media filename
     if (search) {
-      where.name = { contains: search, mode: "insensitive" };
+      where.filename = { contains: search };
     }
 
     // filter by type
     if (type && type !== "all") {
-      where.type = type;
+      const mediaType = Object.values(MediaType).includes(type as MediaType)
+        ? (type as MediaType)
+        : undefined;
+      if (mediaType) {
+        where.fileType = mediaType;
+      }
+    }
+
+    if (pathFilter) {
+      where.path = { contains: pathFilter };
+    }
+
+    if (dateFrom || dateTo) {
+      const gte = dateFrom ? new Date(dateFrom) : undefined;
+      const lte = dateTo ? new Date(dateTo) : undefined;
+
+      if ((gte && isNaN(gte.getTime())) || (lte && isNaN(lte.getTime()))) {
+        return NextResponse.json(
+          { status: "error", message: "Invalid date range." },
+          { status: 400 }
+        );
+      }
+
+      where.createdAt = {
+        ...(gte ? { gte } : {}),
+        ...(lte ? { lte } : {}),
+      };
     }
 
     // ------------------------------------------------------------
@@ -61,16 +103,17 @@ export async function GET(req: Request) {
         url: m.url,
         size: m.size,
         createdAt: m.createdAt,
+        path: m.path,
       })),
     });
-  } catch (e: any) {
+  } catch (e: unknown) {
     console.error("❌ Failed to fetch media:", e);
 
     return NextResponse.json(
       {
         status: "error",
         message: "Failed to fetch media items",
-        details: e.message,
+        details: e instanceof Error ? e.message : "Unknown error",
       },
       { status: 500 }
     );

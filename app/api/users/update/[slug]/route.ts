@@ -1,17 +1,29 @@
-// /api/news/update/[slug]/route.ts
 import { prisma } from "@/lib/connection";
-import { NextResponse } from "next/server";
-import { authorize, getAuthUser } from "@/lib/authorized";
+import { NextRequest, NextResponse } from "next/server";
+import { authorize } from "@/lib/authorized";
+import { Prisma, Gender } from "@/lib/generated/prisma";
+
+type UpdateUserPayload = Partial<{
+  name: string;
+  email: string;
+  profilePicture: string | null;
+  fullNameKh: string | null;
+  fullNameEn: string | null;
+  gender: string | null;
+  generalDepartment: string | null;
+  department: string | null;
+  office: string | null;
+  phoneNumber: string | null;
+  currentRole: string | null;
+}>;
 
 export async function PATCH(
-  req: Request,
+  req: NextRequest,
   context: { params: Promise<{ slug: string }> }
 ) {
   try {
-    // --------------------------------------------------------------------------
-    // 1. AUTHORIZATION
-    // --------------------------------------------------------------------------
-    const auth = await authorize(req, "news", "update");
+    // 1) AUTHORIZATION
+    const auth = await authorize(req, "users", "update");
     if (!auth.ok) {
       return NextResponse.json(
         { error: auth.message },
@@ -19,113 +31,152 @@ export async function PATCH(
       );
     }
 
-    // --------------------------------------------------------------------------
-    // 2. GET SLUG
-    // --------------------------------------------------------------------------
+    // 2) SLUG
     const { slug } = await context.params;
-
     if (!slug) {
       return NextResponse.json(
-        { error: "Missing news slug." },
+        { error: "Missing user slug." },
         { status: 400 }
       );
     }
 
-    // --------------------------------------------------------------------------
-    // 3. FETCH PAYLOAD
-    // --------------------------------------------------------------------------
-    const data = await req.json();
+    // 3) PAYLOAD
+    const data: UpdateUserPayload = await req.json();
+    const updateData: Prisma.UserUpdateInput = {};
 
-    // --------------------------------------------------------------------------
-    // 4. Check category exists (if provided)
-    // --------------------------------------------------------------------------
-    if (data.new_category_id) {
-      const exists = await prisma.category.findUnique({
-        where: { id: data.new_category_id },
-      });
-
-      if (!exists) {
+    // Required string fields (when provided)
+    if ("name" in data) {
+      if (typeof data.name !== "string" || !data.name.trim()) {
         return NextResponse.json(
-          {
-            error: "Invalid category. Category does not exist.",
-          },
+          { error: "Name must be a non-empty string." },
+          { status: 400 }
+        );
+      }
+      updateData.name = data.name.trim();
+    }
+
+    let newEmail: string | undefined;
+    if ("email" in data) {
+      if (typeof data.email !== "string" || !data.email.trim()) {
+        return NextResponse.json(
+          { error: "Email must be a non-empty string." },
+          { status: 400 }
+        );
+      }
+      newEmail = data.email.trim();
+      updateData.email = newEmail;
+    }
+
+    if ("profilePicture" in data) {
+      if (typeof data.profilePicture !== "string") {
+        return NextResponse.json(
+          { error: "profilePicture must be a string." },
+          { status: 400 }
+        );
+      }
+      updateData.profilePicture = data.profilePicture;
+    }
+
+    if ("fullNameKh" in data) {
+      updateData.fullNameKh = data.fullNameKh ?? null;
+    }
+    if ("fullNameEn" in data) {
+      updateData.fullNameEn = data.fullNameEn ?? null;
+    }
+    if ("gender" in data) {
+      if (data.gender === null) {
+        updateData.gender = null;
+      } else if (typeof data.gender === "string") {
+        const normalizedGender = data.gender.toUpperCase();
+        if (Object.values(Gender).includes(normalizedGender as Gender)) {
+          updateData.gender = normalizedGender as Gender;
+        } else {
+          return NextResponse.json(
+            { error: "Invalid gender value." },
+            { status: 400 }
+          );
+        }
+      } else {
+        return NextResponse.json(
+          { error: "Gender must be a string or null." },
           { status: 400 }
         );
       }
     }
-
-    // --------------------------------------------------------------------------
-    // 5. Get authenticated user (for audit)
-    // --------------------------------------------------------------------------
-    const user = await getAuthUser(req);
-    if (!user) {
-      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    if ("generalDepartment" in data) {
+      updateData.generalDepartment = data.generalDepartment ?? null;
+    }
+    if ("department" in data) {
+      updateData.department = data.department ?? null;
+    }
+    if ("office" in data) {
+      updateData.office = data.office ?? null;
+    }
+    if ("phoneNumber" in data) {
+      updateData.phoneNumber = data.phoneNumber ?? null;
+    }
+    if ("currentRole" in data) {
+      updateData.currentRole = data.currentRole ?? null;
     }
 
-    // --------------------------------------------------------------------------
-    // 6. UPDATE NEWS
-    // --------------------------------------------------------------------------
-    const updated = await prisma.news.update({
+    if (Object.keys(updateData).length === 0) {
+      return NextResponse.json(
+        { error: "Nothing to update." },
+        { status: 400 }
+      );
+    }
+
+    // Enforce unique email on change
+    if (newEmail) {
+      const existingEmailUser = await prisma.user.findUnique({
+        where: { email: newEmail },
+        select: { slug: true },
+      });
+
+      if (existingEmailUser && existingEmailUser.slug !== slug) {
+        return NextResponse.json(
+          { error: "A user with this email already exists." },
+          { status: 409 }
+        );
+      }
+    }
+
+    // 4) UPDATE USER
+    const updated = await prisma.user.update({
       where: { slug },
-      data: {
-        // Core fields
-        title: data.title ?? undefined,
-        summary: data.summary ?? undefined,
-        description: data.description ?? undefined, // JSON
-        thumbnail: data.thumbnail ?? undefined,
-
-        // Relations
-        new_category_id: data.new_category_id ?? undefined,
-
-        // Status
-        status: data.status ?? undefined,
-        published_date: data.published_date ?? undefined,
-        published_datetime: data.published_datetime ?? undefined,
-
-        // Audit
-        updatedById: user.id,
-      },
+      data: updateData,
       select: {
         id: true,
         slug: true,
-        title: true,
-        summary: true,
-        description: true,
-        thumbnail: true,
-        status: true,
-
-        new_category_id: true,
-        category: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-
-        published_date: true,
-        published_datetime: true,
-        pageview: true,
-
-        updatedBy: {
-          select: { id: true, name: true },
-        },
-
-        createdAt: true,
+        email: true,
+        name: true,
+        profilePicture: true,
+        fullNameKh: true,
+        fullNameEn: true,
+        gender: true,
+        generalDepartment: true,
+        department: true,
+        office: true,
+        phoneNumber: true,
+        currentRole: true,
+        roleId: true,
+        isActive: true,
         updatedAt: true,
+        createdAt: true,
       },
     });
 
     return NextResponse.json({
       ok: true,
-      message: "News updated successfully.",
+      message: "User updated successfully.",
       data: updated,
     });
-  } catch (error: any) {
-    console.error("❌ NEWS UPDATE ERROR:", error);
+  } catch (error: unknown) {
+    console.error("❌ USER UPDATE ERROR:", error);
     return NextResponse.json(
       {
         error: "Unexpected server error.",
-        details: error.message,
+        details: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 }
     );

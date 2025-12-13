@@ -5,7 +5,7 @@ import { authorize } from "@/lib/authorized";
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { slug: string } }
+  { params }: { params: Promise<{ slug: string }> }
 ) {
   const { slug } = await params;
 
@@ -39,12 +39,12 @@ export async function PATCH(
       message: "Bucket removed successfully",
       bucket: updated,
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Bucket Delete Error:", err);
     return NextResponse.json(
       {
         status: "error",
-        message: err.message || "Failed to delete bucket",
+        message: err instanceof Error ? err.message : "Failed to delete bucket",
       },
       { status: 500 }
     );

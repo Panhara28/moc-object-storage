@@ -1,10 +1,13 @@
 /* eslint-disable */
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/connection";
 
-export async function GET(req: Request, context: { params: { slug: string } }) {
+export async function GET(
+  req: NextRequest,
+  context: { params: Promise<{ slug: string }> }
+) {
   try {
-    const { slug } = context.params;
+    const { slug } = await context.params;
     const { searchParams } = new URL(req.url);
 
     const parentSlug = searchParams.get("parentSlug") || null;
@@ -44,9 +47,12 @@ export async function GET(req: Request, context: { params: { slug: string } }) {
         createdAt: f.createdAt,
       })),
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
-      { status: "error", message: error.message },
+      {
+        status: "error",
+        message: error instanceof Error ? error.message : "Unknown error",
+      },
       { status: 500 }
     );
   }

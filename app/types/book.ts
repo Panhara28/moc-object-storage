@@ -3,7 +3,7 @@ import { SerializedEditorState } from "lexical";
 export interface BookFormData {
   title: string;
   author: string;
-  description: any | null;
+  description: SerializedEditorState | string | null;
   isbn: string;
   year: string;
   publisher: string;

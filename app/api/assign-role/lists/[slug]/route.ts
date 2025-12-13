@@ -1,11 +1,11 @@
 // /api/assign-role/lists/[slug]/route.ts
 
 import { prisma } from "@/lib/connection";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(
-  req: Request,
-  context: { params: { slug: string } } // ❌ remove Promise
+  req: NextRequest,
+  context: { params: Promise<{ slug: string }> }
 ) {
   const { slug } = await context.params;
 

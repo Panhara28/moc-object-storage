@@ -1,10 +1,10 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/connection";
 import { authorize } from "@/lib/authorized";
 
 export async function GET(
-  req: Request,
-  context: { params: { slug: string } } // ❌ remove Promise
+  req: NextRequest,
+  context: { params: Promise<{ slug: string }> }
 ) {
   try {
     const { slug } = await context.params;
@@ -33,10 +33,13 @@ export async function GET(
         createdAt: role.createdAt,
       },
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("❌ GET ROLE ERROR:", err);
     return NextResponse.json(
-      { error: "Failed to fetch role", details: err.message },
+      {
+        error: "Failed to fetch role",
+        details: err instanceof Error ? err.message : "Unknown error",
+      },
       { status: 500 }
     );
   }

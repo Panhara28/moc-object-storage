@@ -1,9 +1,9 @@
 import { authorize } from "@/lib/authorized";
 import { prisma } from "@/lib/connection";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(
-  req: Request,
+  req: NextRequest,
   context: { params: Promise<{ slug: string }> }
 ) {
   try {

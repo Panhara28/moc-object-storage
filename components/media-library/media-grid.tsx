@@ -123,9 +123,9 @@ export default function MediaGrid({
               >
                 <div className="relative w-full h-full rounded-md overflow-hidden bg-muted flex items-center justify-center">
                   {/* IMAGE */}
-                  {item.type === "IMAGE" && item.url && (
+                  {item.type === "IMAGE" && typeof item.url === "string" && (
                     <Image
-                      src={item.url}
+                      src={item.url as string}
                       alt={item.name}
                       fill
                       className="
