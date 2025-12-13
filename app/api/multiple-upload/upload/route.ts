@@ -1,0 +1,231 @@
+/* eslint-disable */
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/connection";
+import { authorize, getAuthUser } from "@/lib/authorized";
+import { randomUUID } from "crypto";
+import * as fs from "fs/promises";
+import path from "path";
+import sharp from "sharp";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+// ===============================================================
+// Detect file type
+// ===============================================================
+function detectMediaType(mime: string, extension: string) {
+  if (mime.startsWith("image")) return "IMAGE";
+  if (mime.startsWith("video")) return "VIDEO";
+  if (mime.startsWith("audio")) return "AUDIO";
+  if (extension.toLowerCase() === "pdf") return "PDF";
+
+  const docExt = ["doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt"];
+  if (docExt.includes(extension.toLowerCase())) return "DOCUMENT";
+
+  return "OTHER";
+}
+
+// ===============================================================
+// MAIN UPLOAD HANDLER
+// ===============================================================
+export async function POST(req: NextRequest) {
+  try {
+    // 1. AUTHORIZATION
+    const auth = await authorize(req, "media-library", "create");
+    if (!auth.ok) {
+      return NextResponse.json(
+        { status: "error", message: auth.message },
+        { status: auth.status }
+      );
+    }
+
+    const user = await getAuthUser(req);
+    if (!user) {
+      return NextResponse.json(
+        { status: "error", message: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    // 2. READ FORM DATA
+    const form = await req.formData();
+    const files = form.getAll("files") as File[];
+
+    const bucketName = (form.get("bucket") as string) || "uploads";
+    const folderSlug = form.get("folderSlug") as string | null;
+
+    if (!files || files.length === 0) {
+      return NextResponse.json(
+        { status: "error", message: "No files uploaded" },
+        { status: 400 }
+      );
+    }
+
+    // ===============================================================
+    // 3. STORAGE ROOT (WINDOWS or LINUX)
+    // ===============================================================
+    const STORAGE_ROOT = process.env.STORAGE_ROOT || "/mnt/storage";
+
+    // ===============================================================
+    // 4. RESOLVE OR CREATE BUCKET
+    // ===============================================================
+    let bucket = await prisma.bucket.findUnique({
+      where: { name: bucketName },
+    });
+
+    if (!bucket) {
+      bucket = await prisma.bucket.create({
+        data: {
+          name: bucketName,
+          createdById: user.id,
+        },
+      });
+    }
+
+    const bucketDir = path.join(STORAGE_ROOT, bucket.name);
+    await fs.mkdir(bucketDir, { recursive: true });
+
+    // ===============================================================
+    // 5. RESOLVE FOLDER (SPACE)
+    // ===============================================================
+    let space = null;
+    let folderPath = ""; // default no folder
+
+    if (folderSlug) {
+      space = await prisma.space.findUnique({
+        where: { slug: folderSlug },
+        select: { id: true, name: true, bucketId: true },
+      });
+
+      if (!space) {
+        return NextResponse.json(
+          { status: "error", message: "Folder not found" },
+          { status: 404 }
+        );
+      }
+
+      if (space.bucketId !== bucket.id) {
+        return NextResponse.json(
+          { status: "error", message: "Folder belongs to another bucket" },
+          { status: 400 }
+        );
+      }
+
+      folderPath = space.name;
+
+      const folderDir = path.join(bucketDir, folderPath);
+      await fs.mkdir(folderDir, { recursive: true });
+    }
+
+    // ===============================================================
+    // 6. CREATE UPLOAD SESSION
+    // ===============================================================
+    const uploadSession = await prisma.mediaUpload.create({
+      data: { userId: user.id },
+    });
+
+    const uploads = [];
+
+    // ===============================================================
+    // 7. PROCESS EACH FILE
+    // ===============================================================
+    for (const file of files) {
+      const arrayBuffer = await file.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+
+      const extension = file.name.split(".").pop() || "";
+      const storedFilename = `${randomUUID()}.${extension}`;
+
+      // actual disk path
+      const storedPath = folderPath
+        ? path.join(bucketDir, folderPath, storedFilename)
+        : path.join(bucketDir, storedFilename);
+
+      await fs.writeFile(storedPath, buffer);
+
+      // extract dimensions
+      let width: number | null = null;
+      let height: number | null = null;
+
+      if (file.type.startsWith("image/")) {
+        try {
+          const meta = await sharp(buffer).metadata();
+          width = meta.width ?? null;
+          height = meta.height ?? null;
+        } catch {}
+      }
+
+      const type = detectMediaType(file.type, extension);
+
+      // ===============================================================
+      // 8. CREATE MEDIA RECORD
+      // ===============================================================
+      const publicUrl = folderPath
+        ? `https://moc-drive.moc.gov.kh/${bucket.name}/${folderPath}/${storedFilename}`
+        : `https://moc-drive.moc.gov.kh/${bucket.name}/${storedFilename}`;
+
+      const media = await prisma.media.create({
+        data: {
+          filename: file.name,
+          storedFilename,
+          url: publicUrl,
+          fileType: type,
+          mimetype: file.type,
+          extension: extension.toLowerCase(),
+          size: file.size,
+          width,
+          height,
+          uploadedById: user.id,
+
+          // ⭐ NEW SCHEMA FIELDS
+          bucketId: bucket.id,
+          path: folderPath,
+        },
+      });
+
+      // ===============================================================
+      // 9. RECORD MEDIA UPLOAD DETAIL
+      // ===============================================================
+      if (space) {
+        await prisma.mediaUploadDetail.create({
+          data: {
+            mediaUploadId: uploadSession.id,
+            mediaId: media.id,
+            spaceId: space.id,
+          },
+        });
+      }
+
+      uploads.push({
+        id: media.slug,
+        slug: media.slug,
+        url: media.url,
+        filename: media.filename,
+        storedFilename: media.storedFilename,
+        type: media.fileType,
+        width: media.width,
+        height: media.height,
+      });
+    }
+
+    // ===============================================================
+    // 10. RESPONSE
+    // ===============================================================
+    return NextResponse.json(
+      {
+        status: "ok",
+        bucket: bucket.name,
+        folder: folderPath || null,
+        uploadSessionId: uploadSession.id,
+        uploads,
+      },
+      { status: 201 }
+    );
+  } catch (error: any) {
+    console.error("❌ Upload Error:", error);
+    return NextResponse.json(
+      { status: "error", message: "Upload failed", details: error.message },
+      { status: 500 }
+    );
+  }
+}

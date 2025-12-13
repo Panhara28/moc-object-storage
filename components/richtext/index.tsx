@@ -1,0 +1,122 @@
+"use client";
+
+import {
+  LexicalComposer,
+  InitialConfigType,
+} from "@lexical/react/LexicalComposer";
+
+import { RichTextPlugin } from "@lexical/react/LexicalRichTextPlugin";
+import { ListPlugin } from "@lexical/react/LexicalListPlugin";
+import { CheckListPlugin } from "@lexical/react/LexicalCheckListPlugin";
+import { LexicalErrorBoundary } from "@lexical/react/LexicalErrorBoundary";
+import { OnChangePlugin } from "@lexical/react/LexicalOnChangePlugin";
+
+import { HeadingNode, QuoteNode } from "@lexical/rich-text";
+import { ListItemNode, ListNode } from "@lexical/list";
+import {
+  ParagraphNode,
+  TextNode,
+  EditorState,
+  SerializedEditorState,
+} from "lexical";
+
+import { editorTheme } from "@/components/editor/themes/editor-theme";
+import { ContentEditable } from "@/components/editor/editor-ui/content-editable";
+import { ToolbarPlugin } from "@/components/editor/plugins/toolbar/toolbar-plugin";
+import { BlockFormatDropDown } from "@/components/editor/plugins/toolbar/block-format-toolbar-plugin";
+import { FormatParagraph } from "@/components/editor/plugins/toolbar/block-format/format-paragraph";
+import { FormatHeading } from "@/components/editor/plugins/toolbar/block-format/format-heading";
+import { FormatNumberedList } from "@/components/editor/plugins/toolbar/block-format/format-numbered-list";
+import { FormatBulletedList } from "@/components/editor/plugins/toolbar/block-format/format-bulleted-list";
+import { FormatCheckList } from "@/components/editor/plugins/toolbar/block-format/format-check-list";
+import { FormatQuote } from "@/components/editor/plugins/toolbar/block-format/format-quote";
+import { FontFormatToolbarPlugin } from "@/components/editor/plugins/toolbar/font-format-toolbar-plugin";
+
+/* ------------------------------------ */
+/* ✅ CORRECT TYPES FOR LEXICAL JSON     */
+/* ------------------------------------ */
+
+interface RichTextProps {
+  initialValue: SerializedEditorState | null;
+  onChange: (value: SerializedEditorState) => void;
+  className?: string;
+}
+
+export default function RichText({
+  initialValue,
+  onChange,
+  className,
+}: RichTextProps) {
+  const editorConfig: InitialConfigType = {
+    namespace: "RickTextEditor",
+    theme: editorTheme,
+    nodes: [
+      HeadingNode,
+      QuoteNode,
+      ParagraphNode,
+      TextNode,
+      ListNode,
+      ListItemNode,
+    ],
+
+    editorState: (editor) => {
+      if (!initialValue) return;
+
+      try {
+        // Check if JSON includes lexical root
+        const state = editor.parseEditorState(JSON.stringify(initialValue));
+        editor.setEditorState(state);
+      } catch (e) {
+        console.error("❌ Failed to load editor state:", e);
+      }
+    },
+
+    onError(error) {
+      console.error("LEXICAL ERROR:", error);
+    },
+  };
+
+  return (
+    <div className={`bg-white rounded-lg border ${className || ""}`}>
+      <LexicalComposer initialConfig={editorConfig}>
+        {/* Toolbar */}
+        <ToolbarPlugin>
+          {() => (
+            <div className="flex gap-2 bg-white">
+              <BlockFormatDropDown>
+                <FormatParagraph />
+                <FormatHeading levels={["h1", "h2", "h3"]} />
+                <FormatNumberedList />
+                <FormatBulletedList />
+                <FormatCheckList />
+                <FormatQuote />
+              </BlockFormatDropDown>
+              <FontFormatToolbarPlugin />
+            </div>
+          )}
+        </ToolbarPlugin>
+
+        <RichTextPlugin
+          contentEditable={
+            <ContentEditable
+              placeholder="Start typing..."
+              className="ContentEditable__root relative block h-72 min-h-72 overflow-auto py-4 focus:outline-none"
+            />
+          }
+          ErrorBoundary={LexicalErrorBoundary}
+        />
+
+        <ListPlugin />
+        <CheckListPlugin />
+
+        {/* OnChange */}
+        <OnChangePlugin
+          onChange={(editorState: EditorState) => {
+            const json = editorState.toJSON() as SerializedEditorState;
+            onChange(json);
+          }}
+        />
+      </LexicalComposer>
+    </div>
+  );
+}
