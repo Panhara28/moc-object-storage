@@ -4,6 +4,32 @@ import { getAuthUser } from "@/lib/authorized";
 import * as fs from "fs/promises";
 import path from "path";
 
+function getUniqueFolderName(baseName: string, siblingNames: string[]) {
+  const siblings = new Set(siblingNames);
+
+  if (!siblings.has(baseName)) {
+    return baseName;
+  }
+
+  // Strip trailing " Copy" or " Copy(n)" if present to find the root
+  const match = baseName.match(/^(.*?)(?: Copy(?:\((\d+)\))?)?$/);
+  const root = match && match[1] ? match[1] : baseName;
+
+  const copyName = `${root} Copy`;
+  if (!siblings.has(copyName)) {
+    return copyName;
+  }
+
+  let counter = 1;
+  let candidate = `${root} Copy(${counter})`;
+  while (siblings.has(candidate)) {
+    counter += 1;
+    candidate = `${root} Copy(${counter})`;
+  }
+
+  return candidate;
+}
+
 type SpaceNode = {
   id: number;
   name: string;
@@ -98,8 +124,28 @@ export async function POST(
 
     console.log("Bucket found:", bucket.name);
 
+    // Resolve a unique folder name under the same parent
+    const siblingFolders = await prisma.space.findMany({
+      where: {
+        bucketId: bucket.id,
+        parentId: numericParentId,
+      },
+      select: { name: true },
+    });
+
+    const uniqueFolderName = getUniqueFolderName(
+      folderName,
+      siblingFolders.map((s) => s.name)
+    );
+
+    if (uniqueFolderName !== folderName) {
+      console.log(
+        `Folder name "${folderName}" already exists. Using "${uniqueFolderName}" instead.`
+      );
+    }
+
     // 2. Validate parent folder (must belong to the same bucket)
-    let folderPath = folderName;
+    let folderPath = uniqueFolderName;
 
     if (numericParentId !== null) {
       const parentFolder = await prisma.space.findUnique({
@@ -137,17 +183,17 @@ export async function POST(
         const status =
           message === "Parent folder does not exist." ? 404 : 400;
 
-        return NextResponse.json({ error: message }, { status });
+          return NextResponse.json({ error: message }, { status });
       }
 
-      folderPath = path.join(...parentSegments, folderName);
+      folderPath = path.join(...parentSegments, uniqueFolderName);
       console.log("Parent folder found. Updated folder path:", folderPath);
     }
 
     // 3. Create the folder in the database
     const newFolder = await prisma.space.create({
       data: {
-        name: folderName,
+        name: uniqueFolderName,
         parentId: numericParentId,
         bucketId: bucket.id,
         userId: user.id,

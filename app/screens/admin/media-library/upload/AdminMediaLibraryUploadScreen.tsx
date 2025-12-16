@@ -325,12 +325,13 @@ export default function AdminMediaLibraryUploadScreen({
         onRenamed={() => loadSpaces(currentParentSlug)}
       />
 
-      {/* <MediaDeleteFolderDialog
+      <MediaDeleteFolderDialog
         open={deleteOpen}
         folder={activeFolder}
         onClose={() => setDeleteOpen(false)}
         onDeleted={() => loadSpaces(currentParentSlug)}
-      /> */}
+        bucketSlug={bucketSlug}
+      />
 
       {/* <MediaFolderPropertiesDrawer
         open={propsOpen}

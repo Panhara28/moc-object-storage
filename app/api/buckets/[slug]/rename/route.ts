@@ -60,6 +60,22 @@ export async function PATCH(
       });
     }
 
+    // Prevent duplicate bucket names in the database
+    const nameInUse = await prisma.bucket.findUnique({
+      where: { name: newName },
+      select: { id: true },
+    });
+
+    if (nameInUse && nameInUse.id !== bucketExists.id) {
+      return NextResponse.json(
+        {
+          status: "error",
+          message: "A bucket with that name already exists.",
+        },
+        { status: 400 }
+      );
+    }
+
     const STORAGE_ROOT = getStorageRoot();
     const oldDir = path.join(STORAGE_ROOT, bucketExists.name);
     const newDir = path.join(STORAGE_ROOT, newName);

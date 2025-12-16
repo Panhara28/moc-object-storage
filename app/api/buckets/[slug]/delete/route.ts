@@ -2,6 +2,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/connection";
 import { authorize } from "@/lib/authorized";
+import * as fs from "fs/promises";
+import path from "path";
+
+function getStorageRoot() {
+  if (process.env.STORAGE_ROOT) return process.env.STORAGE_ROOT;
+  if (process.platform === "darwin") return path.join(process.cwd(), "storage");
+  if (process.platform === "linux") return "/mnt/storage";
+  if (process.platform === "win32") return path.join(process.cwd(), "storage");
+  return path.join(process.cwd(), "storage");
+}
 
 export async function PATCH(
   req: NextRequest,
@@ -28,16 +38,38 @@ export async function PATCH(
       );
     }
 
-    // Soft delete the bucket
-    const updated = await prisma.bucket.update({
-      where: { slug },
-      data: { isAvailable: "REMOVE" },
-    });
+    const storageRoot = getStorageRoot();
+    const bucketDir = path.join(storageRoot, bucket.name);
+
+    const [updatedBucket, spacesUpdated, mediaUpdated] =
+      await prisma.$transaction([
+        prisma.bucket.update({
+          where: { slug },
+          data: { isAvailable: "REMOVE" },
+        }),
+        prisma.space.updateMany({
+          where: { bucketId: bucket.id },
+          data: { isAvailable: "REMOVE" },
+        }),
+        prisma.media.updateMany({
+          where: { bucketId: bucket.id },
+          data: { isDeleted: true, visibility: "REMOVE" },
+        }),
+      ]);
+
+    // Attempt filesystem cleanup; ignore errors to keep response consistent
+    try {
+      await fs.rm(bucketDir, { recursive: true, force: true });
+    } catch (fsErr) {
+      console.error("Failed to remove bucket directory from filesystem:", fsErr);
+    }
 
     return NextResponse.json({
       status: "ok",
       message: "Bucket removed successfully",
-      bucket: updated,
+      bucket: updatedBucket,
+      spacesUpdated: spacesUpdated.count,
+      mediaUpdated: mediaUpdated.count,
     });
   } catch (err: unknown) {
     console.error("Bucket Delete Error:", err);

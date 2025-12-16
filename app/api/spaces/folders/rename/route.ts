@@ -49,17 +49,19 @@ async function buildFolderPathSegments(
 export async function POST(req: Request) {
   try {
     const { folderId, name } = await req.json();
+    const numericFolderId =
+      folderId === null || folderId === undefined ? NaN : Number(folderId);
 
-    if (!folderId || !name) {
+    if (!folderId || Number.isNaN(numericFolderId) || !name) {
       return NextResponse.json(
-        { error: "folderId and name are required" },
+        { error: "folderId (number) and name are required" },
         { status: 400 }
       );
     }
 
     // Fetch folder
-    const folder = await prisma.space.findUnique({
-      where: { id: folderId },
+    const folder = await prisma.space.findFirst({
+      where: { id: numericFolderId, isAvailable: "AVAILABLE" },
       select: {
         id: true,
         name: true,
@@ -147,7 +149,7 @@ export async function POST(req: Request) {
     // Update name ONLY
     await prisma.space
       .update({
-        where: { id: folderId },
+        where: { id: numericFolderId },
         data: {
           name: newName,
         },

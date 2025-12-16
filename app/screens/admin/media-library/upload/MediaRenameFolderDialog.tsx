@@ -39,11 +39,16 @@ export default function MediaRenameFolderDialog({
   const submit = async () => {
     if (!folder?.id || !name) return;
 
-    await fetch(`/api/spaces/folders/rename`, {
+    const res = await fetch(`/api/spaces/folders/rename`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ folderId: folder.id, name }),
     });
+
+    if (!res.ok) {
+      console.error("Failed to rename folder");
+      return;
+    }
 
     onRenamed();
     onClose();

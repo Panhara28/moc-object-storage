@@ -15,6 +15,7 @@ type Props = {
   folder: MediaItem | null;
   onClose: () => void;
   onDeleted: () => void;
+  bucketSlug: string;
 };
 
 export default function MediaDeleteFolderDialog({
@@ -22,6 +23,7 @@ export default function MediaDeleteFolderDialog({
   folder,
   onClose,
   onDeleted,
+  bucketSlug,
 }: Props) {
   // Handle folder deletion
   const remove = async () => {

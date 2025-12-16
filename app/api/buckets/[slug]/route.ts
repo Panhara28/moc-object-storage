@@ -25,7 +25,9 @@ export async function GET(
     const bucket = await prisma.bucket.findUnique({
       where: { slug, isAvailable: "AVAILABLE" },
       include: {
-        spaces: true,
+        spaces: {
+          where: { isAvailable: "AVAILABLE" },
+        },
       },
     });
 
