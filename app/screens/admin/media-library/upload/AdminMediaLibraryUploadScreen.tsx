@@ -166,9 +166,9 @@ export default function AdminMediaLibraryUploadScreen({
     // Add the ending boundary
     body += `--${boundary}--`;
 
-    const headers = {
+    const headers: HeadersInit = {
       "Content-Type": `multipart/form-data; boundary=${boundary}`,
-      "Content-Length": Buffer.byteLength(body), // Make sure to set the correct Content-Length
+      "Content-Length": String(Buffer.byteLength(body)), // Make sure to set the correct Content-Length
     };
 
     // Send the request
@@ -260,10 +260,10 @@ export default function AdminMediaLibraryUploadScreen({
                   setActiveFolder(folder);
                   setPropsOpen(true);
                 }}
-                onMoveFolder={(folder) => {
-                  setActiveFolder(folder);
-                  setMoveOpen(true);
-                }}
+                // onMoveFolder={(folder) => {
+                //   setActiveFolder(folder);
+                //   setMoveOpen(true);
+                // }}
               />
 
               {/* FILES inside folder */}
@@ -333,13 +333,13 @@ export default function AdminMediaLibraryUploadScreen({
         bucketSlug={bucketSlug}
       />
 
-      {/* <MediaFolderPropertiesDrawer
+      <MediaFolderPropertiesDrawer
         open={propsOpen}
         folder={activeFolder}
         onClose={() => setPropsOpen(false)}
-      /> */}
-      {/* 
-      <MediaMoveFolderDialog
+      />
+
+      {/* <MediaMoveFolderDialog
         open={moveOpen}
         folder={activeFolder}
         onClose={() => setMoveOpen(false)}

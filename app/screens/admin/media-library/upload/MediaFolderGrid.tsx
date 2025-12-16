@@ -18,7 +18,7 @@ export default function MediaFolderGrid({
       onDeleteFolder={onDeleteFolder}
       onFolderProps={onFolderProps}
       onRenameFolder={onRenameFolder}
-      onMoveFolder={onMoveFolder}
+      // onMoveFolder={onMoveFolder}
     />
   );
 }

@@ -73,7 +73,7 @@ export default function MediaGrid({
                       Rename
                     </DropdownMenuItem>
 
-                    <DropdownMenuItem
+                    {/* <DropdownMenuItem
                       onClick={(e) => {
                         e.stopPropagation();
                         onMoveFolder?.(item);
@@ -81,7 +81,7 @@ export default function MediaGrid({
                       className="cursor-pointer"
                     >
                       Move
-                    </DropdownMenuItem>
+                    </DropdownMenuItem> */}
 
                     <DropdownMenuItem
                       className="text-red-500 cursor-pointer"

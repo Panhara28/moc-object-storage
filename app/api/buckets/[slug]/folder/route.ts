@@ -11,7 +11,7 @@ export async function GET(
     const { searchParams } = new URL(req.url);
     const page = Number(searchParams.get("page") || 1);
     const limit = Number(searchParams.get("limit") || 20);
-    const parentSlug = searchParams.get("parentSlug") || null;
+    const parentSlug = searchParams.get("parentSlug");
     const skip = (page - 1) * limit;
 
     // Find the bucket using the slug
@@ -26,11 +26,18 @@ export async function GET(
       );
     }
 
+    if (!parentSlug) {
+      return NextResponse.json(
+        { status: "error", message: "parentSlug is required" },
+        { status: 400 }
+      );
+    }
+
     const folders = await prisma.space.findMany({
       where: {
         bucketId: bucket.id,
         isAvailable: "AVAILABLE",
-        ...(parentSlug && { parent: { slug: parentSlug } }),
+        parent: { slug: parentSlug },
       },
       orderBy: { createdAt: "desc" },
     });

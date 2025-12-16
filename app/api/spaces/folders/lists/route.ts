@@ -55,7 +55,6 @@ export async function GET(req: Request) {
       where: { spaceId: parentId ?? undefined },
       select: {
         id: true,
-        slug: true,
         media: {
           select: {
             url: true,
@@ -80,7 +79,7 @@ export async function GET(req: Request) {
       // FIXED: USE REAL fileType, NOT "image"
       ...files.map((f) => ({
         id: f.id,
-        slug: f.slug,
+        slug: f.media.slug,
         name: f.media.filename,
         type: f.media.fileType, // <-- FIXED!!!
         url: f.media.url,
