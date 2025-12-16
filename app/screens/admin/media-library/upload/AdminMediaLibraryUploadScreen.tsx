@@ -179,7 +179,6 @@ export default function AdminMediaLibraryUploadScreen({
     });
 
     const jsonResponse = await res.json();
-    console.log(jsonResponse);
 
     // Optionally, refresh the media and folder data after uploading
     await Promise.all([

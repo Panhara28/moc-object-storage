@@ -156,8 +156,6 @@ export default function BucketSettingsDialog({
     }
   };
 
-  console.log("bucket", bucket);
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-7xl bg-white">

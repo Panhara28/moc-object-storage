@@ -25,10 +25,6 @@ export async function GET(
         { status: 404 }
       );
     }
-    console.log("slug", slug);
-    console.log("parentSlug", parentSlug);
-
-    console.log("bucket", bucket);
 
     const folders = await prisma.space.findMany({
       where: {
