@@ -55,7 +55,6 @@ export async function POST(
     // 2. READ FORM DATA
     const form = await req.formData();
     const files = form.getAll("files") as File[];
-
     const folderSlug = form.get("folderSlug") as string | null;
 
     if (!files || files.length === 0) {
@@ -80,16 +79,13 @@ export async function POST(
     }
 
     const STORAGE_ROOT = process.env.STORAGE_ROOT || "/mnt/storage";
-
-    // Create bucket storage path if needed
     const bucketDir = path.join(STORAGE_ROOT, bucket.name);
-    await fs.mkdir(bucketDir, { recursive: true });
 
     // ===============================================================
-    // 4. RESOLVE FOLDER (SPACE)
+    // 4. RESOLVE FOLDER (SPACE) AND CHECK FILESYSTEM FOLDER
     // ===============================================================
-    let space = null;
     let folderPath = "";
+    let space = null; // Declare space outside the if block so it can be used later
 
     if (folderSlug) {
       space = await prisma.space.findUnique({
@@ -113,7 +109,20 @@ export async function POST(
 
       folderPath = space.name;
 
-      await fs.mkdir(path.join(bucketDir, folderPath), { recursive: true });
+      // ===============================================================
+      // Create folder on filesystem only if it doesn't exist
+      // ===============================================================
+      const folderFullPath = path.join(bucketDir, folderPath);
+
+      try {
+        await fs.mkdir(folderFullPath, { recursive: true }); // Create folder if it doesn't exist
+      } catch (error) {
+        console.error("Error creating folder on filesystem:", error);
+        return NextResponse.json(
+          { status: "error", message: "Error creating folder on filesystem" },
+          { status: 500 }
+        );
+      }
     }
 
     // ===============================================================
@@ -139,7 +148,7 @@ export async function POST(
 
       await fs.writeFile(storedPath, buffer);
 
-      // Extract image metadata
+      // Extract image metadata (if it's an image)
       let width: number | undefined = undefined;
       let height: number | undefined = undefined;
 
@@ -154,7 +163,7 @@ export async function POST(
       const type = detectMediaType(file.type, extension);
 
       // ===============================================================
-      // 7. CREATE MEDIA RECORD
+      // CREATE MEDIA RECORD
       // ===============================================================
       const publicUrl = folderPath
         ? `https://moc-drive.moc.gov.kh/${bucket.name}/${folderPath}/${storedFilename}`
@@ -172,7 +181,6 @@ export async function POST(
           width,
           height,
           uploadedById: user.id,
-
           bucketId: bucket.id,
           path: folderPath,
         },
@@ -183,7 +191,8 @@ export async function POST(
         data: {
           mediaUploadId: uploadSession.id,
           mediaId: media.id,
-          spaceId: space ? space.id : null, // Use `undefined` instead of `null`
+          // Pass null for spaceId if no folderSlug is provided
+          spaceId: folderSlug ? (space ? space.id : null) : null,
         },
       });
 

@@ -1,7 +1,8 @@
-/* eslint-disable */
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/connection";
 import { getAuthUser } from "@/lib/authorized";
+import * as fs from "fs/promises";
+import path from "path";
 
 export async function POST(
   req: NextRequest,
@@ -77,19 +78,39 @@ export async function POST(
     }
 
     // -----------------------------------------------------
-    // ✔ 3. Create folder in this bucket
+    // ✔ 3. Create folder in this bucket (Database)
     // -----------------------------------------------------
     const newFolder = await prisma.space.create({
       data: {
         name: folderName,
         parentId: numericParentId,
-        bucketId: bucket.id, // ⭐ IMPORTANT
+        bucketId: bucket.id,
         userId: user.id,
         isAvailable: "AVAILABLE",
         uploadedAt: new Date(),
         mediaId: null,
       },
     });
+
+    // -----------------------------------------------------
+    // ✔ 4. Create Folder on the Filesystem
+    // -----------------------------------------------------
+    const STORAGE_ROOT = process.env.STORAGE_ROOT || "/mnt/storage";
+    const bucketDir = path.join(STORAGE_ROOT, bucket.name);
+
+    // If there’s a parent folder, append that to the path.
+    let folderPath = folderName;
+    if (numericParentId !== null) {
+      const parentFolder = await prisma.space.findUnique({
+        where: { id: numericParentId },
+      });
+      folderPath = path.join(parentFolder!.name, folderName);
+    }
+
+    const folderFullPath = path.join(bucketDir, folderPath);
+
+    // Create the folder on the filesystem
+    await fs.mkdir(folderFullPath, { recursive: true });
 
     return NextResponse.json({
       status: "ok",
@@ -101,7 +122,8 @@ export async function POST(
 
     return NextResponse.json(
       {
-        error: error instanceof Error ? error.message : "Failed to create folder",
+        error:
+          error instanceof Error ? error.message : "Failed to create folder",
       },
       { status: 500 }
     );

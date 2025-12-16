@@ -138,7 +138,6 @@ export default function AdminMediaLibraryUploadScreen({
 
   /* UPLOAD HANDLER */
   const handleUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    alert("1");
     const files = event.target.files;
     if (!files?.length) return;
 
@@ -320,12 +319,12 @@ export default function AdminMediaLibraryUploadScreen({
         setSelectedBookCover={setSelectedBookCover}
       />
 
-      {/* <MediaRenameFolderDialog
+      <MediaRenameFolderDialog
         open={renameOpen}
         folder={activeFolder}
         onClose={() => setRenameOpen(false)}
         onRenamed={() => loadSpaces(currentParentSlug)}
-      /> */}
+      />
 
       {/* <MediaDeleteFolderDialog
         open={deleteOpen}
