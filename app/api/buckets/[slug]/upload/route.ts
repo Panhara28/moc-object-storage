@@ -80,6 +80,7 @@ export async function POST(
 
     const STORAGE_ROOT = process.env.STORAGE_ROOT || "/mnt/storage";
     const bucketDir = path.join(STORAGE_ROOT, bucket.name);
+    await fs.mkdir(bucketDir, { recursive: true });
 
     // ===============================================================
     // 4. RESOLVE FOLDER (SPACE) AND CHECK FILESYSTEM FOLDER
@@ -93,35 +94,33 @@ export async function POST(
         select: { id: true, name: true, bucketId: true },
       });
 
-      if (!space) {
-        return NextResponse.json(
-          { status: "error", message: "Folder not found" },
-          { status: 404 }
-        );
-      }
-
-      if (space.bucketId !== bucket.id) {
+      if (space && space.bucketId !== bucket.id) {
         return NextResponse.json(
           { status: "error", message: "Folder belongs to another bucket" },
           { status: 400 }
         );
       }
 
-      folderPath = space.name;
+      // If the folder isn't found, gracefully fall back to bucket root
+      if (space) {
+        folderPath = space.name;
+      }
 
       // ===============================================================
       // Create folder on filesystem only if it doesn't exist
       // ===============================================================
-      const folderFullPath = path.join(bucketDir, folderPath);
+      if (folderPath) {
+        const folderFullPath = path.join(bucketDir, folderPath);
 
-      try {
-        await fs.mkdir(folderFullPath, { recursive: true }); // Create folder if it doesn't exist
-      } catch (error) {
-        console.error("Error creating folder on filesystem:", error);
-        return NextResponse.json(
-          { status: "error", message: "Error creating folder on filesystem" },
-          { status: 500 }
-        );
+        try {
+          await fs.mkdir(folderFullPath, { recursive: true }); // Create folder if it doesn't exist
+        } catch (error) {
+          console.error("Error creating folder on filesystem:", error);
+          return NextResponse.json(
+            { status: "error", message: "Error creating folder on filesystem" },
+            { status: 500 }
+          );
+        }
       }
     }
 
