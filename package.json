@@ -12,7 +12,11 @@
     "db:stu": "dotenv -e .env.local -- npx prisma studio",
     "db:migrate": "dotenv -e .env.local -- npx prisma migrate dev",
     "db:reset": "dotenv -e .env.local -- npx prisma migrate reset --force --skip-seed",
-    "db:seed": "ts-node --transpile-only prisma/seed.ts"
+    "db:seed": "ts-node --transpile-only prisma/seed.ts",
+    "release": "standard-version",
+    "release:patch": "standard-version --release-as patch",
+    "release:minor": "standard-version --release-as minor",
+    "release:major": "standard-version --release-as major"
   },
   "type": "module",
   "dependencies": {
@@ -101,6 +105,7 @@
     "prisma": "^6.19.0",
     "tailwindcss": "^4",
     "tw-animate-css": "^1.4.0",
-    "typescript": "^5"
+    "typescript": "^5",
+    "standard-version": "^9.5.0"
   }
 }

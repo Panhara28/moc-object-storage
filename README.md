@@ -74,3 +74,11 @@ All endpoints live under `/api`. Authentication uses the `session` cookie from `
 
 ## Testing
 Run `npm run build` for type checks. Use `curl`/Postman against endpoints above; most routes require the session cookie set by `/api/auth/login` and correct module permissions.
+
+## Releases / Versioning
+- Semantic versioning via `package.json` `"version"` using [`standard-version`](https://github.com/conventional-changelog/standard-version).
+- Commit with Conventional Commits (`feat:`, `fix:`, `chore:`, `docs:`, `BREAKING CHANGE:` in body for majors).
+- Cut a release:
+  - `npm run release` (or `release:patch|minor|major` to force a bump).
+  - Push commit and tag: `git push && git push --tags`.
+- `CHANGELOG.md` is auto-updated during releases; tags are prefixed with `v` (e.g., `v1.2.3`).
