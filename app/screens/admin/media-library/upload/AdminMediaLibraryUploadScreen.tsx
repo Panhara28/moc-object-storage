@@ -95,15 +95,17 @@ export default function AdminMediaLibraryUploadScreen({
 
     const res = await fetch(url, { cache: "no-store" });
     const json = await res.json();
-    setItems(json.folders ?? []);
+    setItems(json.folders);
     setLoading(false);
   };
 
   /* FETCH ROOT MEDIA (Non-folder files) */
-  const loadMedia = async () => {
-    const res = await fetch(`/api/buckets/${bucketSlug}`, {
-      cache: "no-store",
-    });
+  const loadMedia = async (parentSlug: string | null) => {
+    const url = parentSlug
+      ? `/api/buckets/${bucketSlug}/folder?parentSlug=${parentSlug}`
+      : `/api/buckets/${bucketSlug}`;
+
+    const res = await fetch(url, { cache: "no-store" });
     const json = await res.json();
     setMedias(json.media.items ?? []);
   };
@@ -113,7 +115,7 @@ export default function AdminMediaLibraryUploadScreen({
 
     const fetchAll = async () => {
       await loadSpaces(currentParentSlug);
-      await loadMedia();
+      await loadMedia(currentParentSlug);
     };
 
     fetchAll().catch(() => {});
@@ -136,22 +138,57 @@ export default function AdminMediaLibraryUploadScreen({
 
   /* UPLOAD HANDLER */
   const handleUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    alert("1");
     const files = event.target.files;
     if (!files?.length) return;
 
-    const formData = new FormData();
     const fileArray = Array.from(files) as File[];
+    const boundary =
+      "----WebKitFormBoundary" + Math.random().toString(36).substring(7);
+    let body = "";
 
-    fileArray.forEach((file) => formData.append("files", file));
+    // Add parentSlug and folderSlug manually to the multipart body
+    body += `--${boundary}\r\n`;
+    body += `Content-Disposition: form-data; name="parentSlug"\r\n\r\n`;
+    body += `${currentParentSlug}\r\n`;
 
-    if (currentParentSlug) formData.append("parentSlug", currentParentSlug);
+    body += `--${boundary}\r\n`;
+    body += `Content-Disposition: form-data; name="folderSlug"\r\n\r\n`;
+    body += `${currentParentSlug}\r\n`; // or a different folderSlug if needed
 
-    await fetch(`/api/buckets/${bucketSlug}/upload`, {
-      method: "POST",
-      body: formData,
+    // Add files to the multipart body
+    fileArray.forEach((file) => {
+      body += `--${boundary}\r\n`;
+      body += `Content-Disposition: form-data; name="files"; filename="${file.name}"\r\n`;
+      body += `Content-Type: ${file.type}\r\n\r\n`;
+      body += `${file}\r\n`; // Add the file content
     });
 
-    await Promise.all([loadSpaces(currentParentSlug), loadMedia()]);
+    // Add the ending boundary
+    body += `--${boundary}--`;
+
+    const headers = {
+      "Content-Type": `multipart/form-data; boundary=${boundary}`,
+      "Content-Length": Buffer.byteLength(body), // Make sure to set the correct Content-Length
+    };
+
+    // Send the request
+    const res = await fetch(`/api/buckets/${bucketSlug}/upload`, {
+      method: "POST",
+      headers,
+      body: body,
+    });
+
+    const jsonResponse = await res.json();
+    console.log(jsonResponse);
+
+    // Optionally, refresh the media and folder data after uploading
+    await Promise.all([
+      loadSpaces(currentParentSlug),
+      loadMedia(currentParentSlug),
+    ]);
+
+    // Clear the file input
     event.target.value = "";
   };
 
@@ -161,8 +198,6 @@ export default function AdminMediaLibraryUploadScreen({
     setDrawerOpen(true);
   };
 
-  console.log("currentItems", currentItems);
-
   return (
     <>
       {/* HEADER */}
@@ -170,7 +205,10 @@ export default function AdminMediaLibraryUploadScreen({
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold">Media Library</h1>
 
-          <MediaBreadcrumb parentSlug={currentParentSlug} />
+          <MediaBreadcrumb
+            parentSlug={currentParentSlug}
+            bucketSlug={bucketSlug}
+          />
         </div>
 
         <div className="flex gap-2">
@@ -208,7 +246,9 @@ export default function AdminMediaLibraryUploadScreen({
               <MediaFolderGrid
                 items={currentItems}
                 onOpenFolder={(folder: MediaItem) =>
-                  router.push(`/admin/media-library?parentSlug=${folder.slug}`)
+                  router.push(
+                    `/admin/buckets/${bucketSlug}/media-library?parentSlug=${folder.slug}`
+                  )
                 }
                 onRenameFolder={(folder: MediaItem) => {
                   setActiveFolder(folder);
@@ -234,10 +274,7 @@ export default function AdminMediaLibraryUploadScreen({
                   <h1 className="text-xl font-bold mt-8">Files</h1>
                   <hr className="border-gray-200 mb-3" />
 
-                  <MediaFileGrid
-                    items={currentItems.filter((i) => i.type !== "folder")}
-                    onOpenMedia={openMedia}
-                  />
+                  <MediaFileGrid items={medias} onOpenMedia={openMedia} />
                 </>
               )}
 
@@ -273,7 +310,7 @@ export default function AdminMediaLibraryUploadScreen({
       />
 
       {/* MEDIA PREVIEW DRAWER */}
-      {/* <MediaViewDrawer
+      <MediaViewDrawer
         open={drawerOpen}
         media={selectedMedia}
         onClose={() => setDrawerOpen(false)}
@@ -281,7 +318,7 @@ export default function AdminMediaLibraryUploadScreen({
         setSelectedBook={setSelectedBook}
         selectedBookCover={selectedBookCover}
         setSelectedBookCover={setSelectedBookCover}
-      /> */}
+      />
 
       {/* <MediaRenameFolderDialog
         open={renameOpen}

@@ -4,8 +4,10 @@ import Link from "next/link";
 
 export default function MediaBreadcrumb({
   parentSlug,
+  bucketSlug,
 }: {
   parentSlug: string | null;
+  bucketSlug: string;
 }) {
   // --- ROOT ---
   if (!parentSlug) {
@@ -23,7 +25,7 @@ export default function MediaBreadcrumb({
     <div className="flex items-center flex-wrap gap-1 text-sm">
       {/* ROOT LINK */}
       <Link
-        href="/admin/media-library"
+        href={`/admin/buckets/${bucketSlug}`}
         className="text-blue-600 hover:underline"
       >
         Root
@@ -36,7 +38,7 @@ export default function MediaBreadcrumb({
           .replace(/-/g, " ") // make readable
           .replace(/^\w/, (c) => c.toUpperCase()); // capitalize
 
-        const href = `/admin/media-library?parentSlug=${paths[index]}`;
+        const href = `/admin/buckets/${bucketSlug}/media-library?parentSlug=${paths[index]}`;
 
         const isLast = index === pathNames.length - 1;
 

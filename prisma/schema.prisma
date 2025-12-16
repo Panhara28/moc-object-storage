@@ -242,18 +242,15 @@ model MediaUpload {
 }
 
 model MediaUploadDetail {
-  id        Int      @id @default(autoincrement())
-  slug      String   @unique @default(uuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
+  id            Int      @id @default(autoincrement())
   mediaUploadId Int
   mediaId       Int
-  spaceId       Int
+  spaceId       Int?
+  createdAt     DateTime @default(now())
 
-  upload MediaUpload @relation(fields: [mediaUploadId], references: [id])
-  media  Media       @relation(fields: [mediaId], references: [id])
-  space  Space       @relation(fields: [spaceId], references: [id])
+  media       Media       @relation(fields: [mediaId], references: [id])
+  mediaUpload MediaUpload @relation(fields: [mediaUploadId], references: [id])
+  space       Space?      @relation(fields: [spaceId], references: [id]) // Optional space relation
 
   @@map("media_upload_details")
 }

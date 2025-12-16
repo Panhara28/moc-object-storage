@@ -140,14 +140,14 @@ export async function POST(
       await fs.writeFile(storedPath, buffer);
 
       // Extract image metadata
-      let width: number | null = null;
-      let height: number | null = null;
+      let width: number | undefined = undefined;
+      let height: number | undefined = undefined;
 
       if (file.type.startsWith("image/")) {
         try {
           const meta = await sharp(buffer).metadata();
-          width = meta.width ?? null;
-          height = meta.height ?? null;
+          width = meta.width ?? undefined;
+          height = meta.height ?? undefined;
         } catch {}
       }
 
@@ -178,16 +178,14 @@ export async function POST(
         },
       });
 
-      // Save upload details
-      if (space) {
-        await prisma.mediaUploadDetail.create({
-          data: {
-            mediaUploadId: uploadSession.id,
-            mediaId: media.id,
-            spaceId: space.id,
-          },
-        });
-      }
+      // Save upload details (Always create the upload detail)
+      await prisma.mediaUploadDetail.create({
+        data: {
+          mediaUploadId: uploadSession.id,
+          mediaId: media.id,
+          spaceId: space ? space.id : null, // Use `undefined` instead of `null`
+        },
+      });
 
       uploads.push({
         id: media.slug,

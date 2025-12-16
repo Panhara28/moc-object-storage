@@ -37,6 +37,11 @@ export async function GET(
     }
 
     // ---------------------------------------
+    // FILTER PARENT FOLDERS (spaces)
+    // ---------------------------------------
+    const parentSpaces = bucket.spaces.filter((f) => f.parentId === null);
+
+    // ---------------------------------------
     // BUILD WHERE CLAUSE FOR MEDIA
     // ---------------------------------------
     const where: Prisma.MediaWhereInput = {
@@ -83,8 +88,8 @@ export async function GET(
         updatedAt: bucket.updatedAt,
       },
 
-      // 🟦 FOLDERS (spaces)
-      folders: bucket.spaces.map((f) => ({
+      // 🟦 PARENT FOLDERS (spaces)
+      folders: parentSpaces.map((f) => ({
         id: f.id,
         name: f.name,
         slug: f.slug,
