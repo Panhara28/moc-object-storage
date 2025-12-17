@@ -17,6 +17,7 @@ import {
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 
 type MenuState = "full" | "collapsed" | "hidden";
@@ -367,21 +368,19 @@ export default function Sidebar() {
             {/* Header */}
             <div className="h-16 px-3 flex items-center border-b border-gray-200 dark:border-[#1F1F23]">
               <Link
-                href="https://cmsfullform.com/"
+                href="/admin/dashboard"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-3 w-full"
               >
-                <img
-                  src="https://cmsfullform.com/themes/cmsfullform/Backend/Assets/favicon/apple-icon-60x60.png"
-                  alt="CMSFullForm"
-                  width={32}
-                  height={32}
-                  className="flex-shrink-0"
+                <Image
+                  src="/moc-object-storage-logo.png"
+                  alt="MOC Object Storage"
+                  width={522}
+                  height={142}
+                  className="flex-shrink-0 h-10 w-auto"
+                  priority
                 />
-                <span className="text-lg font-semibold hover:cursor-pointer text-gray-900 dark:text-white">
-                  CMSFullForm
-                </span>
               </Link>
             </div>
 
@@ -466,44 +465,45 @@ export default function Sidebar() {
           <div className="h-16 px-3 flex items-center border-b border-gray-200 dark:border-[#1F1F23]">
             {showText ? (
               <Link
-                href="https://cmsfullform.com/"
+                href="/admin/dashboard"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-3 w-full"
               >
-                <img
-                  src="https://cmsfullform.com/themes/cmsfullform/Backend/Assets/favicon/apple-icon-60x60.png"
-                  alt="CMSFullForm"
-                  width={32}
-                  height={32}
-                  className="flex-shrink-0 hidden dark:block"
+                <Image
+                  src="/moc-object-storage-logo.png"
+                  alt="MOC Object Storage"
+                  width={522}
+                  height={142}
+                  className="flex-shrink-0 hidden dark:block h-10 w-auto"
+                  priority
                 />
-                <img
-                  src="https://cmsfullform.com/themes/cmsfullform/Backend/Assets/favicon/apple-icon-60x60.png"
-                  alt="CMSFullForm"
-                  width={32}
-                  height={32}
-                  className="flex-shrink-0 block dark:hidden"
+                <Image
+                  src="/moc-object-storage-logo.png"
+                  alt="MOC Object Storage"
+                  width={522}
+                  height={142}
+                  className="flex-shrink-0 block dark:hidden h-10 w-auto"
+                  priority
                 />
-                <span className="text-lg font-semibold hover:cursor-pointer text-gray-900 dark:text-white transition-opacity duration-200">
-                  CMSFullForm
-                </span>
               </Link>
             ) : (
               <div className="flex justify-center w-full">
-                <img
-                  src="https://cmsfullform.com/themes/cmsfullform/Backend/Assets/favicon/apple-icon-60x60.png"
-                  alt="CMSFullForm"
-                  width={32}
-                  height={32}
-                  className="flex-shrink-0 hidden dark:block"
+                <Image
+                  src="/moc-object-storage-logo.png"
+                  alt="MOC Object Storage"
+                  width={522}
+                  height={142}
+                  className="flex-shrink-0 hidden dark:block h-10 w-auto"
+                  priority
                 />
-                <img
-                  src="https://cmsfullform.com/themes/cmsfullform/Backend/Assets/favicon/apple-icon-60x60.png"
-                  alt="CMSFullForm"
-                  width={32}
-                  height={32}
-                  className="flex-shrink-0 block dark:hidden"
+                <Image
+                  src="/moc-object-storage-logo.png"
+                  alt="MOC Object Storage"
+                  width={522}
+                  height={142}
+                  className="flex-shrink-0 block dark:hidden h-10 w-auto"
+                  priority
                 />
               </div>
             )}
