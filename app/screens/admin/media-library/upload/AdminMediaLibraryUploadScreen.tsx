@@ -309,7 +309,14 @@ export default function AdminMediaLibraryUploadScreen({
       <MediaViewDrawer
         open={drawerOpen}
         media={selectedMedia}
-        onClose={() => setDrawerOpen(false)}
+        onClose={() => {
+          setDrawerOpen(false);
+          setSelectedMedia(null);
+        }}
+        onDeleted={async () => {
+          await refreshData();
+          setSelectedMedia(null);
+        }}
         selectedBook={selectedBook}
         setSelectedBook={setSelectedBook}
         selectedBookCover={selectedBookCover}

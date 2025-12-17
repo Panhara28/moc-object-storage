@@ -108,6 +108,7 @@ export async function GET(
         total: totalMedia,
         items: media.map((m) => ({
           id: m.id,
+          slug: m.slug,
           name: m.filename,
           url: m.url,
           type: m.fileType,

@@ -1,19 +1,102 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { Trash } from "lucide-react";
 import { MediaViewDrawerProps } from "@/app/types/media";
+
+type MediaDetails = {
+  id: number;
+  slug: string;
+  filename: string;
+  storedFilename: string;
+  url: string;
+  fileType: string;
+  mimetype: string;
+  extension: string;
+  size: number;
+  width?: number | null;
+  height?: number | null;
+  uploadedAt?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  bucketSlug?: string;
+  bucketName?: string;
+};
+
+function formatBytes(bytes?: number) {
+  if (bytes == null) return "N/A";
+  if (bytes === 0) return "0 B";
+  const sizes = ["B", "KB", "MB", "GB", "TB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(1024));
+  const val = bytes / Math.pow(1024, i);
+  return `${val.toFixed(val >= 10 ? 0 : 1)} ${sizes[i]}`;
+}
 
 export default function MediaViewDrawer({
   open,
   media,
   onClose,
+  onDeleted,
   selectedBookCover,
   setSelectedBookCover,
   selectedBook,
   setSelectedBook,
 }: MediaViewDrawerProps) {
+  const [details, setDetails] = useState<MediaDetails | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  useEffect(() => {
+    if (!open || (!media?.slug && !media?.id)) return;
+
+    let cancelled = false;
+    setLoading(true);
+    setDetails(null);
+
+    const query = media?.slug ? `slug=${media.slug}` : `id=${media?.id}`;
+
+    fetch(`/api/media/properties?${query}`, {
+      cache: "no-store",
+    })
+      .then(async (res) => {
+        if (!res.ok) throw new Error("Failed to load media");
+        return res.json();
+      })
+      .then((data) => {
+        if (cancelled) return;
+        setDetails(data.media);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, media?.slug]);
+
   if (!open) return null;
+
+  const name = details?.filename || media?.name || "Unknown";
+  const url = details?.url || media?.url || "";
+  const type = details?.fileType || media?.type;
+  const sizeLabel = loading ? "..." : formatBytes(details?.size ?? (media as any)?.size);
+  const dims =
+    details?.width && details?.height
+      ? `${details.width}px × ${details.height}px`
+      : media && (media as any).width && (media as any).height
+      ? `${(media as any).width}px × ${(media as any).height}px`
+      : "N/A";
+  const created =
+    details?.createdAt || (media as any)?.createdAt
+      ? new Date(details?.createdAt || (media as any)?.createdAt || "").toISOString()
+      : "N/A";
+  const updated =
+    details?.updatedAt || (media as any)?.updatedAt
+      ? new Date(details?.updatedAt || (media as any)?.updatedAt || "").toISOString()
+      : "N/A";
 
   const handleSelectBookCover = () => {
     if (selectedBookCover && media) {
@@ -26,6 +109,34 @@ export default function MediaViewDrawer({
     if (selectedBook && media) {
       setSelectedBook?.(media);
       onClose();
+    }
+  };
+
+  const copyUrl = () => {
+    if (url) navigator.clipboard.writeText(url);
+  };
+
+  const handleDelete = async () => {
+    if (!media?.slug && !media?.id) return;
+    setDeleting(true);
+    try {
+      const res = await fetch("/api/media/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          slug: media?.slug,
+          id: media?.id,
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to delete media");
+      if (onDeleted) {
+        await onDeleted();
+      }
+      onClose();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -53,40 +164,50 @@ export default function MediaViewDrawer({
         {media && (
           <div className="p-4 space-y-4 flex-1 overflow-y-auto">
             <div className="relative w-full h-56 rounded-md overflow-hidden border bg-gray-100 flex items-center justify-center">
-              {media.type === "IMAGE" && (
+              {type === "IMAGE" && url ? (
                 <Image
-                  src={media.url || ""}
-                  alt={media.name}
+                  src={url}
+                  alt={name}
                   fill
                   className="object-contain"
                 />
-              )}
-
-              {media.type === "PDF" && (
+              ) : type === "PDF" ? (
                 <div className="text-red-600 font-bold text-2xl">PDF</div>
-              )}
-
-              {media.type === "VIDEO" && (
+              ) : type === "VIDEO" ? (
                 <div className="text-black font-bold text-xl">VIDEO</div>
-              )}
-
-              {media.type === "DOCUMENT" && (
+              ) : type === "DOCUMENT" ? (
                 <div className="text-blue-600 font-bold text-xl">DOC</div>
-              )}
-
-              {media.type === "OTHER" && (
+              ) : (
                 <div className="text-gray-700 font-bold text-xl">FILE</div>
               )}
             </div>
 
-            <p className="font-medium text-sm">Filename: {media.name}</p>
-            <p className="font-medium text-sm">Type: {media.type}</p>
-            <p className="font-medium text-sm">Size: 1TB</p>
-            <p className="font-medium text-sm">Demension: 1000px * 2000px</p>
+            <div className="space-y-1 text-sm">
+              <p className="font-medium">Filename: {name}</p>
+              <p className="font-medium">Type: {type}</p>
+              <p className="font-medium">
+                Size: <span className="font-normal">{sizeLabel}</span>
+              </p>
+              <p className="font-medium">
+                Dimensions: <span className="font-normal">{dims}</span>
+              </p>
+              <p className="font-medium">
+                MIME: <span className="font-normal">{details?.mimetype || "N/A"}</span>
+              </p>
+              <p className="font-medium">
+                Extension: <span className="font-normal">{details?.extension || "N/A"}</span>
+              </p>
+              <p className="font-medium">
+                Created: <span className="font-normal">{created}</span>
+              </p>
+              <p className="font-medium">
+                Updated: <span className="font-normal">{updated}</span>
+              </p>
+            </div>
 
             <span
               className="text-blue-600 underline text-sm cursor-pointer"
-              onClick={() => navigator.clipboard.writeText(media.url || "")}
+              onClick={copyUrl}
             >
               Copy URL
             </span>
@@ -126,16 +247,17 @@ export default function MediaViewDrawer({
 
           {/* Delete button */}
           <button
-            onClick={() => console.log("DELETE MEDIA:", media?.id)}
+            onClick={handleDelete}
             className="
               w-full flex items-center justify-center gap-2 
               bg-red-600 hover:bg-red-700 
               text-white py-2 rounded-md font-medium 
               transition
             "
+            disabled={deleting}
           >
             <Trash className="w-4" />
-            Delete
+            {deleting ? "Deleting..." : "Delete"}
           </button>
         </div>
       </div>

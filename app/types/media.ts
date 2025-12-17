@@ -17,12 +17,18 @@ export interface MediaItem {
   parentId?: number | null;
   createdAt?: string;
   updatedAt?: string;
+  size?: number;
+  width?: number | null;
+  height?: number | null;
+  mimetype?: string;
+  extension?: string;
 }
 
 export type MediaViewDrawerProps = {
   open: boolean;
   media: MediaItem | null;
   onClose: () => void;
+  onDeleted?: () => void | Promise<void>;
 
   selectedBookCover?: boolean;
   setSelectedBookCover?: (media: MediaItem) => void;
@@ -42,11 +48,3 @@ export type MediaFolderGridProps = {
   onFolderProps: (folder: MediaItem) => void;
   onMoveFolder?: (folder: MediaItem) => void;
 };
-
-export interface MediaItem {
-  id: number;
-  slug?: string;
-  name: string;
-  url?: string;
-  type: "IMAGE" | "VIDEO" | "PDF" | "DOCUMENT" | "AUDIO" | "OTHER" | "folder";
-}
