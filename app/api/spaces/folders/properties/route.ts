@@ -2,9 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/connection";
 import { authorize } from "@/lib/authorized";
 import { getAuthUser } from "@/lib/auth";
+import { format as formatDateFns } from "date-fns";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+function formatDate(input: Date | string | null | undefined) {
+  if (!input) return "N/A";
+  const d = typeof input === "string" ? new Date(input) : input;
+  if (Number.isNaN(d.getTime())) return "N/A";
+  return formatDateFns(d, "dd/LLL/yyyy HH:mm");
+}
 
 export async function GET(req: NextRequest) {
   try {
@@ -129,8 +137,8 @@ export async function GET(req: NextRequest) {
         id: folder.id,
         slug: folder.slug,
         name: folder.name,
-        createdAt: folder.createdAt,
-        updatedAt: folder.updatedAt,
+        createdAt: formatDate(folder.createdAt),
+        updatedAt: formatDate(folder.updatedAt),
         bucketSlug: folder.bucket.slug,
         bucketName: folder.bucket.name,
       },

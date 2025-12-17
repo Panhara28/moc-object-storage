@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { Trash } from "lucide-react";
 import { MediaViewDrawerProps } from "@/app/types/media";
+import { format as formatDateFns } from "date-fns";
 
 type MediaDetails = {
   id: number;
@@ -31,6 +32,13 @@ function formatBytes(bytes?: number) {
   const i = Math.floor(Math.log(bytes) / Math.log(1024));
   const val = bytes / Math.pow(1024, i);
   return `${val.toFixed(val >= 10 ? 0 : 1)} ${sizes[i]}`;
+}
+
+function formatDate(input?: string | null) {
+  if (!input) return "N/A";
+  const d = new Date(input);
+  if (Number.isNaN(d.getTime())) return "N/A";
+  return formatDateFns(d, "dd/LLL/yyyy HH:mm");
 }
 
 export default function MediaViewDrawer({
@@ -89,14 +97,16 @@ export default function MediaViewDrawer({
       : media && (media as any).width && (media as any).height
       ? `${(media as any).width}px × ${(media as any).height}px`
       : "N/A";
-  const created =
-    details?.createdAt || (media as any)?.createdAt
-      ? new Date(details?.createdAt || (media as any)?.createdAt || "").toISOString()
-      : "N/A";
-  const updated =
-    details?.updatedAt || (media as any)?.updatedAt
-      ? new Date(details?.updatedAt || (media as any)?.updatedAt || "").toISOString()
-      : "N/A";
+  const created = details?.createdAt
+    ? formatDate(details.createdAt)
+    : (media as any)?.createdAt
+    ? formatDate((media as any).createdAt)
+    : "N/A";
+  const updated = details?.updatedAt
+    ? formatDate(details.updatedAt)
+    : (media as any)?.updatedAt
+    ? formatDate((media as any).updatedAt)
+    : "N/A";
 
   const handleSelectBookCover = () => {
     if (selectedBookCover && media) {

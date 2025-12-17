@@ -91,14 +91,8 @@ export default function MediaFolderPropertiesDrawer({
     return `${origin}/admin/buckets/${bSlug}/media-library?parentSlug=${slug}`;
   }, [details, folder?.slug, bucketSlug]);
 
-  const created =
-    details?.createdAt || folder?.createdAt
-      ? new Date(details?.createdAt || folder?.createdAt || "").toISOString()
-      : "N/A";
-  const updated =
-    details?.updatedAt || folder?.updatedAt
-      ? new Date(details?.updatedAt || folder?.updatedAt || "").toISOString()
-      : "N/A";
+  const created = details?.createdAt || folder?.createdAt || "N/A";
+  const updated = details?.updatedAt || folder?.updatedAt || "N/A";
 
   const sizeLabel = details ? formatBytes(details.totalSize) : loading ? "..." : "N/A";
 

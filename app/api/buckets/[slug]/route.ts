@@ -2,6 +2,14 @@
 import { prisma } from "@/lib/connection";
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma, MediaType } from "@/lib/generated/prisma";
+import { format as formatDateFns } from "date-fns";
+
+function formatDate(input: Date | string | null | undefined) {
+  if (!input) return "N/A";
+  const d = typeof input === "string" ? new Date(input) : input;
+  if (Number.isNaN(d.getTime())) return "N/A";
+  return formatDateFns(d, "dd/LLL/yyyy HH:mm");
+}
 
 export async function GET(
   req: NextRequest,
@@ -89,8 +97,8 @@ export async function GET(
         slug: bucket.slug,
         permission: bucket.permission,
         accessKeyId: bucket.accessKeyId,
-        createdAt: bucket.createdAt,
-        updatedAt: bucket.updatedAt,
+        createdAt: formatDate(bucket.createdAt),
+        updatedAt: formatDate(bucket.updatedAt),
       },
 
       // 🟦 PARENT FOLDERS (spaces)
@@ -98,7 +106,7 @@ export async function GET(
         id: f.id,
         name: f.name,
         slug: f.slug,
-        createdAt: f.createdAt,
+        createdAt: formatDate(f.createdAt),
       })),
 
       // 🟩 MEDIA RESULT WITH PAGINATION
@@ -113,7 +121,7 @@ export async function GET(
           url: m.url,
           type: m.fileType,
           size: m.size,
-          createdAt: m.createdAt,
+          createdAt: formatDate(m.createdAt),
           //   folderId: m.spaceId,
         })),
       },

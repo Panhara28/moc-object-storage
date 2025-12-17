@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/connection";
 import { authorize, getAuthUser } from "@/lib/authorized";
+import { format as formatDateFns } from "date-fns";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,6 +13,13 @@ function formatBytes(bytes: number) {
   const i = Math.floor(Math.log(bytes) / Math.log(1024));
   const val = bytes / Math.pow(1024, i);
   return `${val.toFixed(val >= 10 ? 0 : 1)} ${units[i]}`;
+}
+
+function formatDate(input: Date | string | null | undefined) {
+  if (!input) return "N/A";
+  const d = typeof input === "string" ? new Date(input) : input;
+  if (Number.isNaN(d.getTime())) return "N/A";
+  return formatDateFns(d, "dd/LLL/yyyy HH:mm");
 }
 
 export async function GET(req: NextRequest) {
@@ -65,8 +73,8 @@ export async function GET(req: NextRequest) {
       accessKeyId: b.accessKeyId,
 
       permission: b.permission,
-      createdAt: b.createdAt,
-      updatedAt: b.updatedAt,
+      createdAt: formatDate(b.createdAt),
+      updatedAt: formatDate(b.updatedAt),
 
       mediaCount: b._count.medias,
       folderCount: b._count.spaces,

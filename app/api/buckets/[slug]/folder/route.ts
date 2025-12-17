@@ -1,6 +1,14 @@
 /* eslint-disable */
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/connection";
+import { format as formatDateFns } from "date-fns";
+
+function formatDate(input: Date | string | null | undefined) {
+  if (!input) return "N/A";
+  const d = typeof input === "string" ? new Date(input) : input;
+  if (Number.isNaN(d.getTime())) return "N/A";
+  return formatDateFns(d, "dd/LLL/yyyy HH:mm");
+}
 
 export async function GET(
   req: NextRequest,
@@ -49,7 +57,7 @@ export async function GET(
       slug: folder.slug,
       type: "folder",
       parentId: folder.parentId,
-      createdAt: folder.createdAt,
+      createdAt: formatDate(folder.createdAt),
     }));
 
     const parentSpace = await prisma.space.findUnique({
@@ -96,7 +104,7 @@ export async function GET(
           url: m.url,
           type: m.fileType,
           size: m.size,
-          createdAt: m.createdAt,
+          createdAt: formatDate(m.createdAt),
           //   folderId: m.spaceId,
         })),
       },
