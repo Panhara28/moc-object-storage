@@ -88,7 +88,7 @@ export default function AdminMeProfileScreen({
      UI Rendering
   ----------------------------------------------------- */
   return (
-    <main className="min-h-screen bg-background p-8">
+    <main className="min-h-screen p-8">
       <div className="mx-auto space-y-6">
         {/* Header */}
         <div className="space-y-2">

@@ -124,7 +124,10 @@ export default function AdminMediaLibraryUploadScreen({
   );
 
   const refreshData = useCallback(async () => {
-    await Promise.all([loadSpaces(currentParentSlug), loadMedia(currentParentSlug)]);
+    await Promise.all([
+      loadSpaces(currentParentSlug),
+      loadMedia(currentParentSlug),
+    ]);
   }, [currentParentSlug, loadMedia, loadSpaces]);
 
   useEffect(() => {
@@ -221,7 +224,7 @@ export default function AdminMediaLibraryUploadScreen({
 
       {/* MAIN CARD */}
       <Card className="bg-white border border-gray-200 shadow-sm">
-        <div className="py-2">
+        <div className="px-6 pt-10">
           <MediaFilters
             selectedFilter={selectedFilter}
             onFilterChange={setSelectedFilter}
