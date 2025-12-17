@@ -34,6 +34,8 @@ interface BucketListItem {
   mediaCount: number;
   folderCount: number;
   size?: number | null;
+  sizeBytes?: number;
+  sizeLabel?: string;
 }
 
 interface NewBucketCredentials {
@@ -58,6 +60,14 @@ export default function BucketsList({
   const [renameBucket, setRenameBucket] = useState<BucketListItem | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteBucket, setDeleteBucket] = useState<BucketListItem | null>(null);
+
+  const formatBytes = (bytes?: number | null) => {
+    if (!bytes) return "0 B";
+    const units = ["B", "KB", "MB", "GB", "TB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(1024));
+    const val = bytes / Math.pow(1024, i);
+    return `${val.toFixed(val >= 10 ? 0 : 1)} ${units[i]}`;
+  };
 
   return (
     <div className="space-y-6">
@@ -187,7 +197,7 @@ export default function BucketsList({
                 <Link href={`/admin/buckets/${bucket.slug}`}>
                   <div className="space-y-2">
                     <div className="text-sm text-muted-foreground">
-                      {bucket.size ?? 0} GB
+                      {bucket.sizeLabel || formatBytes(bucket.sizeBytes)}
                     </div>
 
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
