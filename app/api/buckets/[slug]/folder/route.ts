@@ -66,8 +66,7 @@ export async function GET(
     const medias = await prisma.media.findMany({
       where: {
         bucketId: bucket.id, // Only media from the specified bucket
-        isDeleted: false, // Only non-deleted media
-        visibility: "PUBLIC", // Only public media
+        isVisibility: "AVAILABLE", // Only public media
         path: parentSpace.name, // Only media in this folder (based on folder name)
       },
       skip,
@@ -78,8 +77,7 @@ export async function GET(
     const totalMedia = await prisma.media.count({
       where: {
         bucketId: bucket.id,
-        isDeleted: false,
-        visibility: "PUBLIC",
+        isVisibility: "AVAILABLE",
         path: parentSpace.name,
       },
     });

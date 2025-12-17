@@ -83,12 +83,12 @@ export async function POST(req: NextRequest) {
 
     const safeName = name.toLowerCase().replace(/[^a-z0-9-_]/g, "-");
 
-    // Duplicate check
-    const exists = await prisma.bucket.findUnique({
+    // Duplicate check (allow reactivation if marked REMOVE)
+    const existingBucket = await prisma.bucket.findUnique({
       where: { name: safeName },
     });
 
-    if (exists) {
+    if (existingBucket && existingBucket.isAvailable !== "REMOVE") {
       return NextResponse.json(
         { status: "error", message: "Bucket already exists." },
         { status: 409 }
@@ -101,16 +101,28 @@ export async function POST(req: NextRequest) {
     const secretAccessKey = generateSecretAccessKey();
 
     // 🗄  Save bucket
-    const bucket = await prisma.bucket.create({
-      data: {
-        name: safeName,
-        accessKeyName,
-        accessKeyId,
-        secretAccessKey,
-        permission,
-        createdById: user.id,
-      },
-    });
+    const bucket = existingBucket
+      ? await prisma.bucket.update({
+          where: { id: existingBucket.id },
+          data: {
+            accessKeyName,
+            accessKeyId,
+            secretAccessKey,
+            permission,
+            createdById: user.id,
+            isAvailable: "AVAILABLE",
+          },
+        })
+      : await prisma.bucket.create({
+          data: {
+            name: safeName,
+            accessKeyName,
+            accessKeyId,
+            secretAccessKey,
+            permission,
+            createdById: user.id,
+          },
+        });
 
     /* -------------------------------------------------------
        FILE SYSTEM — CROSS PLATFORM FIX

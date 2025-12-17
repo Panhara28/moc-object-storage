@@ -48,6 +48,7 @@ export async function GET(
     // ---------------------------------------
     const where: Prisma.MediaWhereInput = {
       bucket: { slug },
+      isVisibility: "AVAILABLE", // or whatever state represents active
     };
 
     if (search) {
@@ -72,6 +73,8 @@ export async function GET(
       take: limit,
       orderBy: { createdAt: "desc" },
     });
+
+    console.log("media", media);
 
     const totalMedia = await prisma.media.count({ where });
 

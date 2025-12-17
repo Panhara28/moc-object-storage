@@ -129,6 +129,8 @@ export async function POST(
       where: {
         bucketId: bucket.id,
         parentId: numericParentId,
+        mediaId: null, // only folders
+        isAvailable: { not: "REMOVE" }, // ignore removed folders so names can be reused
       },
       select: { name: true },
     });
@@ -148,8 +150,12 @@ export async function POST(
     let folderPath = uniqueFolderName;
 
     if (numericParentId !== null) {
-      const parentFolder = await prisma.space.findUnique({
-        where: { id: numericParentId },
+      const parentFolder = await prisma.space.findFirst({
+        where: {
+          id: numericParentId,
+          mediaId: null,
+          isAvailable: { not: "REMOVE" },
+        },
         select: { id: true, name: true, parentId: true, bucketId: true },
       });
 

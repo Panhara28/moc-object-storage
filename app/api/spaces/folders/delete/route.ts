@@ -67,7 +67,7 @@ export async function POST(req: Request) {
     }
 
     const { folderId } = await req.json();
-    console.log("folderId", folderId);
+
     const numericFolderId =
       folderId === null || folderId === undefined ? NaN : Number(folderId);
     console.log("numericFolderId", numericFolderId);
@@ -91,8 +91,6 @@ export async function POST(req: Request) {
       },
     });
 
-    console.log("folder", folder);
-
     if (!folder) {
       return NextResponse.json({ error: "Folder not found" }, { status: 404 });
     }
@@ -111,24 +109,57 @@ export async function POST(req: Request) {
       );
     }
 
-    const ids: number[] = [folder.id];
+    const folderIds: number[] = [folder.id];
+    const fileIds: number[] = [];
+    const mediaIds: number[] = [];
     let frontier: number[] = [folder.id];
 
     while (frontier.length) {
       const children = await prisma.space.findMany({
-        where: { parentId: { in: frontier }, isAvailable: "AVAILABLE" },
-        select: { id: true },
+        where: {
+          parentId: { in: frontier },
+          isAvailable: "AVAILABLE",
+        },
+        select: { id: true, mediaId: true },
       });
       if (children.length === 0) break;
-      const childIds = children.map((c) => c.id);
-      ids.push(...childIds);
-      frontier = childIds;
+      const childFolderIds = children
+        .filter((c) => c.mediaId === null)
+        .map((c) => c.id);
+      const childFileIds = children
+        .filter((c) => c.mediaId !== null)
+        .map((c) => c.id);
+      const childMediaIds = children
+        .filter((c) => c.mediaId !== null)
+        .map((c) => c.mediaId as number);
+      folderIds.push(...childFolderIds);
+      fileIds.push(...childFileIds);
+      mediaIds.push(...childMediaIds);
+      frontier = childFolderIds;
     }
+
+    const ids = [...folderIds, ...fileIds];
 
     await prisma.space.updateMany({
       where: { id: { in: ids } },
       data: { isAvailable: "REMOVE" },
     });
+
+    const linkedMediaIds = await prisma.mediaUploadDetail.findMany({
+      where: { spaceId: { in: ids } },
+      select: { mediaId: true },
+    });
+
+    const mediaIdsToRemove = Array.from(
+      new Set([...mediaIds, ...linkedMediaIds.map((m) => m.mediaId)])
+    );
+
+    if (mediaIdsToRemove.length) {
+      await prisma.media.updateMany({
+        where: { id: { in: mediaIdsToRemove } },
+        data: { isVisibility: "REMOVE" },
+      });
+    }
 
     try {
       const storageRoot = getStorageRoot();
