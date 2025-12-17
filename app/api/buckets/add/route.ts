@@ -47,6 +47,26 @@ function getStorageRoot() {
   return path.join(process.cwd(), "storage");
 }
 
+function isSafeSegment(segment: string) {
+  return (
+    segment.length > 0 &&
+    !segment.includes("..") &&
+    !segment.includes("/") &&
+    !segment.includes("\\")
+  );
+}
+
+function assertPathInsideBase(base: string, target: string) {
+  const baseResolved = path.resolve(base);
+  const targetResolved = path.resolve(target);
+  if (
+    targetResolved !== baseResolved &&
+    !targetResolved.startsWith(baseResolved + path.sep)
+  ) {
+    throw new Error("Resolved path escapes storage root");
+  }
+}
+
 /* -------------------------------------------------------
    CREATE BUCKET
 ------------------------------------------------------- */
@@ -77,6 +97,13 @@ export async function POST(req: NextRequest) {
     if (!name) {
       return NextResponse.json(
         { status: "error", message: "Bucket name is required." },
+        { status: 400 }
+      );
+    }
+
+    if (!isSafeSegment(name)) {
+      return NextResponse.json(
+        { status: "error", message: "Bucket name contains invalid characters." },
         { status: 400 }
       );
     }
@@ -129,6 +156,7 @@ export async function POST(req: NextRequest) {
     ------------------------------------------------------- */
     const STORAGE_ROOT = getStorageRoot();
     const bucketDir = path.join(STORAGE_ROOT, safeName);
+    assertPathInsideBase(STORAGE_ROOT, bucketDir);
 
     // Ensure base storage folder exists
     await fs.mkdir(STORAGE_ROOT, { recursive: true });

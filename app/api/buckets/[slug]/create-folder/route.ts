@@ -4,6 +4,26 @@ import { getAuthUser } from "@/lib/authorized";
 import * as fs from "fs/promises";
 import path from "path";
 
+function isSafeSegment(segment: string) {
+  return (
+    segment.length > 0 &&
+    !segment.includes("..") &&
+    !segment.includes("/") &&
+    !segment.includes("\\")
+  );
+}
+
+function assertPathInsideBase(base: string, target: string) {
+  const baseResolved = path.resolve(base);
+  const targetResolved = path.resolve(target);
+  if (
+    targetResolved !== baseResolved &&
+    !targetResolved.startsWith(baseResolved + path.sep)
+  ) {
+    throw new Error("Resolved path escapes storage root");
+  }
+}
+
 function getUniqueFolderName(baseName: string, siblingNames: string[]) {
   const siblings = new Set(siblingNames);
 
@@ -62,6 +82,10 @@ async function buildFolderPathSegments(
     currentParentId = ancestor.parentId;
   }
 
+  if (!segments.every(isSafeSegment)) {
+    throw new Error("Invalid folder path segment.");
+  }
+
   return segments;
 }
 
@@ -98,6 +122,13 @@ export async function POST(
       );
     }
 
+    if (!isSafeSegment(name.trim())) {
+      return NextResponse.json(
+        { error: "Folder name contains invalid characters." },
+        { status: 400 }
+      );
+    }
+
     const numericParentId =
       parentId === null || parentId === undefined ? null : Number(parentId);
 
@@ -119,6 +150,13 @@ export async function POST(
       return NextResponse.json(
         { error: "Bucket not found or unavailable." },
         { status: 404 }
+      );
+    }
+
+    if (!isSafeSegment(bucket.name)) {
+      return NextResponse.json(
+        { error: "Invalid bucket name." },
+        { status: 400 }
       );
     }
 
@@ -196,6 +234,13 @@ export async function POST(
       console.log("Parent folder found. Updated folder path:", folderPath);
     }
 
+    if (!isSafeSegment(uniqueFolderName)) {
+      return NextResponse.json(
+        { error: "Folder name contains invalid characters." },
+        { status: 400 }
+      );
+    }
+
     // 3. Create the folder in the database
     const newFolder = await prisma.space.create({
       data: {
@@ -214,9 +259,11 @@ export async function POST(
     // 4. Create the folder on the filesystem
     const STORAGE_ROOT = process.env.STORAGE_ROOT || "C:/mnt/storage"; // Use Windows path if not set
     const bucketDir = path.join(STORAGE_ROOT, bucket.name);
+    assertPathInsideBase(STORAGE_ROOT, bucketDir);
 
     // Ensure proper folder path construction
     const folderFullPath = path.join(bucketDir, folderPath);
+    assertPathInsideBase(bucketDir, folderFullPath);
 
     // Debug the full folder path to be created
     console.log("Full path to be created:", folderFullPath);

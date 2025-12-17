@@ -5,6 +5,26 @@ import { authorize } from "@/lib/authorized";
 import * as fs from "fs/promises";
 import path from "path";
 
+function isSafeSegment(segment: string) {
+  return (
+    segment.length > 0 &&
+    !segment.includes("..") &&
+    !segment.includes("/") &&
+    !segment.includes("\\")
+  );
+}
+
+function assertPathInsideBase(base: string, target: string) {
+  const baseResolved = path.resolve(base);
+  const targetResolved = path.resolve(target);
+  if (
+    targetResolved !== baseResolved &&
+    !targetResolved.startsWith(baseResolved + path.sep)
+  ) {
+    throw new Error("Resolved path escapes storage root");
+  }
+}
+
 function getStorageRoot() {
   if (process.env.STORAGE_ROOT) return process.env.STORAGE_ROOT;
   if (process.platform === "darwin") return path.join(process.cwd(), "storage");
@@ -45,6 +65,10 @@ async function buildFolderPathSegments(
     currentParentId = ancestor.parentId;
   }
 
+  if (!segments.every(isSafeSegment)) {
+    throw new Error("Invalid folder path segment.");
+  }
+
   return segments;
 }
 
@@ -70,8 +94,7 @@ export async function POST(req: Request) {
 
     const numericFolderId =
       folderId === null || folderId === undefined ? NaN : Number(folderId);
-    console.log("numericFolderId", numericFolderId);
-    if (!folderId || Number.isNaN(numericFolderId)) {
+    if (folderId == null || Number.isNaN(numericFolderId)) {
       return NextResponse.json(
         { error: "folderId (number) is required" },
         { status: 400 }
@@ -106,6 +129,13 @@ export async function POST(req: Request) {
       return NextResponse.json(
         { error: "Not authorized to delete this folder." },
         { status: 403 }
+      );
+    }
+
+    if (!isSafeSegment(folder.name) || !isSafeSegment(folder.bucket.name)) {
+      return NextResponse.json(
+        { error: "Invalid folder or bucket path segment." },
+        { status: 400 }
       );
     }
 
@@ -163,6 +193,7 @@ export async function POST(req: Request) {
 
     try {
       const storageRoot = getStorageRoot();
+      assertPathInsideBase(storageRoot, path.join(storageRoot));
       const folderPathSegments = await buildFolderPathSegments(
         {
           id: folder.id,
@@ -172,11 +203,10 @@ export async function POST(req: Request) {
         },
         folder.bucketId
       );
-      const folderFullPath = path.join(
-        storageRoot,
-        folder.bucket.name,
-        ...folderPathSegments
-      );
+      const bucketPath = path.join(storageRoot, folder.bucket.name);
+      assertPathInsideBase(storageRoot, bucketPath);
+      const folderFullPath = path.join(bucketPath, ...folderPathSegments);
+      assertPathInsideBase(bucketPath, folderFullPath);
       await fs.rm(folderFullPath, { recursive: true, force: true });
     } catch (fsErr) {
       console.error("Failed to delete folder on filesystem:", fsErr);
