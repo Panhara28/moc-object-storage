@@ -335,6 +335,7 @@ export default function AdminMediaLibraryUploadScreen({
         open={propsOpen}
         folder={activeFolder}
         onClose={() => setPropsOpen(false)}
+        bucketSlug={bucketSlug}
       />
 
       {/* <MediaMoveFolderDialog
