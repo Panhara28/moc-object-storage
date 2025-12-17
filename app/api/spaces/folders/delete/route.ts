@@ -125,10 +125,40 @@ export async function POST(req: Request) {
       frontier = childIds;
     }
 
-    await prisma.space.updateMany({
-      where: { id: { in: ids } },
-      data: { isAvailable: "REMOVE" },
-    });
+    const mediaIds = await prisma.space
+      .findMany({
+        where: { id: { in: ids }, mediaId: { not: null } },
+        select: { mediaId: true },
+      })
+      .then((rows) =>
+        Array.from(
+          new Set(
+            rows
+              .map((row) => row.mediaId)
+              .filter((mediaId): mediaId is number => mediaId !== null)
+          )
+        )
+      );
+
+    console.log("mediaIds", mediaIds);
+
+    const transactions = [
+      prisma.space.updateMany({
+        where: { id: { in: ids } },
+        data: { isAvailable: "REMOVE" },
+      }),
+    ];
+
+    if (mediaIds.length) {
+      transactions.push(
+        prisma.media.updateMany({
+          where: { id: { in: mediaIds } },
+          data: { visibility: "REMOVE" },
+        })
+      );
+    }
+
+    await prisma.$transaction(transactions);
 
     try {
       const storageRoot = getStorageRoot();
