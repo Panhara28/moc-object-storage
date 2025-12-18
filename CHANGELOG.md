@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.1.3](https://github.com/Panhara28/moc-object-storage/compare/v0.1.2...v0.1.3) (2025-12-18)
+
+
+### Bug Fixes
+
+* update routing paths to ensure correct navigation to admin dashboard ([e6cbd1e](https://github.com/Panhara28/moc-object-storage/commit/e6cbd1e8cd0a5a9048ae4344d5a4c5a7ed1b4914))
+
 ### [0.1.2](https://github.com/Panhara28/moc-object-storage/compare/v0.1.1...v0.1.2) (2025-12-17)
 
 
