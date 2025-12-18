@@ -5,6 +5,18 @@ import { Prisma } from "@/lib/generated/prisma";
 
 export async function GET(req: Request) {
   try {
+    const uiHeader = req.headers.get("x-ui-request");
+    const referer = req.headers.get("referer");
+    const requestOrigin = new URL(req.url).origin;
+    const refererOrigin = referer ? new URL(referer).origin : null;
+
+    if (uiHeader?.toLowerCase() !== "true" && refererOrigin !== requestOrigin) {
+      return NextResponse.json(
+        { status: "error", message: "Forbidden" },
+        { status: 403 }
+      );
+    }
+
     // --------------------------------------------------------------------------
     // 1. AUTHORIZATION CHECK — REQUIRE roles.read
     // --------------------------------------------------------------------------

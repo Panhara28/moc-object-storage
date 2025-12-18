@@ -53,7 +53,10 @@ export default function BucketListsScreen() {
   } | null>(null);
 
   const refreshBuckets = async () => {
-    const res = await fetch("/api/buckets/lists", { cache: "no-store" });
+    const res = await fetch("/api/buckets/lists", {
+      cache: "no-store",
+      headers: { "x-ui-request": "true" },
+    });
     if (!res.ok) {
       console.error("Failed to load buckets", res.status);
       setBuckets([]);
@@ -74,7 +77,9 @@ export default function BucketListsScreen() {
 
   useEffect(() => {
     const load = async () => {
-      const res = await fetch("/api/buckets/lists", { cache: "no-store" });
+      const res = await fetch("/api/buckets/lists", {
+        cache: "no-store",
+      });
       if (!res.ok) {
         console.error("Failed to load buckets", res.status);
         setBuckets([]);

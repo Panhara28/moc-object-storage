@@ -1,7 +1,7 @@
 /* eslint-disable */
 import { prisma } from "@/lib/connection";
 import { authorize } from "@/lib/authorized";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { Prisma, MediaType } from "@/lib/generated/prisma";
 import { format as formatDateFns } from "date-fns";
 
@@ -12,8 +12,20 @@ function formatDate(input: Date | string | null | undefined) {
   return formatDateFns(d, "dd/LLL/yyyy HH:mm");
 }
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
+    const uiHeader = req.headers.get("x-ui-request");
+    const referer = req.headers.get("referer");
+    const requestOrigin = new URL(req.url).origin;
+    const refererOrigin = referer ? new URL(referer).origin : null;
+
+    if (uiHeader?.toLowerCase() !== "true" && refererOrigin !== requestOrigin) {
+      return NextResponse.json(
+        { status: "error", message: "Forbidden" },
+        { status: 403 }
+      );
+    }
+
     // ------------------------------------------------------------
     // 0. AUTHORIZATION
     // ------------------------------------------------------------

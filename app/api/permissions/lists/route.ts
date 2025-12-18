@@ -1,9 +1,21 @@
 import { prisma } from "@/lib/connection";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { authorize } from "@/lib/authorized";
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
+    const uiHeader = req.headers.get("x-ui-request");
+    const referer = req.headers.get("referer");
+    const requestOrigin = new URL(req.url).origin;
+    const refererOrigin = referer ? new URL(referer).origin : null;
+
+    if (uiHeader?.toLowerCase() !== "true" && refererOrigin !== requestOrigin) {
+      return NextResponse.json(
+        { status: "error", message: "Forbidden" },
+        { status: 403 }
+      );
+    }
+
     /* --------------------------------------------------------------------------
      * 1. AUTHORIZATION — REQUIRE permissions.read
      * -------------------------------------------------------------------------- */
