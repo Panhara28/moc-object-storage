@@ -1,16 +1,14 @@
 import { NextResponse } from "next/server";
-import { getAuthUser } from "@/lib/auth";
+import { authorize } from "@/lib/authorized";
 import { prisma } from "@/lib/connection";
 
 export async function GET(req: Request) {
   try {
-    const user = await getAuthUser(req);
-    if (!user) {
-      return NextResponse.json(
-        { error: "You must be logged in." },
-        { status: 401 }
-      );
+    const auth = await authorize(req, "media-library", "read");
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.message }, { status: auth.status });
     }
+    const user = auth.user;
 
     const { searchParams } = new URL(req.url);
     const parentSlug = searchParams.get("parentSlug");

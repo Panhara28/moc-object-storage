@@ -1,8 +1,14 @@
 import { NextResponse } from "next/server";
+import { authorize } from "@/lib/authorized";
 import { prisma } from "@/lib/connection";
 
 export async function POST(req: Request) {
   try {
+    const auth = await authorize(req, "media-library", "update");
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.message }, { status: auth.status });
+    }
+
     const { folderId, newParentId } = await req.json();
 
     if (!folderId || !newParentId) {

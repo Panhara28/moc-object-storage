@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/connection";
+import { getAuthUser } from "@/lib/auth";
 import crypto from "crypto";
 
 // ------------------------------
@@ -41,7 +42,18 @@ export async function POST(req: Request) {
       );
     }
 
-    console.log("⏳ RESETTING + SEEDING FULL SYSTEM...");
+    const existingUsers = await prisma.user.count();
+    if (existingUsers > 0) {
+      const user = await getAuthUser(req);
+      if (!user) {
+        return NextResponse.json(
+          { error: "Unauthorized seed request." },
+          { status: 401 }
+        );
+      }
+    }
+
+    console.log("RESETTING + SEEDING FULL SYSTEM...");
 
     /* ========================================================================
        DELETE ORDER (MUST FOLLOW RELATION DEPENDENCIES)
@@ -103,7 +115,7 @@ export async function POST(req: Request) {
        ROLE PERMISSIONS
     ======================================================================== */
 
-    // Admin → Full Access
+    // Admin -> Full Access
     for (const mod of seededModules) {
       await prisma.rolePermission.create({
         data: {
@@ -117,7 +129,7 @@ export async function POST(req: Request) {
       });
     }
 
-    // Editor → Limited modules
+    // Editor -> Limited modules
     const editorAllowed = ["users", "media-library", "audiences"];
 
     for (const mod of seededModules) {
@@ -133,7 +145,7 @@ export async function POST(req: Request) {
       });
     }
 
-    // Viewer → Read-only
+    // Viewer -> Read-only
     for (const mod of seededModules) {
       await prisma.rolePermission.create({
         data: {
@@ -215,13 +227,13 @@ export async function POST(req: Request) {
     ======================================================================== */
 
     return NextResponse.json({
-      message: "Full Seed Completed 🚀",
+      message: "Full Seed Completed",
       defaultBucket: defaultBucket.name,
       defaultBucketKeyId: defaultBucket.accessKeyId,
       defaultFolder: defaultFolder.name,
     });
   } catch (error: unknown) {
-    console.error("❌ Seed error:", error);
+    console.error("Seed error:", error);
     return NextResponse.json(
       {
         error: "Failed to run seed script",

@@ -1,5 +1,6 @@
 /* eslint-disable */
 import { prisma } from "@/lib/connection";
+import { authorize } from "@/lib/authorized";
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma, MediaType } from "@/lib/generated/prisma";
 import { format as formatDateFns } from "date-fns";
@@ -17,6 +18,14 @@ export async function GET(
 ) {
   try {
     const { slug } = await context.params;
+
+    const auth = await authorize(req, "media-library", "read");
+    if (!auth.ok) {
+      return NextResponse.json(
+        { status: "error", message: auth.message },
+        { status: auth.status }
+      );
+    }
 
     const { searchParams } = new URL(req.url);
 

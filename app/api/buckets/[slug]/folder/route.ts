@@ -1,5 +1,6 @@
 /* eslint-disable */
 import { NextRequest, NextResponse } from "next/server";
+import { authorize } from "@/lib/authorized";
 import { prisma } from "@/lib/connection";
 import { format as formatDateFns } from "date-fns";
 
@@ -16,6 +17,13 @@ export async function GET(
 ) {
   try {
     const { slug } = await context.params;
+    const auth = await authorize(req, "media-library", "read");
+    if (!auth.ok) {
+      return NextResponse.json(
+        { status: "error", message: auth.message },
+        { status: auth.status }
+      );
+    }
     const { searchParams } = new URL(req.url);
     const page = Number(searchParams.get("page") || 1);
     const limit = Number(searchParams.get("limit") || 20);

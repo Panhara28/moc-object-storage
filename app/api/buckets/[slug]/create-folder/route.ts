@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { authorize } from "@/lib/authorized";
 import { prisma } from "@/lib/connection";
-import { getAuthUser } from "@/lib/authorized";
 import * as fs from "fs/promises";
 import path from "path";
 
@@ -94,14 +94,14 @@ export async function POST(
   context: { params: Promise<{ slug: string }> }
 ) {
   try {
-    // Get authenticated user
-    const user = await getAuthUser(req);
-    if (!user) {
+    const auth = await authorize(req, "media-library", "create");
+    if (!auth.ok) {
       return NextResponse.json(
-        { error: "You must be logged in." },
-        { status: 401 }
+        { error: auth.message },
+        { status: auth.status }
       );
     }
+    const user = auth.user;
 
     const { slug } = await context.params;
     const body = await req.json();
@@ -215,19 +215,15 @@ export async function POST(
       let parentSegments: string[] = [];
 
       try {
-        parentSegments = await buildFolderPathSegments(
-          parentFolder,
-          bucket.id
-        );
+        parentSegments = await buildFolderPathSegments(parentFolder, bucket.id);
       } catch (err) {
         const message =
           err instanceof Error
             ? err.message
             : "Failed to resolve parent folder path.";
-        const status =
-          message === "Parent folder does not exist." ? 404 : 400;
+        const status = message === "Parent folder does not exist." ? 404 : 400;
 
-          return NextResponse.json({ error: message }, { status });
+        return NextResponse.json({ error: message }, { status });
       }
 
       folderPath = path.join(...parentSegments, uniqueFolderName);
@@ -247,7 +243,7 @@ export async function POST(
         name: uniqueFolderName,
         parentId: numericParentId,
         bucketId: bucket.id,
-        userId: user.id,
+        userId: user!.id,
         isAvailable: "AVAILABLE",
         uploadedAt: new Date(),
         mediaId: null,
