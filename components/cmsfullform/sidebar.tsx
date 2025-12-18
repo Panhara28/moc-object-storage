@@ -71,7 +71,7 @@ const menuData: MenuSection[] = [
       {
         id: "dashboard",
         label: "Dashboard",
-        href: "/admin/dashboard",
+        href: "/admin/admin/dashboard",
         icon: Home,
       },
 
@@ -368,7 +368,7 @@ export default function Sidebar() {
             {/* Header */}
             <div className="h-16 px-3 flex items-center border-b border-gray-200 dark:border-[#1F1F23]">
               <Link
-                href="/admin/dashboard"
+                href="/admin/admin/dashboard"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-3 w-full"
@@ -465,7 +465,7 @@ export default function Sidebar() {
           <div className="h-16 px-3 flex items-center border-b border-gray-200 dark:border-[#1F1F23]">
             {showText ? (
               <Link
-                href="/admin/dashboard"
+                href="/admin/admin/dashboard"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-3 w-full"

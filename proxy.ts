@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server";
 import { verifyTokenLite } from "@/lib/auth-lite";
 
 // ROUTES THAT REQUIRE AUTHENTICATION
-const PROTECTED_ROUTES = ["/dashboard", "/admin", "/settings"];
+const PROTECTED_ROUTES = ["/admin/dashboard", "/admin", "/settings"];
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -37,5 +37,5 @@ export function proxy(request: NextRequest) {
 
 // Route Matcher
 export const config = {
-  matcher: ["/dashboard/:path*", "/admin/:path*", "/settings/:path*"],
+  matcher: ["/admin/dashboard/:path*", "/admin/:path*", "/settings/:path*"],
 };
