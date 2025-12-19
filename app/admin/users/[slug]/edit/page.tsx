@@ -7,11 +7,12 @@ async function getItem(slug: string) {
 
   // ⬅️ FIX: Extract cookie manually
   const session = cookieStore.get("session")?.value || "";
-
+  console.log("123");
   const res = await fetch(`http://localhost:3000/api/users/${slug}`, {
     cache: "no-store",
     headers: {
       cookie: `session=${session}`, // ✔ authorized now
+      "x-ui-request": "true",
     },
   });
 
@@ -19,7 +20,11 @@ async function getItem(slug: string) {
   return res.json();
 }
 
-export default async function AdminUserEditPage({ params }: { params: { slug: string } }) {
+export default async function AdminUserEditPage({
+  params,
+}: {
+  params: { slug: string };
+}) {
   const { slug } = params;
 
   const result = await getItem(slug);

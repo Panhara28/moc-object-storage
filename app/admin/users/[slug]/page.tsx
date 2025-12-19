@@ -13,10 +13,12 @@ async function getUser(slug: string) {
     cache: "no-store",
     headers: {
       cookie: `session=${session}`, // ✔ This is the correct way
+      "x-ui-request": "true",
     },
   });
 
   if (!res.ok) return null;
+
   return res.json();
 }
 
@@ -25,11 +27,9 @@ export default async function AdminUserDetailPage({
 }: {
   params: { slug: string };
 }) {
-  const { slug } = params;
-
+  const { slug } = await params;
   const result = await getUser(slug);
   const user = result?.data ?? null;
-
   return (
     <>
       <Layout>

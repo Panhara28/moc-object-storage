@@ -47,7 +47,9 @@ export default function AdminMeProfileScreen({
         const res = await fetch("/api/auth/me", { cache: "no-store" });
         const json = await res.json();
 
-        if (json.status === "ok") {
+        if (json?.user) {
+          setUser(json.user);
+        } else if (json?.data) {
           setUser(json.data);
         } else {
           console.error("Failed to load profile:", json);
@@ -183,7 +185,7 @@ export default function AdminMeProfileScreen({
 
                   <div>
                     <p className="text-sm text-muted-foreground">ID</p>
-                    <p className="text-foreground font-medium">#{user.slug}</p>
+                    <p className="text-foreground font-medium">#{user.id}</p>
                   </div>
                 </div>
               </div>

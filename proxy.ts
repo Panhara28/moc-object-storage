@@ -35,22 +35,11 @@ function isUiContext(request: NextRequest) {
     }
   }
 
-  const ua = request.headers.get("user-agent")?.toLowerCase() ?? "";
-  if (
-    ua.includes("next.js") ||
-    ua.includes("node-fetch") ||
-    ua.includes("undici") ||
-    ua.includes("axios")
-  ) {
-    return true;
-  }
-
   return false;
 }
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-
   // Gate API requests to UI context unless allowlisted
   if (pathname.startsWith("/api/")) {
     if (API_ALLOWLIST.some((pattern) => pattern.test(pathname))) {

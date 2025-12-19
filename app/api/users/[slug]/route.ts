@@ -5,10 +5,23 @@ import { signPayload } from "@/lib/signedUrl";
 
 export async function GET(
   req: NextRequest,
-  context: { params: Promise<{ slug: string }> }
+  { params }: { params: Promise<{ slug: string }> }
 ) {
+  console.log("slug", "123");
+  const uiHeader = req.headers.get("x-ui-request");
+  const referer = req.headers.get("referer");
+  const requestOrigin = new URL(req.url).origin;
+  const refererOrigin = referer ? new URL(referer).origin : null;
+
+  if (uiHeader?.toLowerCase() !== "true" && refererOrigin !== requestOrigin) {
+    return NextResponse.json(
+      { status: "error", message: "Forbidden" },
+      { status: 403 }
+    );
+  }
   try {
-    const { slug } = await context.params;
+    const { slug } = await params;
+    console.log("slug", slug);
     // --------------------------------------------------------------------------
     // 1. AUTHORIZATION CHECK
     // --------------------------------------------------------------------------
