@@ -35,6 +35,12 @@ export function RegisterForm() {
     window.location.href = "/admin/dashboard";
   };
 
+  const handleSocialRegister = async (provider: "google" | "github") => {
+    // Placeholder: integrate your social auth flow here
+    // For now, just redirect or log for debugging
+    console.log(`Social register with ${provider}`);
+  };
+
   return (
     <div className="min-h-screen flex">
       <AuthBrandSection />
