@@ -209,6 +209,8 @@ model Media {
 
   isVisibility Visibility @default(AVAILABLE)
 
+  isAccessible Visibility @default(PRIVATE)
+
   width      Int?
   height     Int?
   uploadedAt DateTime @default(now())

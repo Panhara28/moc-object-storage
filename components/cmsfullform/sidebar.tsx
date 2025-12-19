@@ -539,8 +539,9 @@ export default function Sidebar() {
           </div>
 
           <div className="px-2 py-4 border-t border-gray-200 dark:border-[#1F1F23]">
-            <div className="space-y-1">
-              <NavItem
+            <div className="space-y-1  text-center">
+              <span className="text-xs">© 2025 Ministry of Commerce.</span>
+              {/* <NavItem
                 item={{
                   id: "settings",
                   label: "Settings",
@@ -555,7 +556,7 @@ export default function Sidebar() {
                   href: "/help",
                   icon: HelpCircle,
                 }}
-              />
+              /> */}
             </div>
           </div>
         </div>
