@@ -13,6 +13,28 @@ function getStorageRoot() {
   return path.join(process.cwd(), "storage");
 }
 
+function isSafeSegment(segment: string) {
+  return (
+    segment.length > 0 &&
+    !segment.includes("..") &&
+    !segment.includes("/") &&
+    !segment.includes("\\") &&
+    !segment.includes(":") &&
+    !segment.includes("\0")
+  );
+}
+
+function assertPathInsideBase(base: string, target: string) {
+  const baseResolved = path.resolve(base);
+  const targetResolved = path.resolve(target);
+  if (
+    targetResolved !== baseResolved &&
+    !targetResolved.startsWith(baseResolved + path.sep)
+  ) {
+    throw new Error("Resolved path escapes storage root");
+  }
+}
+
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
@@ -38,14 +60,32 @@ export async function PATCH(
       );
     }
 
+    if (!isSafeSegment(bucket.name)) {
+      return NextResponse.json(
+        { status: "error", message: "Invalid bucket name." },
+        { status: 400 }
+      );
+    }
+
     const storageRoot = getStorageRoot();
     const bucketDir = path.join(storageRoot, bucket.name);
+    assertPathInsideBase(storageRoot, bucketDir);
 
     const [updatedBucket, spacesUpdated, mediaUpdated] =
       await prisma.$transaction([
         prisma.bucket.update({
           where: { slug },
           data: { isAvailable: "REMOVE" },
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            accessKeyId: true,
+            permission: true,
+            isAvailable: true,
+            updatedAt: true,
+            createdAt: true,
+          },
         }),
         prisma.space.updateMany({
           where: { bucketId: bucket.id },

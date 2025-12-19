@@ -16,6 +16,20 @@ type Body =
       expiresInSeconds?: number;
     };
 
+function normalizePath(input?: string | null) {
+  if (!input) return null;
+  const trimmed = input.replace(/\\/g, "/").trim();
+  const stripped = trimmed.replace(/^\/+|\/+$/g, "");
+  if (!stripped) return null;
+  if (stripped.includes("\0")) return null;
+  const segments = stripped.split("/");
+  for (const seg of segments) {
+    if (!seg || seg === "." || seg === "..") return null;
+    if (seg.includes("..") || seg.includes(":")) return null;
+  }
+  return segments.join("/");
+}
+
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
@@ -131,10 +145,22 @@ export async function POST(
         action: "upload",
         bucket: bucket.name,
         filename: body.filename,
-        path: body.path ?? null,
+        path: null,
         userId: user.id,
         exp,
       };
+
+      if ("path" in body) {
+        const rawPath = typeof body.path === "string" ? body.path : null;
+        const normalizedPath = normalizePath(rawPath);
+        if (rawPath && !normalizedPath) {
+          return NextResponse.json(
+            { status: "error", message: "Invalid path." },
+            { status: 400 }
+          );
+        }
+        payload.path = normalizedPath;
+      }
 
       const token = signPayload(payload);
       return NextResponse.json({

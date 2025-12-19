@@ -68,13 +68,16 @@ export async function PATCH(
     }
 
     if ("profilePicture" in data) {
-      if (typeof data.profilePicture !== "string") {
+      if (data.profilePicture === null) {
+        updateData.profilePicture = null;
+      } else if (typeof data.profilePicture === "string") {
+        updateData.profilePicture = data.profilePicture;
+      } else {
         return NextResponse.json(
-          { error: "profilePicture must be a string." },
+          { error: "profilePicture must be a string or null." },
           { status: 400 }
         );
       }
-      updateData.profilePicture = data.profilePicture;
     }
 
     if ("fullNameKh" in data) {

@@ -12,11 +12,40 @@ function getStorageRoot() {
   return path.join(process.cwd(), "storage");
 }
 
+function isSafeSegment(segment: string) {
+  return (
+    segment.length > 0 &&
+    !segment.includes("..") &&
+    !segment.includes("/") &&
+    !segment.includes("\\") &&
+    !segment.includes(":") &&
+    !segment.includes("\0")
+  );
+}
+
 function normalizePath(input?: string | null) {
   if (!input) return "";
-  const trimmed = input.replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
-  if (trimmed.includes("..")) return null;
-  return trimmed;
+  const trimmed = input.replace(/\\/g, "/").trim();
+  const stripped = trimmed.replace(/^\/+|\/+$/g, "");
+  if (!stripped) return "";
+  if (stripped.includes("\0")) return null;
+  const segments = stripped.split("/");
+  for (const seg of segments) {
+    if (!seg || seg === "." || seg === "..") return null;
+    if (seg.includes("..") || seg.includes(":")) return null;
+  }
+  return segments.join("/");
+}
+
+function assertPathInsideBase(base: string, target: string) {
+  const baseResolved = path.resolve(base);
+  const targetResolved = path.resolve(target);
+  if (
+    targetResolved !== baseResolved &&
+    !targetResolved.startsWith(baseResolved + path.sep)
+  ) {
+    throw new Error("Resolved path escapes storage root");
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -41,8 +70,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const normalizedPath = normalizePath(targetPathRaw);
-    if (normalizedPath === null) {
+    const normalizedTargetPath = normalizePath(targetPathRaw);
+    if (normalizedTargetPath === null) {
       return NextResponse.json(
         { status: "error", message: "Invalid targetPath." },
         { status: 400 }
@@ -78,6 +107,22 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (!isSafeSegment(media.bucket.name) || !isSafeSegment(media.storedFilename)) {
+      return NextResponse.json(
+        { status: "error", message: "Invalid media path." },
+        { status: 400 }
+      );
+    }
+
+    const rawMediaPath = typeof media.path === "string" ? media.path : null;
+    const normalizedMediaPath = normalizePath(rawMediaPath);
+    if (rawMediaPath && normalizedMediaPath === null) {
+      return NextResponse.json(
+        { status: "error", message: "Invalid media path." },
+        { status: 400 }
+      );
+    }
+
     const targetBucket =
       targetBucketSlug && targetBucketSlug !== media.bucket.slug
         ? await prisma.bucket.findUnique({
@@ -93,17 +138,31 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (!isSafeSegment(targetBucket.name)) {
+      return NextResponse.json(
+        { status: "error", message: "Invalid target bucket." },
+        { status: 400 }
+      );
+    }
+
     const STORAGE_ROOT = getStorageRoot();
 
-    const sourcePath = media.path
-      ? path.join(STORAGE_ROOT, media.bucket.name, media.path, media.storedFilename)
-      : path.join(STORAGE_ROOT, media.bucket.name, media.storedFilename);
+    const sourceBucketDir = path.join(STORAGE_ROOT, media.bucket.name);
+    assertPathInsideBase(STORAGE_ROOT, sourceBucketDir);
+    const sourcePath = normalizedMediaPath
+      ? path.join(sourceBucketDir, normalizedMediaPath, media.storedFilename)
+      : path.join(sourceBucketDir, media.storedFilename);
+    assertPathInsideBase(sourceBucketDir, sourcePath);
 
-    const targetDir = normalizedPath
-      ? path.join(STORAGE_ROOT, targetBucket.name, normalizedPath)
-      : path.join(STORAGE_ROOT, targetBucket.name);
+    const targetBucketDir = path.join(STORAGE_ROOT, targetBucket.name);
+    assertPathInsideBase(STORAGE_ROOT, targetBucketDir);
+    const targetDir = normalizedTargetPath
+      ? path.join(targetBucketDir, normalizedTargetPath)
+      : path.join(targetBucketDir);
+    assertPathInsideBase(targetBucketDir, targetDir);
 
     const targetPath = path.join(targetDir, media.storedFilename);
+    assertPathInsideBase(targetBucketDir, targetPath);
 
     await fs.mkdir(targetDir, { recursive: true });
     await fs.rename(sourcePath, targetPath);
@@ -112,9 +171,9 @@ export async function POST(req: NextRequest) {
       where: { slug: media.slug },
       data: {
         bucketId: targetBucket.id,
-        path: normalizedPath || null,
-        url: normalizedPath
-          ? `https://moc-drive.moc.gov.kh/${targetBucket.name}/${normalizedPath}/${media.storedFilename}`
+        path: normalizedTargetPath || null,
+        url: normalizedTargetPath
+          ? `https://moc-drive.moc.gov.kh/${targetBucket.name}/${normalizedTargetPath}/${media.storedFilename}`
           : `https://moc-drive.moc.gov.kh/${targetBucket.name}/${media.storedFilename}`,
       },
       select: {

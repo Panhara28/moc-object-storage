@@ -12,6 +12,28 @@ function getStorageRoot() {
   return path.join(process.cwd(), "storage");
 }
 
+function isSafeSegment(segment: string) {
+  return (
+    segment.length > 0 &&
+    !segment.includes("..") &&
+    !segment.includes("/") &&
+    !segment.includes("\\") &&
+    !segment.includes(":") &&
+    !segment.includes("\0")
+  );
+}
+
+function assertPathInsideBase(base: string, target: string) {
+  const baseResolved = path.resolve(base);
+  const targetResolved = path.resolve(target);
+  if (
+    targetResolved !== baseResolved &&
+    !targetResolved.startsWith(baseResolved + path.sep)
+  ) {
+    throw new Error("Resolved path escapes storage root");
+  }
+}
+
 type SpaceNode = {
   id: number;
   name: string;
@@ -23,6 +45,9 @@ async function buildFolderPathSegments(
   folder: SpaceNode,
   bucketId: number
 ): Promise<string[]> {
+  if (!isSafeSegment(folder.name)) {
+    throw new Error("Invalid folder path segment.");
+  }
   const segments = [folder.name];
   let currentParentId = folder.parentId;
 
@@ -38,6 +63,10 @@ async function buildFolderPathSegments(
 
     if (ancestor.bucketId !== bucketId) {
       throw new Error("Parent folder does not belong to this bucket.");
+    }
+
+    if (!isSafeSegment(ancestor.name)) {
+      throw new Error("Invalid folder path segment.");
     }
 
     segments.unshift(ancestor.name);
@@ -99,8 +128,22 @@ export async function POST(req: Request) {
       );
     }
 
+    if (!isSafeSegment(newName)) {
+      return NextResponse.json(
+        { error: "Invalid folder name." },
+        { status: 400 }
+      );
+    }
+
     const storageRoot = getStorageRoot();
     const bucketDir = path.join(storageRoot, folder.bucket.name);
+    if (!isSafeSegment(folder.bucket.name)) {
+      return NextResponse.json(
+        { error: "Invalid bucket name." },
+        { status: 400 }
+      );
+    }
+    assertPathInsideBase(storageRoot, bucketDir);
 
     let existingPathSegments: string[] = [];
     try {
@@ -124,6 +167,8 @@ export async function POST(req: Request) {
     const parentSegments = existingPathSegments.slice(0, -1);
     const oldPath = path.join(bucketDir, ...existingPathSegments);
     const newPath = path.join(bucketDir, ...parentSegments, newName);
+    assertPathInsideBase(bucketDir, oldPath);
+    assertPathInsideBase(bucketDir, newPath);
 
     // Avoid overwriting an existing folder with the same target path
     try {

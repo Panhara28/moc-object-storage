@@ -13,6 +13,28 @@ function getStorageRoot() {
   return path.join(process.cwd(), "storage");
 }
 
+function isSafeSegment(segment: string) {
+  return (
+    segment.length > 0 &&
+    !segment.includes("..") &&
+    !segment.includes("/") &&
+    !segment.includes("\\") &&
+    !segment.includes(":") &&
+    !segment.includes("\0")
+  );
+}
+
+function assertPathInsideBase(base: string, target: string) {
+  const baseResolved = path.resolve(base);
+  const targetResolved = path.resolve(target);
+  if (
+    targetResolved !== baseResolved &&
+    !targetResolved.startsWith(baseResolved + path.sep)
+  ) {
+    throw new Error("Resolved path escapes storage root");
+  }
+}
+
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
@@ -39,6 +61,12 @@ export async function PATCH(
     }
 
     const newName = name.trim();
+    if (!isSafeSegment(newName)) {
+      return NextResponse.json(
+        { status: "error", message: "Invalid bucket name." },
+        { status: 400 }
+      );
+    }
 
     // Ensure bucket exists
     const bucketExists = await prisma.bucket.findUnique({
@@ -49,6 +77,13 @@ export async function PATCH(
       return NextResponse.json(
         { status: "error", message: "Bucket not found" },
         { status: 404 }
+      );
+    }
+
+    if (!isSafeSegment(bucketExists.name)) {
+      return NextResponse.json(
+        { status: "error", message: "Invalid bucket name." },
+        { status: 400 }
       );
     }
 
@@ -79,6 +114,8 @@ export async function PATCH(
     const STORAGE_ROOT = getStorageRoot();
     const oldDir = path.join(STORAGE_ROOT, bucketExists.name);
     const newDir = path.join(STORAGE_ROOT, newName);
+    assertPathInsideBase(STORAGE_ROOT, oldDir);
+    assertPathInsideBase(STORAGE_ROOT, newDir);
 
     // Prevent accidental overwrite if a directory with the target name already exists
     try {
@@ -115,6 +152,16 @@ export async function PATCH(
       .update({
         where: { slug },
         data: { name: newName },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          accessKeyId: true,
+          permission: true,
+          isAvailable: true,
+          updatedAt: true,
+          createdAt: true,
+        },
       })
       .catch(async (dbErr) => {
         if (renamedOnDisk) {

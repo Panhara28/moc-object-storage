@@ -7,6 +7,27 @@ import * as fs from "fs/promises";
 import path from "path";
 import sharp from "sharp";
 
+const MAX_UPLOAD_BYTES =
+  Number(process.env.MAX_UPLOAD_BYTES) || 50 * 1024 * 1024; // 50MB default
+const ALLOWED_MIME_PREFIXES = ["image/", "video/", "audio/"];
+const ALLOWED_MIME_TYPES = [
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-powerpoint",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "text/plain",
+];
+
+function isMimeAllowed(mime: string) {
+  return (
+    ALLOWED_MIME_PREFIXES.some((p) => mime.startsWith(p)) ||
+    ALLOWED_MIME_TYPES.includes(mime)
+  );
+}
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -37,6 +58,28 @@ function getStorageRoot() {
   }
 
   return path.join(process.cwd(), "storage");
+}
+
+function isSafeSegment(segment: string) {
+  return (
+    segment.length > 0 &&
+    !segment.includes("..") &&
+    !segment.includes("/") &&
+    !segment.includes("\\") &&
+    !segment.includes(":") &&
+    !segment.includes("\0")
+  );
+}
+
+function assertPathInsideBase(base: string, target: string) {
+  const baseResolved = path.resolve(base);
+  const targetResolved = path.resolve(target);
+  if (
+    targetResolved !== baseResolved &&
+    !targetResolved.startsWith(baseResolved + path.sep)
+  ) {
+    throw new Error("Resolved path escapes storage root");
+  }
 }
 
 // ===============================================================
@@ -80,12 +123,42 @@ export async function POST(req: NextRequest) {
     const form = await req.formData();
     const files = form.getAll("files") as File[];
 
-    const bucketName = (form.get("bucket") as string) || "uploads";
+    const rawBucketName = (form.get("bucket") as string) || "uploads";
+    const bucketName = rawBucketName.trim();
     const folderSlug = form.get("folderSlug") as string | null;
 
     if (!files || files.length === 0) {
       return NextResponse.json(
         { status: "error", message: "No files uploaded" },
+        { status: 400 }
+      );
+    }
+
+    for (const file of files) {
+      if (file.size > MAX_UPLOAD_BYTES) {
+        return NextResponse.json(
+          {
+            status: "error",
+            message: `File "${file.name}" exceeds size limit of ${MAX_UPLOAD_BYTES} bytes.`,
+          },
+          { status: 400 }
+        );
+      }
+
+      if (!file.type || !isMimeAllowed(file.type)) {
+        return NextResponse.json(
+          {
+            status: "error",
+            message: `File "${file.name}" has an unsupported type ${file.type || "(unknown)"}.`,
+          },
+          { status: 400 }
+        );
+      }
+    }
+
+    if (!isSafeSegment(bucketName)) {
+      return NextResponse.json(
+        { status: "error", message: "Invalid bucket name." },
         { status: 400 }
       );
     }
@@ -126,7 +199,15 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    if (!isSafeSegment(bucket.name)) {
+      return NextResponse.json(
+        { status: "error", message: "Invalid bucket name." },
+        { status: 400 }
+      );
+    }
+
     const bucketDir = path.join(STORAGE_ROOT, bucket.name);
+    assertPathInsideBase(STORAGE_ROOT, bucketDir);
     await fs.mkdir(bucketDir, { recursive: true });
 
     // ===============================================================
@@ -155,9 +236,17 @@ export async function POST(req: NextRequest) {
         );
       }
 
+      if (!isSafeSegment(space.name)) {
+        return NextResponse.json(
+          { status: "error", message: "Invalid folder name." },
+          { status: 400 }
+        );
+      }
+
       folderPath = space.name;
 
       const folderDir = path.join(bucketDir, folderPath);
+      assertPathInsideBase(bucketDir, folderDir);
       await fs.mkdir(folderDir, { recursive: true });
     }
 
@@ -184,6 +273,7 @@ export async function POST(req: NextRequest) {
       const storedPath = folderPath
         ? path.join(bucketDir, folderPath, storedFilename)
         : path.join(bucketDir, storedFilename);
+      assertPathInsideBase(bucketDir, storedPath);
 
       await fs.writeFile(storedPath, buffer);
 

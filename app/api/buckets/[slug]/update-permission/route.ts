@@ -30,6 +30,16 @@ export async function PATCH(
     const bucket = await prisma.bucket.update({
       where: { slug },
       data: { permission },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        accessKeyId: true,
+        permission: true,
+        isAvailable: true,
+        updatedAt: true,
+        createdAt: true,
+      },
     });
 
     return NextResponse.json({

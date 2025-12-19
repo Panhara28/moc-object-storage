@@ -13,6 +13,31 @@ function getStorageRoot() {
   return path.join(process.cwd(), "storage");
 }
 
+function normalizePath(input?: string | null) {
+  if (!input) return null;
+  const trimmed = input.replace(/\\/g, "/").trim();
+  const stripped = trimmed.replace(/^\/+|\/+$/g, "");
+  if (!stripped) return null;
+  if (stripped.includes("\0")) return null;
+  const segments = stripped.split("/");
+  for (const seg of segments) {
+    if (!seg || seg === "." || seg === "..") return null;
+    if (seg.includes("..") || seg.includes(":")) return null;
+  }
+  return segments.join("/");
+}
+
+function assertPathInsideBase(base: string, target: string) {
+  const baseResolved = path.resolve(base);
+  const targetResolved = path.resolve(target);
+  if (
+    targetResolved !== baseResolved &&
+    !targetResolved.startsWith(baseResolved + path.sep)
+  ) {
+    throw new Error("Resolved path escapes storage root");
+  }
+}
+
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
@@ -98,15 +123,22 @@ export async function GET(
       }
     }
 
+    const rawPath = typeof payload.path === "string" ? payload.path : null;
+    const normalizedPath = normalizePath(rawPath);
+    if (rawPath && !normalizedPath) {
+      return NextResponse.json(
+        { status: "error", message: "Invalid path in token." },
+        { status: 400 }
+      );
+    }
+
     const STORAGE_ROOT = getStorageRoot();
-    const filePath = payload.path
-      ? path.join(
-          STORAGE_ROOT,
-          payload.bucket,
-          payload.path,
-          payload.storedFilename
-        )
-      : path.join(STORAGE_ROOT, payload.bucket, payload.storedFilename);
+    const bucketDir = path.join(STORAGE_ROOT, payload.bucket);
+    assertPathInsideBase(STORAGE_ROOT, bucketDir);
+    const filePath = normalizedPath
+      ? path.join(bucketDir, normalizedPath, payload.storedFilename)
+      : path.join(bucketDir, payload.storedFilename);
+    assertPathInsideBase(bucketDir, filePath);
 
     let fileBuffer: Buffer;
     try {

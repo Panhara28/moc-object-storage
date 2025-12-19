@@ -12,6 +12,28 @@ function getStorageRoot() {
   return path.join(process.cwd(), "storage");
 }
 
+function isSafeSegment(segment: string) {
+  return (
+    segment.length > 0 &&
+    !segment.includes("..") &&
+    !segment.includes("/") &&
+    !segment.includes("\\") &&
+    !segment.includes(":") &&
+    !segment.includes("\0")
+  );
+}
+
+function assertPathInsideBase(base: string, target: string) {
+  const baseResolved = path.resolve(base);
+  const targetResolved = path.resolve(target);
+  if (
+    targetResolved !== baseResolved &&
+    !targetResolved.startsWith(baseResolved + path.sep)
+  ) {
+    throw new Error("Resolved path escapes storage root");
+  }
+}
+
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
@@ -56,6 +78,13 @@ export async function POST(
       );
     }
 
+    if (!isSafeSegment(bucket.name)) {
+      return NextResponse.json(
+        { status: "error", message: "Invalid bucket name." },
+        { status: 400 }
+      );
+    }
+
     // Collect ids for deletions
     const mediaIds = await prisma.media.findMany({
       where: { bucketId: bucket.id },
@@ -88,6 +117,7 @@ export async function POST(
     // Remove files from disk
     const STORAGE_ROOT = getStorageRoot();
     const bucketDir = path.join(STORAGE_ROOT, bucket.name);
+    assertPathInsideBase(STORAGE_ROOT, bucketDir);
     await fs.rm(bucketDir, { recursive: true, force: true });
     await fs.mkdir(bucketDir, { recursive: true });
 

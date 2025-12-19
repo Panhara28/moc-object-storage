@@ -5,6 +5,27 @@ import { randomUUID } from "crypto";
 import * as fs from "fs/promises";
 import path from "path";
 
+const MAX_UPLOAD_BYTES =
+  Number(process.env.MAX_UPLOAD_BYTES) || 50 * 1024 * 1024; // 50MB default
+const ALLOWED_MIME_PREFIXES = ["image/", "video/", "audio/"];
+const ALLOWED_MIME_TYPES = [
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-powerpoint",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "text/plain",
+];
+
+function isMimeAllowed(mime: string) {
+  return (
+    ALLOWED_MIME_PREFIXES.some((p) => mime.startsWith(p)) ||
+    ALLOWED_MIME_TYPES.includes(mime)
+  );
+}
+
 function getStorageRoot() {
   if (process.env.STORAGE_ROOT) return process.env.STORAGE_ROOT;
   if (process.platform === "darwin") return path.join(process.cwd(), "storage");
@@ -21,6 +42,31 @@ function detectMediaType(mime: string, extension: string) {
   const docExt = ["doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt"];
   if (docExt.includes(extension.toLowerCase())) return "DOCUMENT";
   return "OTHER";
+}
+
+function normalizePath(input?: string | null) {
+  if (!input) return null;
+  const trimmed = input.replace(/\\/g, "/").trim();
+  const stripped = trimmed.replace(/^\/+|\/+$/g, "");
+  if (!stripped) return null;
+  if (stripped.includes("\0")) return null;
+  const segments = stripped.split("/");
+  for (const seg of segments) {
+    if (!seg || seg === "." || seg === "..") return null;
+    if (seg.includes("..") || seg.includes(":")) return null;
+  }
+  return segments.join("/");
+}
+
+function assertPathInsideBase(base: string, target: string) {
+  const baseResolved = path.resolve(base);
+  const targetResolved = path.resolve(target);
+  if (
+    targetResolved !== baseResolved &&
+    !targetResolved.startsWith(baseResolved + path.sep)
+  ) {
+    throw new Error("Resolved path escapes storage root");
+  }
 }
 
 export async function POST(
@@ -82,16 +128,47 @@ export async function POST(
       );
     }
 
+    if (file.size > MAX_UPLOAD_BYTES) {
+      return NextResponse.json(
+        {
+          status: "error",
+          message: `File "${file.name}" exceeds size limit of ${MAX_UPLOAD_BYTES} bytes.`,
+        },
+        { status: 400 }
+      );
+    }
+
+    if (!file.type || !isMimeAllowed(file.type)) {
+      return NextResponse.json(
+        {
+          status: "error",
+          message: `File "${file.name}" has an unsupported type ${file.type || "(unknown)"}.`,
+        },
+        { status: 400 }
+      );
+    }
+
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
     const extension = file.name.split(".").pop() || "";
     const storedFilename = `${randomUUID()}.${extension}`;
-    const folderPath = payload.path ?? "";
+    const rawPath = typeof payload.path === "string" ? payload.path : null;
+    const normalizedPath = normalizePath(rawPath);
+    if (rawPath && !normalizedPath) {
+      return NextResponse.json(
+        { status: "error", message: "Invalid path in token." },
+        { status: 400 }
+      );
+    }
+    const folderPath = normalizedPath ?? "";
 
     const STORAGE_ROOT = getStorageRoot();
+    const bucketDir = path.join(STORAGE_ROOT, bucket.name);
+    assertPathInsideBase(STORAGE_ROOT, bucketDir);
     const storedPath = folderPath
-      ? path.join(STORAGE_ROOT, bucket.name, folderPath, storedFilename)
-      : path.join(STORAGE_ROOT, bucket.name, storedFilename);
+      ? path.join(bucketDir, folderPath, storedFilename)
+      : path.join(bucketDir, storedFilename);
+    assertPathInsideBase(bucketDir, storedPath);
 
     await fs.mkdir(path.dirname(storedPath), { recursive: true });
     await fs.writeFile(storedPath, buffer);
