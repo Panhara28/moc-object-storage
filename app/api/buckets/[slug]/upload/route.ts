@@ -10,6 +10,47 @@ import sharp from "sharp";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+const MAX_UPLOAD_BYTES =
+  Number(process.env.MAX_UPLOAD_BYTES) || 50 * 1024 * 1024; // 50MB default
+const ALLOWED_MIME_PREFIXES = ["image/", "video/", "audio/"];
+const ALLOWED_MIME_TYPES = [
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-powerpoint",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "text/plain",
+];
+
+function isMimeAllowed(mime: string) {
+  return (
+    ALLOWED_MIME_PREFIXES.some((p) => mime.startsWith(p)) ||
+    ALLOWED_MIME_TYPES.includes(mime)
+  );
+}
+
+function isSafeSegment(segment: string) {
+  return (
+    segment.length > 0 &&
+    !segment.includes("..") &&
+    !segment.includes("/") &&
+    !segment.includes("\\")
+  );
+}
+
+function assertPathInsideBase(base: string, target: string) {
+  const baseResolved = path.resolve(base);
+  const targetResolved = path.resolve(target);
+  if (
+    targetResolved !== baseResolved &&
+    !targetResolved.startsWith(baseResolved + path.sep)
+  ) {
+    throw new Error("Resolved path escapes storage root");
+  }
+}
+
 // ===============================================================
 // Detect file type
 // ===============================================================
@@ -64,6 +105,28 @@ export async function POST(
       );
     }
 
+    for (const file of files) {
+      if (file.size > MAX_UPLOAD_BYTES) {
+        return NextResponse.json(
+          {
+            status: "error",
+            message: `File "${file.name}" exceeds size limit of ${MAX_UPLOAD_BYTES} bytes.`,
+          },
+          { status: 400 }
+        );
+      }
+
+      if (!file.type || !isMimeAllowed(file.type)) {
+        return NextResponse.json(
+          {
+            status: "error",
+            message: `File "${file.name}" has an unsupported type ${file.type || "(unknown)"}.`,
+          },
+          { status: 400 }
+        );
+      }
+    }
+
     // ===============================================================
     // 3. GET BUCKET USING SLUG
     // ===============================================================
@@ -78,8 +141,16 @@ export async function POST(
       );
     }
 
+    if (!isSafeSegment(bucket.name)) {
+      return NextResponse.json(
+        { status: "error", message: "Invalid bucket name." },
+        { status: 400 }
+      );
+    }
+
     const STORAGE_ROOT = process.env.STORAGE_ROOT || "/mnt/storage";
     const bucketDir = path.join(STORAGE_ROOT, bucket.name);
+    assertPathInsideBase(STORAGE_ROOT, bucketDir);
     await fs.mkdir(bucketDir, { recursive: true });
 
     // ===============================================================
@@ -103,6 +174,12 @@ export async function POST(
 
       // If the folder isn't found, gracefully fall back to bucket root
       if (space) {
+        if (!isSafeSegment(space.name)) {
+          return NextResponse.json(
+            { status: "error", message: "Invalid folder name." },
+            { status: 400 }
+          );
+        }
         folderPath = space.name;
       }
 
@@ -111,6 +188,7 @@ export async function POST(
       // ===============================================================
       if (folderPath) {
         const folderFullPath = path.join(bucketDir, folderPath);
+        assertPathInsideBase(bucketDir, folderFullPath);
 
         try {
           await fs.mkdir(folderFullPath, { recursive: true }); // Create folder if it doesn't exist
@@ -144,6 +222,7 @@ export async function POST(
       const storedPath = folderPath
         ? path.join(bucketDir, folderPath, storedFilename)
         : path.join(bucketDir, storedFilename);
+      assertPathInsideBase(bucketDir, storedPath);
 
       await fs.writeFile(storedPath, buffer);
 
@@ -164,9 +243,21 @@ export async function POST(
       // ===============================================================
       // CREATE MEDIA RECORD
       // ===============================================================
-      const publicUrl = folderPath
-        ? `https://moc-drive.moc.gov.kh/${bucket.name}/${folderPath}/${storedFilename}`
-        : `https://moc-drive.moc.gov.kh/${bucket.name}/${storedFilename}`;
+      const publicBaseUrl =
+        process.env.STORAGE_PUBLIC_BASE_URL ||
+        (process.env.NODE_ENV === "production"
+          ? "https://moc-drive.moc.gov.kh"
+          : "http://localhost:3000/storage");
+
+      const mediaPath = folderPath
+        ? `${bucket.name}/${folderPath}/${storedFilename}`
+        : `${bucket.name}/${storedFilename}`;
+
+      const trimmedBase = publicBaseUrl.endsWith("/")
+        ? publicBaseUrl.slice(0, -1)
+        : publicBaseUrl;
+
+      const publicUrl = `${trimmedBase}/${mediaPath}`;
 
       const media = await prisma.media.create({
         data: {

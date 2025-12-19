@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { authorize } from "@/lib/authorized";
 import { prisma } from "@/lib/connection";
 import * as fs from "fs/promises";
 import path from "path";
@@ -48,6 +49,11 @@ async function buildFolderPathSegments(
 
 export async function POST(req: Request) {
   try {
+    const auth = await authorize(req, "media-library", "update");
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.message }, { status: auth.status });
+    }
+
     const { folderId, name } = await req.json();
     const numericFolderId =
       folderId === null || folderId === undefined ? NaN : Number(folderId);

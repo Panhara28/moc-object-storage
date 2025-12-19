@@ -14,7 +14,7 @@ type Props = {
   open: boolean;
   folder: MediaItem | null;
   onClose: () => void;
-  onDeleted: () => void;
+  onDeleted: () => void | Promise<void>;
   bucketSlug: string;
 };
 
@@ -43,7 +43,7 @@ export default function MediaDeleteFolderDialog({
       }
 
       // Call the callback to refresh UI and close the dialog
-      onDeleted();
+      await onDeleted();
       onClose();
     } catch (error) {
       console.error("Error deleting folder:", error);

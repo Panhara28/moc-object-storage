@@ -5,6 +5,26 @@ import { authorize } from "@/lib/authorized";
 import * as fs from "fs/promises";
 import path from "path";
 
+function isSafeSegment(segment: string) {
+  return (
+    segment.length > 0 &&
+    !segment.includes("..") &&
+    !segment.includes("/") &&
+    !segment.includes("\\")
+  );
+}
+
+function assertPathInsideBase(base: string, target: string) {
+  const baseResolved = path.resolve(base);
+  const targetResolved = path.resolve(target);
+  if (
+    targetResolved !== baseResolved &&
+    !targetResolved.startsWith(baseResolved + path.sep)
+  ) {
+    throw new Error("Resolved path escapes storage root");
+  }
+}
+
 function getStorageRoot() {
   if (process.env.STORAGE_ROOT) return process.env.STORAGE_ROOT;
   if (process.platform === "darwin") return path.join(process.cwd(), "storage");
@@ -45,6 +65,10 @@ async function buildFolderPathSegments(
     currentParentId = ancestor.parentId;
   }
 
+  if (!segments.every(isSafeSegment)) {
+    throw new Error("Invalid folder path segment.");
+  }
+
   return segments;
 }
 
@@ -67,11 +91,10 @@ export async function POST(req: Request) {
     }
 
     const { folderId } = await req.json();
-    console.log("folderId", folderId);
+
     const numericFolderId =
       folderId === null || folderId === undefined ? NaN : Number(folderId);
-    console.log("numericFolderId", numericFolderId);
-    if (!folderId || Number.isNaN(numericFolderId)) {
+    if (folderId == null || Number.isNaN(numericFolderId)) {
       return NextResponse.json(
         { error: "folderId (number) is required" },
         { status: 400 }
@@ -91,8 +114,6 @@ export async function POST(req: Request) {
       },
     });
 
-    console.log("folder", folder);
-
     if (!folder) {
       return NextResponse.json({ error: "Folder not found" }, { status: 404 });
     }
@@ -111,57 +132,52 @@ export async function POST(req: Request) {
       );
     }
 
-    const ids: number[] = [folder.id];
+    if (!isSafeSegment(folder.name) || !isSafeSegment(folder.bucket.name)) {
+      return NextResponse.json(
+        { error: "Invalid folder or bucket path segment." },
+        { status: 400 }
+      );
+    }
+
+    const folderIds: number[] = [folder.id];
+    const fileIds: number[] = [];
+    const mediaIds: number[] = [];
     let frontier: number[] = [folder.id];
 
     while (frontier.length) {
       const children = await prisma.space.findMany({
-        where: { parentId: { in: frontier }, isAvailable: "AVAILABLE" },
-        select: { id: true },
+        where: {
+          parentId: { in: frontier },
+          isAvailable: "AVAILABLE",
+        },
+        select: { id: true, mediaId: true },
       });
       if (children.length === 0) break;
-      const childIds = children.map((c) => c.id);
-      ids.push(...childIds);
-      frontier = childIds;
+      const childFolderIds = children
+        .filter((c) => c.mediaId === null)
+        .map((c) => c.id);
+      const childFileIds = children
+        .filter((c) => c.mediaId !== null)
+        .map((c) => c.id);
+      const childMediaIds = children
+        .filter((c) => c.mediaId !== null)
+        .map((c) => c.mediaId as number);
+      folderIds.push(...childFolderIds);
+      fileIds.push(...childFileIds);
+      mediaIds.push(...childMediaIds);
+      frontier = childFolderIds;
     }
 
-    const mediaIds = await prisma.space
-      .findMany({
-        where: { id: { in: ids }, mediaId: { not: null } },
-        select: { mediaId: true },
-      })
-      .then((rows) =>
-        Array.from(
-          new Set(
-            rows
-              .map((row) => row.mediaId)
-              .filter((mediaId): mediaId is number => mediaId !== null)
-          )
-        )
-      );
+    const ids = [...folderIds, ...fileIds];
 
-    console.log("mediaIds", mediaIds);
-
-    const transactions = [
-      prisma.space.updateMany({
-        where: { id: { in: ids } },
-        data: { isAvailable: "REMOVE" },
-      }),
-    ];
-
-    if (mediaIds.length) {
-      transactions.push(
-        prisma.media.updateMany({
-          where: { id: { in: mediaIds } },
-          data: { visibility: "REMOVE" },
-        })
-      );
-    }
-
-    await prisma.$transaction(transactions);
+    await prisma.space.updateMany({
+      where: { id: { in: ids } },
+      data: { isAvailable: "REMOVE" },
+    });
 
     try {
       const storageRoot = getStorageRoot();
+      assertPathInsideBase(storageRoot, path.join(storageRoot));
       const folderPathSegments = await buildFolderPathSegments(
         {
           id: folder.id,
@@ -171,11 +187,10 @@ export async function POST(req: Request) {
         },
         folder.bucketId
       );
-      const folderFullPath = path.join(
-        storageRoot,
-        folder.bucket.name,
-        ...folderPathSegments
-      );
+      const bucketPath = path.join(storageRoot, folder.bucket.name);
+      assertPathInsideBase(storageRoot, bucketPath);
+      const folderFullPath = path.join(bucketPath, ...folderPathSegments);
+      assertPathInsideBase(bucketPath, folderFullPath);
       await fs.rm(folderFullPath, { recursive: true, force: true });
     } catch (fsErr) {
       console.error("Failed to delete folder on filesystem:", fsErr);

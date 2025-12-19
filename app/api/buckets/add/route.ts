@@ -47,6 +47,26 @@ function getStorageRoot() {
   return path.join(process.cwd(), "storage");
 }
 
+function isSafeSegment(segment: string) {
+  return (
+    segment.length > 0 &&
+    !segment.includes("..") &&
+    !segment.includes("/") &&
+    !segment.includes("\\")
+  );
+}
+
+function assertPathInsideBase(base: string, target: string) {
+  const baseResolved = path.resolve(base);
+  const targetResolved = path.resolve(target);
+  if (
+    targetResolved !== baseResolved &&
+    !targetResolved.startsWith(baseResolved + path.sep)
+  ) {
+    throw new Error("Resolved path escapes storage root");
+  }
+}
+
 /* -------------------------------------------------------
    CREATE BUCKET
 ------------------------------------------------------- */
@@ -81,14 +101,21 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (!isSafeSegment(name)) {
+      return NextResponse.json(
+        { status: "error", message: "Bucket name contains invalid characters." },
+        { status: 400 }
+      );
+    }
+
     const safeName = name.toLowerCase().replace(/[^a-z0-9-_]/g, "-");
 
-    // Duplicate check
-    const exists = await prisma.bucket.findUnique({
+    // Duplicate check (allow reactivation if marked REMOVE)
+    const existingBucket = await prisma.bucket.findUnique({
       where: { name: safeName },
     });
 
-    if (exists) {
+    if (existingBucket && existingBucket.isAvailable !== "REMOVE") {
       return NextResponse.json(
         { status: "error", message: "Bucket already exists." },
         { status: 409 }
@@ -101,22 +128,35 @@ export async function POST(req: NextRequest) {
     const secretAccessKey = generateSecretAccessKey();
 
     // 🗄  Save bucket
-    const bucket = await prisma.bucket.create({
-      data: {
-        name: safeName,
-        accessKeyName,
-        accessKeyId,
-        secretAccessKey,
-        permission,
-        createdById: user.id,
-      },
-    });
+    const bucket = existingBucket
+      ? await prisma.bucket.update({
+          where: { id: existingBucket.id },
+          data: {
+            accessKeyName,
+            accessKeyId,
+            secretAccessKey,
+            permission,
+            createdById: user.id,
+            isAvailable: "AVAILABLE",
+          },
+        })
+      : await prisma.bucket.create({
+          data: {
+            name: safeName,
+            accessKeyName,
+            accessKeyId,
+            secretAccessKey,
+            permission,
+            createdById: user.id,
+          },
+        });
 
     /* -------------------------------------------------------
        FILE SYSTEM — CROSS PLATFORM FIX
     ------------------------------------------------------- */
     const STORAGE_ROOT = getStorageRoot();
     const bucketDir = path.join(STORAGE_ROOT, safeName);
+    assertPathInsideBase(STORAGE_ROOT, bucketDir);
 
     // Ensure base storage folder exists
     await fs.mkdir(STORAGE_ROOT, { recursive: true });

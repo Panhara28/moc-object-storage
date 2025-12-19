@@ -1,8 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
+import { authorize } from "@/lib/authorized";
 import { prisma } from "@/lib/connection";
-import { getAuthUser } from "@/lib/authorized";
 import * as fs from "fs/promises";
 import path from "path";
+
+function isSafeSegment(segment: string) {
+  return (
+    segment.length > 0 &&
+    !segment.includes("..") &&
+    !segment.includes("/") &&
+    !segment.includes("\\")
+  );
+}
+
+function assertPathInsideBase(base: string, target: string) {
+  const baseResolved = path.resolve(base);
+  const targetResolved = path.resolve(target);
+  if (
+    targetResolved !== baseResolved &&
+    !targetResolved.startsWith(baseResolved + path.sep)
+  ) {
+    throw new Error("Resolved path escapes storage root");
+  }
+}
 
 function getUniqueFolderName(baseName: string, siblingNames: string[]) {
   const siblings = new Set(siblingNames);
@@ -62,6 +82,10 @@ async function buildFolderPathSegments(
     currentParentId = ancestor.parentId;
   }
 
+  if (!segments.every(isSafeSegment)) {
+    throw new Error("Invalid folder path segment.");
+  }
+
   return segments;
 }
 
@@ -70,14 +94,14 @@ export async function POST(
   context: { params: Promise<{ slug: string }> }
 ) {
   try {
-    // Get authenticated user
-    const user = await getAuthUser(req);
-    if (!user) {
+    const auth = await authorize(req, "media-library", "create");
+    if (!auth.ok) {
       return NextResponse.json(
-        { error: "You must be logged in." },
-        { status: 401 }
+        { error: auth.message },
+        { status: auth.status }
       );
     }
+    const user = auth.user;
 
     const { slug } = await context.params;
     const body = await req.json();
@@ -94,6 +118,13 @@ export async function POST(
     if (!name || name.trim() === "") {
       return NextResponse.json(
         { error: "Folder name is required." },
+        { status: 400 }
+      );
+    }
+
+    if (!isSafeSegment(name.trim())) {
+      return NextResponse.json(
+        { error: "Folder name contains invalid characters." },
         { status: 400 }
       );
     }
@@ -122,6 +153,13 @@ export async function POST(
       );
     }
 
+    if (!isSafeSegment(bucket.name)) {
+      return NextResponse.json(
+        { error: "Invalid bucket name." },
+        { status: 400 }
+      );
+    }
+
     console.log("Bucket found:", bucket.name);
 
     // Resolve a unique folder name under the same parent
@@ -129,6 +167,8 @@ export async function POST(
       where: {
         bucketId: bucket.id,
         parentId: numericParentId,
+        mediaId: null, // only folders
+        isAvailable: { not: "REMOVE" }, // ignore removed folders so names can be reused
       },
       select: { name: true },
     });
@@ -148,8 +188,12 @@ export async function POST(
     let folderPath = uniqueFolderName;
 
     if (numericParentId !== null) {
-      const parentFolder = await prisma.space.findUnique({
-        where: { id: numericParentId },
+      const parentFolder = await prisma.space.findFirst({
+        where: {
+          id: numericParentId,
+          mediaId: null,
+          isAvailable: { not: "REMOVE" },
+        },
         select: { id: true, name: true, parentId: true, bucketId: true },
       });
 
@@ -171,23 +215,26 @@ export async function POST(
       let parentSegments: string[] = [];
 
       try {
-        parentSegments = await buildFolderPathSegments(
-          parentFolder,
-          bucket.id
-        );
+        parentSegments = await buildFolderPathSegments(parentFolder, bucket.id);
       } catch (err) {
         const message =
           err instanceof Error
             ? err.message
             : "Failed to resolve parent folder path.";
-        const status =
-          message === "Parent folder does not exist." ? 404 : 400;
+        const status = message === "Parent folder does not exist." ? 404 : 400;
 
-          return NextResponse.json({ error: message }, { status });
+        return NextResponse.json({ error: message }, { status });
       }
 
       folderPath = path.join(...parentSegments, uniqueFolderName);
       console.log("Parent folder found. Updated folder path:", folderPath);
+    }
+
+    if (!isSafeSegment(uniqueFolderName)) {
+      return NextResponse.json(
+        { error: "Folder name contains invalid characters." },
+        { status: 400 }
+      );
     }
 
     // 3. Create the folder in the database
@@ -196,7 +243,7 @@ export async function POST(
         name: uniqueFolderName,
         parentId: numericParentId,
         bucketId: bucket.id,
-        userId: user.id,
+        userId: user!.id,
         isAvailable: "AVAILABLE",
         uploadedAt: new Date(),
         mediaId: null,
@@ -208,9 +255,11 @@ export async function POST(
     // 4. Create the folder on the filesystem
     const STORAGE_ROOT = process.env.STORAGE_ROOT || "C:/mnt/storage"; // Use Windows path if not set
     const bucketDir = path.join(STORAGE_ROOT, bucket.name);
+    assertPathInsideBase(STORAGE_ROOT, bucketDir);
 
     // Ensure proper folder path construction
     const folderFullPath = path.join(bucketDir, folderPath);
+    assertPathInsideBase(bucketDir, folderFullPath);
 
     // Debug the full folder path to be created
     console.log("Full path to be created:", folderFullPath);

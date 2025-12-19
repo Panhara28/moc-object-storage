@@ -53,7 +53,7 @@ export async function PATCH(
         }),
         prisma.media.updateMany({
           where: { bucketId: bucket.id },
-          data: { isDeleted: true, visibility: "REMOVE" },
+          data: { isVisibility: "REMOVE" },
         }),
       ]);
 
@@ -61,7 +61,10 @@ export async function PATCH(
     try {
       await fs.rm(bucketDir, { recursive: true, force: true });
     } catch (fsErr) {
-      console.error("Failed to remove bucket directory from filesystem:", fsErr);
+      console.error(
+        "Failed to remove bucket directory from filesystem:",
+        fsErr
+      );
     }
 
     return NextResponse.json({

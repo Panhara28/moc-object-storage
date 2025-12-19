@@ -1,28 +1,28 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Eye, EyeOff, Mail, Lock, Github } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Checkbox } from "@/components/ui/checkbox"
-import Link from "next/link"
+import { useState } from "react";
+import { Eye, EyeOff, Mail, Lock, Github } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import Link from "next/link";
 
 export function LoginForm() {
-  const [showPassword, setShowPassword] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     email: "",
     password: "",
     rememberMe: false,
-  })
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
-    setError(null)
+    e.preventDefault();
+    setIsLoading(true);
+    setError(null);
 
     try {
       const res = await fetch("/api/auth/login", {
@@ -34,33 +34,35 @@ export function LoginForm() {
           email: formData.email,
           password: formData.password,
         }),
-      })
+      });
 
-      const result = await res.json()
+      const result = await res.json();
 
       if (!res.ok) {
-        setError(result.error || "Login failed")
-        setIsLoading(false)
-        return
+        setError(result.error || "Login failed");
+        setIsLoading(false);
+        return;
       }
 
       // SUCCESS → Cookie is set by API
-      window.location.href = "/dashboard"
-
+      window.location.href = "/admin/dashboard";
     } catch (err) {
-      setError("Something went wrong. Please try again.")
-      setIsLoading(false)
+      setError("Something went wrong. Please try again.");
+      setIsLoading(false);
     }
-  }
+  };
 
   return (
     <div className="min-h-screen flex">
       <div className="w-full lg:w-1/1 flex items-center justify-center p-8 bg-white">
         <div className="w-full max-w-md">
-
           <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold text-slate-900 mb-2">Welcome back</h2>
-            <p className="text-slate-600">Sign in to continue managing your content</p>
+            <h2 className="text-3xl font-bold text-slate-900 mb-2">
+              Welcome back
+            </h2>
+            <p className="text-slate-600">
+              Sign in to continue managing your content
+            </p>
           </div>
 
           {/* ERROR MESSAGE */}
@@ -115,7 +117,11 @@ export function LoginForm() {
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                   onClick={() => setShowPassword(!showPassword)}
                 >
-                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  {showPassword ? (
+                    <EyeOff className="h-5 w-5" />
+                  ) : (
+                    <Eye className="h-5 w-5" />
+                  )}
                 </button>
               </div>
             </div>
@@ -136,17 +142,24 @@ export function LoginForm() {
                   Remember me
                 </Label>
               </div>
-              <Link href="/auth/forgot" className="text-sm text-slate-900 hover:text-slate-700 font-medium">
+              <Link
+                href="/auth/forgot"
+                className="text-sm text-slate-900 hover:text-slate-700 font-medium"
+              >
                 Forgot password?
               </Link>
             </div>
 
-            <Button type="submit" className="w-full bg-slate-900 hover:bg-slate-800 text-white" disabled={isLoading}>
+            <Button
+              type="submit"
+              className="w-full bg-slate-900 hover:bg-slate-800 text-white"
+              disabled={isLoading}
+            >
               {isLoading ? "Signing in..." : "Sign in"}
             </Button>
           </form>
         </div>
       </div>
     </div>
-  )
+  );
 }

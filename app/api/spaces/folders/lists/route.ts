@@ -1,16 +1,26 @@
-import { NextResponse } from "next/server";
-import { getAuthUser } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { authorize } from "@/lib/authorized";
 import { prisma } from "@/lib/connection";
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
-    const user = await getAuthUser(req);
-    if (!user) {
+    const uiHeader = req.headers.get("x-ui-request");
+    const referer = req.headers.get("referer");
+    const requestOrigin = new URL(req.url).origin;
+    const refererOrigin = referer ? new URL(referer).origin : null;
+
+    if (uiHeader?.toLowerCase() !== "true" && refererOrigin !== requestOrigin) {
       return NextResponse.json(
-        { error: "You must be logged in." },
-        { status: 401 }
+        { status: "error", message: "Forbidden" },
+        { status: 403 }
       );
     }
+
+    const auth = await authorize(req, "media-library", "read");
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.message }, { status: auth.status });
+    }
+    const user = auth.user;
 
     const { searchParams } = new URL(req.url);
     const parentSlug = searchParams.get("parentSlug");

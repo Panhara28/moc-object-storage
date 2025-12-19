@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { authorize } from "@/lib/authorized";
 import { prisma } from "@/lib/connection";
 
 export async function GET(
@@ -7,6 +8,11 @@ export async function GET(
 ) {
   try {
     const { slug } = await context.params;
+
+    const auth = await authorize(req, "media-library", "read");
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.message }, { status: auth.status });
+    }
 
     if (!slug) {
       return NextResponse.json({ error: "Slug is required." }, { status: 400 });

@@ -1,6 +1,15 @@
 /* eslint-disable */
 import { NextRequest, NextResponse } from "next/server";
+import { authorize } from "@/lib/authorized";
 import { prisma } from "@/lib/connection";
+import { format as formatDateFns } from "date-fns";
+
+function formatDate(input: Date | string | null | undefined) {
+  if (!input) return "N/A";
+  const d = typeof input === "string" ? new Date(input) : input;
+  if (Number.isNaN(d.getTime())) return "N/A";
+  return formatDateFns(d, "dd/LLL/yyyy HH:mm");
+}
 
 export async function GET(
   req: NextRequest,
@@ -8,6 +17,13 @@ export async function GET(
 ) {
   try {
     const { slug } = await context.params;
+    const auth = await authorize(req, "media-library", "read");
+    if (!auth.ok) {
+      return NextResponse.json(
+        { status: "error", message: auth.message },
+        { status: auth.status }
+      );
+    }
     const { searchParams } = new URL(req.url);
     const page = Number(searchParams.get("page") || 1);
     const limit = Number(searchParams.get("limit") || 20);
@@ -49,7 +65,7 @@ export async function GET(
       slug: folder.slug,
       type: "folder",
       parentId: folder.parentId,
-      createdAt: folder.createdAt,
+      createdAt: formatDate(folder.createdAt),
     }));
 
     const parentSpace = await prisma.space.findUnique({
@@ -66,8 +82,7 @@ export async function GET(
     const medias = await prisma.media.findMany({
       where: {
         bucketId: bucket.id, // Only media from the specified bucket
-        isDeleted: false, // Only non-deleted media
-        visibility: "PUBLIC", // Only public media
+        isVisibility: "AVAILABLE", // Only public media
         path: parentSpace.name, // Only media in this folder (based on folder name)
       },
       skip,
@@ -78,8 +93,7 @@ export async function GET(
     const totalMedia = await prisma.media.count({
       where: {
         bucketId: bucket.id,
-        isDeleted: false,
-        visibility: "PUBLIC",
+        isVisibility: "AVAILABLE",
         path: parentSpace.name,
       },
     });
@@ -93,11 +107,12 @@ export async function GET(
         total: totalMedia,
         items: medias.map((m) => ({
           id: m.id,
+          slug: m.slug,
           name: m.filename,
           url: m.url,
           type: m.fileType,
           size: m.size,
-          createdAt: m.createdAt,
+          createdAt: formatDate(m.createdAt),
           //   folderId: m.spaceId,
         })),
       },

@@ -1,11 +1,31 @@
 /* eslint-disable */
 import { prisma } from "@/lib/connection";
 import { authorize } from "@/lib/authorized";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { Prisma, MediaType } from "@/lib/generated/prisma";
+import { format as formatDateFns } from "date-fns";
 
-export async function GET(req: Request) {
+function formatDate(input: Date | string | null | undefined) {
+  if (!input) return "N/A";
+  const d = typeof input === "string" ? new Date(input) : input;
+  if (Number.isNaN(d.getTime())) return "N/A";
+  return formatDateFns(d, "dd/LLL/yyyy HH:mm");
+}
+
+export async function GET(req: NextRequest) {
   try {
+    const uiHeader = req.headers.get("x-ui-request");
+    const referer = req.headers.get("referer");
+    const requestOrigin = new URL(req.url).origin;
+    const refererOrigin = referer ? new URL(referer).origin : null;
+
+    if (uiHeader?.toLowerCase() !== "true" && refererOrigin !== requestOrigin) {
+      return NextResponse.json(
+        { status: "error", message: "Forbidden" },
+        { status: 403 }
+      );
+    }
+
     // ------------------------------------------------------------
     // 0. AUTHORIZATION
     // ------------------------------------------------------------
@@ -102,7 +122,7 @@ export async function GET(req: Request) {
         type: m.fileType,
         url: m.url,
         size: m.size,
-        createdAt: m.createdAt,
+        createdAt: formatDate(m.createdAt),
         path: m.path,
       })),
     });

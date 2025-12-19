@@ -1,19 +1,19 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useState } from "react"
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Eye, EyeOff, Mail, Lock, User, Building, Github } from "lucide-react"
-import { AuthBrandSection } from "./auth-brand-section"
+import { useState } from "react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Eye, EyeOff, Mail, Lock, User, Building, Github } from "lucide-react";
+import { AuthBrandSection } from "./auth-brand-section";
 
 export function RegisterForm() {
-  const [showPassword, setShowPassword] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -22,22 +22,22 @@ export function RegisterForm() {
     password: "",
     agreeToTerms: false,
     subscribeNewsletter: false,
-  })
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
+    e.preventDefault();
+    setIsLoading(true);
 
     // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 2000))
+    await new Promise((resolve) => setTimeout(resolve, 2000));
 
     // Redirect to dashboard
-    window.location.href = "/dashboard"
-  }
+    window.location.href = "/admin/dashboard";
+  };
 
   const handleSocialRegister = (provider: string) => {
-    console.log(`Register with ${provider}`)
-  }
+    console.log(`Register with ${provider}`);
+  };
 
   return (
     <div className="min-h-screen flex">
@@ -50,12 +50,18 @@ export function RegisterForm() {
               <div className="w-12 h-12 bg-slate-900 rounded-lg flex items-center justify-center mr-3">
                 <span className="text-white font-bold text-xl">C</span>
               </div>
-              <h1 className="text-2xl font-bold text-slate-900">CMS Full Form</h1>
+              <h1 className="text-2xl font-bold text-slate-900">
+                CMS Full Form
+              </h1>
             </div>
 
             <div className="text-center lg:text-left">
-              <h2 className="text-3xl font-bold text-slate-900 mb-2">Create your account</h2>
-              <p className="text-slate-600">Join thousands of content creators using our platform</p>
+              <h2 className="text-3xl font-bold text-slate-900 mb-2">
+                Create your account
+              </h2>
+              <p className="text-slate-600">
+                Join thousands of content creators using our platform
+              </p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -70,7 +76,9 @@ export function RegisterForm() {
                       placeholder="John"
                       className="pl-10"
                       value={formData.firstName}
-                      onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, firstName: e.target.value })
+                      }
                       required
                     />
                   </div>
@@ -82,7 +90,9 @@ export function RegisterForm() {
                     type="text"
                     placeholder="Doe"
                     value={formData.lastName}
-                    onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, lastName: e.target.value })
+                    }
                     required
                   />
                 </div>
@@ -98,7 +108,9 @@ export function RegisterForm() {
                     placeholder="john@example.com"
                     className="pl-10"
                     value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, email: e.target.value })
+                    }
                     required
                   />
                 </div>
@@ -114,7 +126,9 @@ export function RegisterForm() {
                     placeholder="Your company name"
                     className="pl-10"
                     value={formData.company}
-                    onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, company: e.target.value })
+                    }
                   />
                 </div>
               </div>
@@ -129,7 +143,9 @@ export function RegisterForm() {
                     placeholder="Create a strong password"
                     className="pl-10 pr-10"
                     value={formData.password}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, password: e.target.value })
+                    }
                     required
                   />
                   <button
@@ -137,7 +153,11 @@ export function RegisterForm() {
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600"
                   >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
                   </button>
                 </div>
               </div>
@@ -147,16 +167,30 @@ export function RegisterForm() {
                   <Checkbox
                     id="terms"
                     checked={formData.agreeToTerms}
-                    onCheckedChange={(checked) => setFormData({ ...formData, agreeToTerms: checked as boolean })}
+                    onCheckedChange={(checked) =>
+                      setFormData({
+                        ...formData,
+                        agreeToTerms: checked as boolean,
+                      })
+                    }
                     required
                   />
-                  <Label htmlFor="terms" className="text-sm text-slate-600 leading-5">
+                  <Label
+                    htmlFor="terms"
+                    className="text-sm text-slate-600 leading-5"
+                  >
                     I agree to the{" "}
-                    <Link href="/terms" className="text-slate-900 hover:text-slate-700 font-medium">
+                    <Link
+                      href="/terms"
+                      className="text-slate-900 hover:text-slate-700 font-medium"
+                    >
                       Terms of Service
                     </Link>{" "}
                     and{" "}
-                    <Link href="/privacy" className="text-slate-900 hover:text-slate-700 font-medium">
+                    <Link
+                      href="/privacy"
+                      className="text-slate-900 hover:text-slate-700 font-medium"
+                    >
                       Privacy Policy
                     </Link>
                   </Label>
@@ -165,15 +199,27 @@ export function RegisterForm() {
                   <Checkbox
                     id="newsletter"
                     checked={formData.subscribeNewsletter}
-                    onCheckedChange={(checked) => setFormData({ ...formData, subscribeNewsletter: checked as boolean })}
+                    onCheckedChange={(checked) =>
+                      setFormData({
+                        ...formData,
+                        subscribeNewsletter: checked as boolean,
+                      })
+                    }
                   />
-                  <Label htmlFor="newsletter" className="text-sm text-slate-600">
+                  <Label
+                    htmlFor="newsletter"
+                    className="text-sm text-slate-600"
+                  >
                     Subscribe to our newsletter for updates and tips
                   </Label>
                 </div>
               </div>
 
-              <Button type="submit" className="w-full" disabled={isLoading || !formData.agreeToTerms}>
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={isLoading || !formData.agreeToTerms}
+              >
                 {isLoading ? "Creating account..." : "Create account"}
               </Button>
             </form>
@@ -183,12 +229,19 @@ export function RegisterForm() {
                 <div className="w-full border-t border-slate-200" />
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-slate-500">OR CONTINUE WITH</span>
+                <span className="px-2 bg-white text-slate-500">
+                  OR CONTINUE WITH
+                </span>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <Button type="button" variant="outline" onClick={() => handleSocialRegister("google")} className="w-full">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => handleSocialRegister("google")}
+                className="w-full"
+              >
                 <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24">
                   <path
                     fill="currentColor"
@@ -209,7 +262,12 @@ export function RegisterForm() {
                 </svg>
                 Google
               </Button>
-              <Button type="button" variant="outline" onClick={() => handleSocialRegister("github")} className="w-full">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => handleSocialRegister("github")}
+                className="w-full"
+              >
                 <Github className="w-4 h-4 mr-2" />
                 GitHub
               </Button>
@@ -218,7 +276,10 @@ export function RegisterForm() {
             <div className="text-center">
               <p className="text-sm text-slate-600">
                 Already have an account?{" "}
-                <Link href="/auth/login" className="text-slate-900 hover:text-slate-700 font-medium">
+                <Link
+                  href="/auth/login"
+                  className="text-slate-900 hover:text-slate-700 font-medium"
+                >
                   Sign in
                 </Link>
               </p>
@@ -227,5 +288,5 @@ export function RegisterForm() {
         </div>
       </div>
     </div>
-  )
+  );
 }

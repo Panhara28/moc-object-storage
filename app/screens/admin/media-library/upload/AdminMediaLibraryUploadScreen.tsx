@@ -1,6 +1,13 @@
 "use client";
 
-import { useState, useMemo, useEffect, useRef, useReducer } from "react";
+import {
+  useState,
+  useMemo,
+  useEffect,
+  useRef,
+  useReducer,
+  useCallback,
+} from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { Card } from "@/components/ui/card";
@@ -87,41 +94,53 @@ export default function AdminMediaLibraryUploadScreen({
   const uploadInputRef = useRef<HTMLInputElement>(null);
 
   /* FETCH FOLDERS */
-  const loadSpaces = async (parentSlug: string | null) => {
-    setLoading(true);
-    const url = parentSlug
-      ? `/api/buckets/${bucketSlug}/folder?parentSlug=${parentSlug}`
-      : `/api/buckets/${bucketSlug}`;
+  const loadSpaces = useCallback(
+    async (parentSlug: string | null) => {
+      setLoading(true);
+      const url = parentSlug
+        ? `/api/buckets/${bucketSlug}/folder?parentSlug=${parentSlug}`
+        : `/api/buckets/${bucketSlug}`;
 
-    const res = await fetch(url, { cache: "no-store" });
-    const json = await res.json();
-    setItems(json.folders);
-    setLoading(false);
-  };
+      const res = await fetch(url, { cache: "no-store" });
+      const json = await res.json();
+      setItems(json.folders);
+      setLoading(false);
+    },
+    [bucketSlug]
+  );
 
   /* FETCH ROOT MEDIA (Non-folder files) */
-  const loadMedia = async (parentSlug: string | null) => {
-    const url = parentSlug
-      ? `/api/buckets/${bucketSlug}/folder?parentSlug=${parentSlug}`
-      : `/api/buckets/${bucketSlug}`;
+  const loadMedia = useCallback(
+    async (parentSlug: string | null) => {
+      const url = parentSlug
+        ? `/api/buckets/${bucketSlug}/folder?parentSlug=${parentSlug}`
+        : `/api/buckets/${bucketSlug}`;
 
-    const res = await fetch(url, { cache: "no-store" });
-    const json = await res.json();
-    setMedias(json.media.items ?? []);
-  };
+      const res = await fetch(url, { cache: "no-store" });
+      const json = await res.json();
+      setMedias(json.media.items ?? []);
+    },
+    [bucketSlug]
+  );
+
+  const refreshData = useCallback(async () => {
+    await Promise.all([
+      loadSpaces(currentParentSlug),
+      loadMedia(currentParentSlug),
+    ]);
+  }, [currentParentSlug, loadMedia, loadSpaces]);
 
   useEffect(() => {
     const controller = new AbortController();
 
     const fetchAll = async () => {
-      await loadSpaces(currentParentSlug);
-      await loadMedia(currentParentSlug);
+      await refreshData();
     };
 
     fetchAll().catch(() => {});
 
     return () => controller.abort();
-  }, [currentParentSlug]);
+  }, [currentParentSlug, refreshData]);
 
   /* FILTER */
   const filteredItems = useMemo(() => {
@@ -142,40 +161,19 @@ export default function AdminMediaLibraryUploadScreen({
     if (!files?.length) return;
 
     const fileArray = Array.from(files) as File[];
-    const boundary =
-      "----WebKitFormBoundary" + Math.random().toString(36).substring(7);
-    let body = "";
+    const formData = new FormData();
+    if (currentParentSlug) {
+      formData.append("parentSlug", currentParentSlug);
+      formData.append("folderSlug", currentParentSlug);
+    }
 
-    // Add parentSlug and folderSlug manually to the multipart body
-    body += `--${boundary}\r\n`;
-    body += `Content-Disposition: form-data; name="parentSlug"\r\n\r\n`;
-    body += `${currentParentSlug}\r\n`;
-
-    body += `--${boundary}\r\n`;
-    body += `Content-Disposition: form-data; name="folderSlug"\r\n\r\n`;
-    body += `${currentParentSlug}\r\n`; // or a different folderSlug if needed
-
-    // Add files to the multipart body
     fileArray.forEach((file) => {
-      body += `--${boundary}\r\n`;
-      body += `Content-Disposition: form-data; name="files"; filename="${file.name}"\r\n`;
-      body += `Content-Type: ${file.type}\r\n\r\n`;
-      body += `${file}\r\n`; // Add the file content
+      formData.append("files", file);
     });
 
-    // Add the ending boundary
-    body += `--${boundary}--`;
-
-    const headers: HeadersInit = {
-      "Content-Type": `multipart/form-data; boundary=${boundary}`,
-      "Content-Length": String(Buffer.byteLength(body)), // Make sure to set the correct Content-Length
-    };
-
-    // Send the request
     const res = await fetch(`/api/buckets/${bucketSlug}/upload`, {
       method: "POST",
-      headers,
-      body: body,
+      body: formData, // browser sets multipart boundary; do not override Content-Type
     });
 
     const jsonResponse = await res.json();
@@ -226,7 +224,7 @@ export default function AdminMediaLibraryUploadScreen({
 
       {/* MAIN CARD */}
       <Card className="bg-white border border-gray-200 shadow-sm">
-        <div className="py-2">
+        <div className="px-6 pt-10">
           <MediaFilters
             selectedFilter={selectedFilter}
             onFilterChange={setSelectedFilter}
@@ -311,7 +309,14 @@ export default function AdminMediaLibraryUploadScreen({
       <MediaViewDrawer
         open={drawerOpen}
         media={selectedMedia}
-        onClose={() => setDrawerOpen(false)}
+        onClose={() => {
+          setDrawerOpen(false);
+          setSelectedMedia(null);
+        }}
+        onDeleted={async () => {
+          await refreshData();
+          setSelectedMedia(null);
+        }}
         selectedBook={selectedBook}
         setSelectedBook={setSelectedBook}
         selectedBookCover={selectedBookCover}
@@ -329,7 +334,7 @@ export default function AdminMediaLibraryUploadScreen({
         open={deleteOpen}
         folder={activeFolder}
         onClose={() => setDeleteOpen(false)}
-        onDeleted={() => loadSpaces(currentParentSlug)}
+        onDeleted={refreshData}
         bucketSlug={bucketSlug}
       />
 
@@ -337,6 +342,7 @@ export default function AdminMediaLibraryUploadScreen({
         open={propsOpen}
         folder={activeFolder}
         onClose={() => setPropsOpen(false)}
+        bucketSlug={bucketSlug}
       />
 
       {/* <MediaMoveFolderDialog

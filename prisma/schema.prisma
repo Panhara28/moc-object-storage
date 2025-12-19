@@ -207,9 +207,9 @@ model Media {
   uploadedById Int
   uploadedBy   User @relation("MediaUploadedBy", fields: [uploadedById], references: [id])
 
-  visibility Visibility @default(PUBLIC)
-  isPrivate  Boolean    @default(false)
-  isDeleted  Boolean    @default(false)
+  isVisibility Visibility @default(AVAILABLE)
+
+  isAccessible Visibility @default(PRIVATE)
 
   width      Int?
   height     Int?

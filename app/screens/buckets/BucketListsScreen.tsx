@@ -18,6 +18,8 @@ export interface BucketDetail {
   permission: string;
   createdAt: string;
   updatedAt: string;
+  sizeBytes?: number;
+  sizeLabel?: string;
 
   accessKeyId: string;
   accessKeyName: string;
@@ -51,7 +53,15 @@ export default function BucketListsScreen() {
   } | null>(null);
 
   const refreshBuckets = async () => {
-    const res = await fetch("/api/buckets/lists");
+    const res = await fetch("/api/buckets/lists", {
+      cache: "no-store",
+      headers: { "x-ui-request": "true" },
+    });
+    if (!res.ok) {
+      console.error("Failed to load buckets", res.status);
+      setBuckets([]);
+      return;
+    }
     const data = await res.json();
     setBuckets(data.buckets || []);
   };
@@ -67,7 +77,14 @@ export default function BucketListsScreen() {
 
   useEffect(() => {
     const load = async () => {
-      const res = await fetch("/api/buckets/lists");
+      const res = await fetch("/api/buckets/lists", {
+        cache: "no-store",
+      });
+      if (!res.ok) {
+        console.error("Failed to load buckets", res.status);
+        setBuckets([]);
+        return;
+      }
       const data = await res.json();
       setBuckets(data.buckets || []);
     };
@@ -89,8 +106,8 @@ export default function BucketListsScreen() {
 
   return (
     <>
-      <div className="min-h-screen bg-background">
-        <header className="sticky top-0 border-b bg-background/80 backdrop-blur-sm px-6 py-4 flex justify-between">
+      <div className="min-h-screen">
+        <header className="sticky top-0 border-b backdrop-blur-sm px-6 py-4 flex justify-between">
           <div className="flex items-center gap-4">
             <Link href="/admin/news/lists">
               <Button variant="ghost" size="icon">
