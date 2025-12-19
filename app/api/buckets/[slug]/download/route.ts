@@ -54,8 +54,6 @@ export async function GET(
       select: { id: true, name: true },
     });
 
-    console.log("bucket", bucket);
-
     if (!bucket) {
       return NextResponse.json(
         { status: "error", message: "Bucket not found or unavailable." },

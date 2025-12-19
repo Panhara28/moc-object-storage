@@ -35,10 +35,6 @@ export function RegisterForm() {
     window.location.href = "/admin/dashboard";
   };
 
-  const handleSocialRegister = (provider: string) => {
-    console.log(`Register with ${provider}`);
-  };
-
   return (
     <div className="min-h-screen flex">
       <AuthBrandSection />

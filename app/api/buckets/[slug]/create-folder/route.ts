@@ -107,13 +107,6 @@ export async function POST(
     const body = await req.json();
     const { name, parentId = null } = body;
 
-    console.log(
-      "Received request to create folder:",
-      name,
-      "under parentId:",
-      parentId
-    );
-
     // Validate folder name
     if (!name || name.trim() === "") {
       return NextResponse.json(
@@ -160,8 +153,6 @@ export async function POST(
       );
     }
 
-    console.log("Bucket found:", bucket.name);
-
     // Resolve a unique folder name under the same parent
     const siblingFolders = await prisma.space.findMany({
       where: {
@@ -177,12 +168,6 @@ export async function POST(
       folderName,
       siblingFolders.map((s) => s.name)
     );
-
-    if (uniqueFolderName !== folderName) {
-      console.log(
-        `Folder name "${folderName}" already exists. Using "${uniqueFolderName}" instead.`
-      );
-    }
 
     // 2. Validate parent folder (must belong to the same bucket)
     let folderPath = uniqueFolderName;
@@ -227,7 +212,6 @@ export async function POST(
       }
 
       folderPath = path.join(...parentSegments, uniqueFolderName);
-      console.log("Parent folder found. Updated folder path:", folderPath);
     }
 
     if (!isSafeSegment(uniqueFolderName)) {
@@ -250,8 +234,6 @@ export async function POST(
       },
     });
 
-    console.log("Folder created in database:", newFolder);
-
     // 4. Create the folder on the filesystem
     const STORAGE_ROOT = process.env.STORAGE_ROOT || "C:/mnt/storage"; // Use Windows path if not set
     const bucketDir = path.join(STORAGE_ROOT, bucket.name);
@@ -262,7 +244,6 @@ export async function POST(
     assertPathInsideBase(bucketDir, folderFullPath);
 
     // Debug the full folder path to be created
-    console.log("Full path to be created:", folderFullPath);
 
     // Create the folder on the filesystem (ensure parent directories exist)
     await fs.mkdir(folderFullPath, { recursive: true });

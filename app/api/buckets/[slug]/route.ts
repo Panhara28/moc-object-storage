@@ -91,8 +91,6 @@ export async function GET(
       orderBy: { createdAt: "desc" },
     });
 
-    console.log("media", media);
-
     const totalMedia = await prisma.media.count({ where });
 
     // ---------------------------------------
