@@ -54,6 +54,7 @@ export async function POST(
           mimetype: true,
           path: true,
           bucketId: true,
+          isAccessible: true,
         },
       });
 
@@ -61,6 +62,13 @@ export async function POST(
         return NextResponse.json(
           { status: "error", message: "Media not found in this bucket." },
           { status: 404 }
+        );
+      }
+
+      if (media.isAccessible !== "PUBLIC" && media.isAccessible !== "PRIVATE") {
+        return NextResponse.json(
+          { status: "error", message: "Media is not accessible." },
+          { status: 403 }
         );
       }
 

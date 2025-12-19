@@ -39,7 +39,7 @@ export async function POST(
     }
 
     const payload = verifyPayload(token);
-    if (!payload || payload.action !== "upload" || payload.bucket !== slug) {
+    if (!payload || payload.action !== "upload") {
       return NextResponse.json(
         { status: "error", message: "Invalid or expired token." },
         { status: 401 }
@@ -62,6 +62,13 @@ export async function POST(
       return NextResponse.json(
         { status: "error", message: "Bucket not found or unavailable." },
         { status: 404 }
+      );
+    }
+
+    if (payload.bucket !== bucket.name) {
+      return NextResponse.json(
+        { status: "error", message: "Invalid or expired token." },
+        { status: 401 }
       );
     }
 

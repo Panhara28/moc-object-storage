@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import path from "path";
 import * as fs from "fs/promises";
+import { prisma } from "@/lib/connection";
 import { verifyPayload } from "@/lib/signedUrl";
 
 function getStorageRoot() {
@@ -26,7 +27,7 @@ export async function GET(
     }
 
     const payload = verifyPayload(token);
-    if (!payload || payload.action !== "download" || payload.bucket !== slug) {
+    if (!payload || payload.action !== "download") {
       return NextResponse.json(
         { status: "error", message: "Invalid or expired token." },
         { status: 401 }
@@ -40,9 +41,61 @@ export async function GET(
       );
     }
 
+    if (!payload.mediaSlug) {
+      return NextResponse.json(
+        { status: "error", message: "Missing media reference." },
+        { status: 400 }
+      );
+    }
+
+    const bucket = await prisma.bucket.findUnique({
+      where: { slug, isAvailable: "AVAILABLE" },
+      select: { id: true, name: true },
+    });
+
+    console.log("bucket", bucket);
+
+    if (!bucket) {
+      return NextResponse.json(
+        { status: "error", message: "Bucket not found or unavailable." },
+        { status: 404 }
+      );
+    }
+
+    if (payload.bucket !== bucket.name) {
+      return NextResponse.json(
+        { status: "error", message: "Invalid or expired token." },
+        { status: 401 }
+      );
+    }
+
+    const media = await prisma.media.findUnique({
+      where: { slug: payload.mediaSlug },
+      select: { bucketId: true, isAccessible: true },
+    });
+
+    if (!media || media.bucketId !== bucket.id) {
+      return NextResponse.json(
+        { status: "error", message: "Media not found in this bucket." },
+        { status: 404 }
+      );
+    }
+
+    if (media.isAccessible !== "PUBLIC" && media.isAccessible !== "PRIVATE") {
+      return NextResponse.json(
+        { status: "error", message: "Media is not accessible." },
+        { status: 403 }
+      );
+    }
+
     const STORAGE_ROOT = getStorageRoot();
     const filePath = payload.path
-      ? path.join(STORAGE_ROOT, payload.bucket, payload.path, payload.storedFilename)
+      ? path.join(
+          STORAGE_ROOT,
+          payload.bucket,
+          payload.path,
+          payload.storedFilename
+        )
       : path.join(STORAGE_ROOT, payload.bucket, payload.storedFilename);
 
     let fileBuffer: Buffer;
@@ -59,7 +112,9 @@ export async function GET(
     headers.set("Content-Type", payload.mimetype || "application/octet-stream");
     headers.set(
       "Content-Disposition",
-      `attachment; filename="${encodeURIComponent(payload.filename || payload.storedFilename)}"`
+      `attachment; filename="${encodeURIComponent(
+        payload.filename || payload.storedFilename
+      )}"`
     );
 
     const arrayBuffer = fileBuffer.buffer.slice(
