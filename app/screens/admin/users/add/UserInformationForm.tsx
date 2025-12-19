@@ -21,6 +21,7 @@ import {
 
 interface UserInfo {
   profileImage: string | null;
+  profileImageRaw?: string | null;
   fullNameEn: string;
   fullNameKh: string;
   gender: string; // "", "male", "female", "other"
@@ -62,12 +63,52 @@ export function UserInformationForm({ data, onChange, errors }: Props) {
 
         const json = await res.json();
         const url = json?.uploads?.[0]?.url as string | undefined;
+        const mediaSlug = json?.uploads?.[0]?.slug as string | undefined;
+        const bucketSlug = json?.uploads?.[0]?.bucketSlug as string | undefined;
 
         if (!res.ok || !url) {
           throw new Error("Upload failed");
         }
 
-        onChange({ ...data, profileImage: url });
+        let signedUrl = url;
+
+        // Try to fetch a signed, inline preview URL for avatars
+        if (bucketSlug && mediaSlug) {
+          try {
+            const signedRes = await fetch(
+              `/api/buckets/${bucketSlug}/signed-url`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "x-ui-request": "true",
+                },
+                body: JSON.stringify({
+                  action: "download",
+                  mediaSlug,
+                  expiresInSeconds: 300,
+                }),
+              }
+            );
+
+            if (signedRes.ok) {
+              const signedJson = await signedRes.json();
+              if (signedJson?.url) {
+                signedUrl = signedJson.url.includes("?")
+                  ? `${signedJson.url}&inline=true`
+                  : `${signedJson.url}?inline=true`;
+              }
+            }
+          } catch {
+            // fall back to public URL if signing fails
+          }
+        }
+
+        onChange({
+          ...data,
+          profileImage: signedUrl, // signed/display URL
+          profileImageRaw: url, // stored URL for payload
+        });
       } catch (err) {
         setUploadError("Failed to upload image. Please try again.");
       } finally {

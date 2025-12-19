@@ -18,6 +18,7 @@ type EditableUser = {
   phoneNumber?: string | null;
   currentRole?: string | null;
   profilePicture?: string | null;
+  profilePictureRaw?: string | null;
 };
 
 export default function AdminUserEditScreen({ user }: { user: EditableUser }) {
@@ -26,15 +27,16 @@ export default function AdminUserEditScreen({ user }: { user: EditableUser }) {
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const [userInfo, setUserInfo] = useState({
-    profileImage: user.profilePicture ?? null,
-    fullNameEn: user.fullNameEn ? user.fullNameEn:"",
-    fullNameKh: user.fullNameKh ? user.fullNameKh:"",
-    gender: user.gender ? user.gender.toLowerCase():"",
-    generalDepartment: user.generalDepartment ? user.generalDepartment:"",
-    department: user.department ? user.department:"",
-    office: user.office ? user.office:"",
-    phoneNumber: user.phoneNumber ? user.phoneNumber:"",
-    currentRole: user.currentRole ? user.currentRole:"",
+    profileImage: user.profilePicture ?? null, // signed URL for display
+    profileImageRaw: user.profilePictureRaw ?? user.profilePicture ?? null, // stored URL for payload
+    fullNameEn: user.fullNameEn ? user.fullNameEn : "",
+    fullNameKh: user.fullNameKh ? user.fullNameKh : "",
+    gender: user.gender ? user.gender.toLowerCase() : "",
+    generalDepartment: user.generalDepartment ? user.generalDepartment : "",
+    department: user.department ? user.department : "",
+    office: user.office ? user.office : "",
+    phoneNumber: user.phoneNumber ? user.phoneNumber : "",
+    currentRole: user.currentRole ? user.currentRole : "",
   });
 
   // ⭐ SUBMIT UPDATE
@@ -48,8 +50,8 @@ export default function AdminUserEditScreen({ user }: { user: EditableUser }) {
       name: userInfo.fullNameEn,
     };
 
-    if (userInfo.profileImage) {
-      payload.profilePicture = userInfo.profileImage;
+    if (userInfo.profileImageRaw || userInfo.profileImage) {
+      payload.profilePicture = userInfo.profileImageRaw ?? userInfo.profileImage;
     }
 
     try {

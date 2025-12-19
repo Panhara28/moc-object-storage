@@ -7,21 +7,19 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
 ) {
-  console.log("slug", "123");
-  const uiHeader = req.headers.get("x-ui-request");
-  const referer = req.headers.get("referer");
-  const requestOrigin = new URL(req.url).origin;
-  const refererOrigin = referer ? new URL(referer).origin : null;
-
-  if (uiHeader?.toLowerCase() !== "true" && refererOrigin !== requestOrigin) {
-    return NextResponse.json(
-      { status: "error", message: "Forbidden" },
-      { status: 403 }
-    );
-  }
   try {
     const { slug } = await params;
-    console.log("slug", slug);
+    const uiHeader = req.headers.get("x-ui-request");
+    const referer = req.headers.get("referer");
+    const requestOrigin = new URL(req.url).origin;
+    const refererOrigin = referer ? new URL(referer).origin : null;
+
+    if (uiHeader?.toLowerCase() !== "true" && refererOrigin !== requestOrigin) {
+      return NextResponse.json(
+        { status: "error", message: "Forbidden" },
+        { status: 403 }
+      );
+    }
     // --------------------------------------------------------------------------
     // 1. AUTHORIZATION CHECK
     // --------------------------------------------------------------------------
@@ -68,11 +66,12 @@ export async function GET(
     // --------------------------------------------------------------------------
     // 3. Build signed profile picture URL if possible
     // --------------------------------------------------------------------------
-    let profilePicture = user.profilePicture;
-    if (profilePicture) {
+    const profilePictureRaw = user.profilePicture;
+    let profilePictureSigned = profilePictureRaw;
+    if (profilePictureRaw) {
       try {
         let media = await prisma.media.findFirst({
-          where: { url: profilePicture },
+          where: { url: profilePictureRaw },
           select: {
             slug: true,
             filename: true,
@@ -85,7 +84,7 @@ export async function GET(
 
         if (!media) {
           try {
-            const parsed = new URL(profilePicture);
+            const parsed = new URL(profilePictureRaw);
             const segments = parsed.pathname.split("/").filter(Boolean);
             const storageIndex = segments[0] === "storage" ? 1 : 0;
             const bucketName = segments[storageIndex];
@@ -132,7 +131,7 @@ export async function GET(
             path: media.path ?? null,
             exp,
           });
-          profilePicture = `/api/buckets/${media.bucket.slug}/download?token=${token}&inline=true`;
+          profilePictureSigned = `/api/buckets/${media.bucket.slug}/download?token=${token}&inline=true`;
         }
       } catch {
         // fall back to stored URL on any error
@@ -146,7 +145,11 @@ export async function GET(
       {
         ok: true,
         message: "User detail retrieved successfully.",
-        data: { ...user, profilePicture },
+        data: {
+          ...user,
+          profilePicture: profilePictureSigned,
+          profilePictureRaw,
+        },
       },
       { status: 200 }
     );

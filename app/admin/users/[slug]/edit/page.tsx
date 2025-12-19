@@ -22,7 +22,7 @@ async function getItem(slug: string) {
 export default async function AdminUserEditPage({
   params,
 }: {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
 

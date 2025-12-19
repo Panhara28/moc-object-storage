@@ -253,6 +253,8 @@ export async function POST(req: NextRequest) {
       uploads.push({
         id: media.slug,
         slug: media.slug,
+        bucketSlug: bucket.slug,
+        bucketName: bucket.name,
         url: media.url,
         filename: media.filename,
         storedFilename: media.storedFilename,
@@ -269,6 +271,7 @@ export async function POST(req: NextRequest) {
       {
         status: "ok",
         bucket: bucket.name,
+        bucketSlug: bucket.slug,
         folder: folderPath || null,
         uploadSessionId: uploadSession.id,
         uploads,

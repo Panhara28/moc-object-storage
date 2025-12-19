@@ -16,6 +16,7 @@ export default function AdminUserAddScreen() {
 
   const [userInfo, setUserInfo] = useState({
     profileImage: null as string | null,
+    profileImageRaw: null as string | null,
     fullNameEn: "",
     fullNameKh: "",
     gender: "",
@@ -35,6 +36,7 @@ export default function AdminUserAddScreen() {
   const resetForm = () => {
     setUserInfo({
       profileImage: null,
+      profileImageRaw: null,
       fullNameEn: "",
       fullNameKh: "",
       gender: "",
@@ -59,7 +61,7 @@ export default function AdminUserAddScreen() {
     const payload = {
       ...userInfo,
       ...securityInfo,
-      profilePicture: userInfo.profileImage,
+      profilePicture: userInfo.profileImageRaw ?? userInfo.profileImage,
       name: userInfo.fullNameEn,
       gender: userInfo.gender.toUpperCase(),
     };
