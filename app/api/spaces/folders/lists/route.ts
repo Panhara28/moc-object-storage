@@ -18,7 +18,10 @@ export async function GET(req: NextRequest) {
 
     const auth = await authorize(req, "media-library", "read");
     if (!auth.ok) {
-      return NextResponse.json({ error: auth.message }, { status: auth.status });
+      return NextResponse.json(
+        { error: auth.message },
+        { status: auth.status }
+      );
     }
     const user = auth.user;
 
@@ -41,7 +44,7 @@ export async function GET(req: NextRequest) {
         );
       }
 
-      if (folder.userId !== user.id) {
+      if (folder.userId !== user!.id) {
         return NextResponse.json({ error: "Not authorized." }, { status: 403 });
       }
 
@@ -50,7 +53,7 @@ export async function GET(req: NextRequest) {
 
     // --- 1. FETCH FOLDERS ---
     const folders = await prisma.space.findMany({
-      where: { parentId, userId: user.id, isAvailable: "AVAILABLE" },
+      where: { parentId, userId: user!.id, isAvailable: "AVAILABLE" },
       select: {
         id: true,
         name: true,

@@ -1,4 +1,4 @@
-import DashboardContent from "../admin/dashboard";
+import DashboardContent from "../dashboard";
 
 export default function Content() {
   return (

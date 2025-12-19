@@ -14,7 +14,7 @@ import { Mail, Phone, Building2, Users, Briefcase, MapPin } from "lucide-react";
 import Image from "next/image";
 
 interface MeUser {
-  slug: string;
+  id: string;
   email: string;
   fullNameEn: string;
   fullNameKh: string;

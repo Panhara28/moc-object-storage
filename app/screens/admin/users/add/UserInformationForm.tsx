@@ -21,7 +21,7 @@ import {
 
 interface UserInfo {
   profileImage: string | null;
-  profileImageRaw?: string | null;
+  profileImageRaw: string | null;
   fullNameEn: string;
   fullNameKh: string;
   gender: string; // "", "male", "female", "other"
