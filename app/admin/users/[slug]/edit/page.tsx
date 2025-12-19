@@ -7,7 +7,6 @@ async function getItem(slug: string) {
 
   // ⬅️ FIX: Extract cookie manually
   const session = cookieStore.get("session")?.value || "";
-  console.log("123");
   const res = await fetch(`http://localhost:3000/api/users/${slug}`, {
     cache: "no-store",
     headers: {
@@ -25,7 +24,7 @@ export default async function AdminUserEditPage({
 }: {
   params: { slug: string };
 }) {
-  const { slug } = params;
+  const { slug } = await params;
 
   const result = await getItem(slug);
   const user = result?.data ?? null;
