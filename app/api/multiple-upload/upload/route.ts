@@ -204,9 +204,19 @@ export async function POST(req: NextRequest) {
       // ===============================================================
       // 8. CREATE MEDIA RECORD
       // ===============================================================
+      const publicBase =
+        process.env.STORAGE_PUBLIC_BASE_URL ||
+        (process.env.NODE_ENV === "production"
+          ? "https://moc-drive.moc.gov.kh"
+          : "http://localhost:3000/storage");
+
+      const trimmedBase = publicBase.endsWith("/")
+        ? publicBase.slice(0, -1)
+        : publicBase;
+
       const publicUrl = folderPath
-        ? `https://moc-drive.moc.gov.kh/${bucket.name}/${folderPath}/${storedFilename}`
-        : `https://moc-drive.moc.gov.kh/${bucket.name}/${storedFilename}`;
+        ? `${trimmedBase}/${bucket.name}/${folderPath}/${storedFilename}`
+        : `${trimmedBase}/${bucket.name}/${storedFilename}`;
 
       const media = await prisma.media.create({
         data: {

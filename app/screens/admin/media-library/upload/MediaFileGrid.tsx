@@ -1,9 +1,8 @@
 "use client";
 
 import { MediaItem } from "@/app/types/media";
-import { Media } from "@/lib/generated/prisma";
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type MediaFileGridProps = {
   selectedBook?: boolean;
@@ -15,6 +14,7 @@ type MediaFileGridProps = {
   items: MediaItem[];
   onOpenMedia: (media: MediaItem) => void;
   isRoot?: boolean;
+  bucketSlug: string;
 };
 
 export default function MediaFileGrid({
@@ -22,11 +22,66 @@ export default function MediaFileGrid({
   onOpenMedia,
   selectedBookCover,
   setSelectedBookCover,
+  bucketSlug,
 }: MediaFileGridProps) {
   const [coverSelected, setCoverSelected] = useState<boolean | null>(null);
   const [selectedCoverId, setSelectedCoverId] = useState<MediaItem | unknown>(
     null
   );
+  const [previewUrls, setPreviewUrls] = useState<Record<number, string>>({});
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    const fetchSignedPreviewUrls = async () => {
+      const imageItems = items.filter(
+        (item) => item.type === "IMAGE" && item.slug
+      );
+      const missing = imageItems.filter((item) => !previewUrls[item.id]);
+      if (!missing.length) return;
+
+      const updates: Record<number, string> = {};
+
+      for (const item of missing) {
+        try {
+          const res = await fetch(`/api/buckets/${bucketSlug}/signed-url`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-ui-request": "true",
+            },
+            body: JSON.stringify({
+              action: "download",
+              mediaSlug: item.slug,
+              expiresInSeconds: 300,
+            }),
+            signal: controller.signal,
+          });
+
+          if (!res.ok) continue;
+          const data = await res.json();
+          if (!data?.url || typeof data.url !== "string") continue;
+
+          const previewUrl = data.url.includes("?")
+            ? `${data.url}&inline=true`
+            : `${data.url}?inline=true`;
+
+          updates[item.id] = previewUrl;
+        } catch (err) {
+          if (controller.signal.aborted) return;
+          // Ignore failures for individual items; we can still render with fallback URL.
+        }
+      }
+
+      if (Object.keys(updates).length) {
+        setPreviewUrls((prev) => ({ ...prev, ...updates }));
+      }
+    };
+
+    fetchSignedPreviewUrls();
+
+    return () => controller.abort();
+  }, [items, bucketSlug, previewUrls]);
   // Function to handle image selection
   const handleImageClick = (item: MediaItem) => {
     if (selectedBookCover) {
@@ -57,9 +112,10 @@ export default function MediaFileGrid({
             `}
           >
             <div className="relative w-full h-full flex items-center justify-center rounded-md overflow-hidden">
-              {item.type === "IMAGE" && item.url && (
+              {item.type === "IMAGE" &&
+                (previewUrls[item.id] || item.url) && (
                 <Image
-                  src={item.url}
+                  src={previewUrls[item.id] || item.url!}
                   alt={item.filename || item.name}
                   fill
                   className="object-cover"

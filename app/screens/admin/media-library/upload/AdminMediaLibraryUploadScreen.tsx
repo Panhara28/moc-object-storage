@@ -270,7 +270,11 @@ export default function AdminMediaLibraryUploadScreen({
                   <h1 className="text-xl font-bold mt-8">Files</h1>
                   <hr className="border-gray-200 mb-3" />
 
-                  <MediaFileGrid items={medias} onOpenMedia={openMedia} />
+                  <MediaFileGrid
+                    items={medias}
+                    bucketSlug={bucketSlug}
+                    onOpenMedia={openMedia}
+                  />
                 </>
               )}
 
@@ -285,6 +289,7 @@ export default function AdminMediaLibraryUploadScreen({
                     setSelectedBook={setSelectedBook}
                     selectedBookCover={selectedBookCover}
                     setSelectedBookCover={setSelectedBookCover}
+                    bucketSlug={bucketSlug}
                     items={medias}
                     onOpenMedia={openMedia}
                     isRoot

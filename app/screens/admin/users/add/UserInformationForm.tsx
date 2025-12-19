@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   Card,
   CardContent,
@@ -37,15 +38,44 @@ interface Props {
 }
 
 export function UserInformationForm({ data, onChange, errors }: Props) {
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
   const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      onChange({ ...data, profileImage: reader.result as string });
+    const uploadImage = async () => {
+      setUploadError(null);
+      setUploading(true);
+
+      const formData = new FormData();
+      formData.append("files", file);
+      formData.append("bucket", "profile-avatars");
+
+      try {
+        const res = await fetch("/api/multiple-upload/upload", {
+          method: "POST",
+          body: formData,
+          headers: { "x-ui-request": "true" },
+        });
+
+        const json = await res.json();
+        const url = json?.uploads?.[0]?.url as string | undefined;
+
+        if (!res.ok || !url) {
+          throw new Error("Upload failed");
+        }
+
+        onChange({ ...data, profileImage: url });
+      } catch (err) {
+        setUploadError("Failed to upload image. Please try again.");
+      } finally {
+        setUploading(false);
+      }
     };
-    reader.readAsDataURL(file);
+
+    uploadImage();
   };
 
   return (
@@ -84,10 +114,14 @@ export function UserInformationForm({ data, onChange, errors }: Props) {
                 htmlFor="profile-picture"
                 className="px-4 py-2 border rounded-md cursor-pointer text-sm"
               >
-                Upload Image
+                {uploading ? "Uploading..." : "Upload Image"}
               </label>
             </div>
           </div>
+
+          {uploadError && (
+            <p className="text-sm text-red-600">{uploadError}</p>
+          )}
         </div>
 
         {/* Fields */}

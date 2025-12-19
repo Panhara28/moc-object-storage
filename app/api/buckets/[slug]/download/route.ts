@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import path from "path";
 import * as fs from "fs/promises";
 import { prisma } from "@/lib/connection";
+import { authorize } from "@/lib/authorized";
 import { verifyPayload } from "@/lib/signedUrl";
 
 function getStorageRoot() {
@@ -88,6 +89,17 @@ export async function GET(
       );
     }
 
+    // Private files require an authenticated user with read permission.
+    if (media.isAccessible === "PRIVATE") {
+      const auth = await authorize(req, "media-library", "read");
+      if (!auth.ok) {
+        return NextResponse.json(
+          { status: "error", message: auth.message },
+          { status: auth.status }
+        );
+      }
+    }
+
     const STORAGE_ROOT = getStorageRoot();
     const filePath = payload.path
       ? path.join(
@@ -108,11 +120,13 @@ export async function GET(
       );
     }
 
+    const inline = req.nextUrl.searchParams.get("inline") === "true";
+
     const headers = new Headers();
     headers.set("Content-Type", payload.mimetype || "application/octet-stream");
     headers.set(
       "Content-Disposition",
-      `attachment; filename="${encodeURIComponent(
+      `${inline ? "inline" : "attachment"}; filename="${encodeURIComponent(
         payload.filename || payload.storedFilename
       )}"`
     );

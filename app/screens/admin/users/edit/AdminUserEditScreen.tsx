@@ -17,6 +17,7 @@ type EditableUser = {
   office?: string | null;
   phoneNumber?: string | null;
   currentRole?: string | null;
+  profilePicture?: string | null;
 };
 
 export default function AdminUserEditScreen({ user }: { user: EditableUser }) {
@@ -25,7 +26,7 @@ export default function AdminUserEditScreen({ user }: { user: EditableUser }) {
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const [userInfo, setUserInfo] = useState({
-    profileImage: null as string | null,
+    profileImage: user.profilePicture ?? null,
     fullNameEn: user.fullNameEn ? user.fullNameEn:"",
     fullNameKh: user.fullNameKh ? user.fullNameKh:"",
     gender: user.gender ? user.gender.toLowerCase():"",
@@ -41,12 +42,15 @@ export default function AdminUserEditScreen({ user }: { user: EditableUser }) {
     e.preventDefault();
     setLoading(true);
 
-    const payload = {
+    const payload: Record<string, unknown> = {
       ...userInfo,
       gender: userInfo.gender.toUpperCase(),
       name: userInfo.fullNameEn,
-      profilePicture: userInfo.profileImage,
     };
+
+    if (userInfo.profileImage) {
+      payload.profilePicture = userInfo.profileImage;
+    }
 
     try {
       await userUpdateInfovalidation.validate(payload, { abortEarly: false });
