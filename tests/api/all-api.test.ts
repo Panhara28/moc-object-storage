@@ -61,6 +61,10 @@ describe("API cases", () => {
       });
 
       expect(res.status).toBe(entry.expectStatus);
+      if (entry.expectJson !== false) {
+        const contentType = res.headers.get("content-type") || "";
+        expect(contentType).toContain("application/json");
+      }
       if (entry.verify) {
         await entry.verify(res);
       }
