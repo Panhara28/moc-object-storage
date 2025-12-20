@@ -79,7 +79,6 @@ export async function PATCH(
     return NextResponse.json(
       {
         error: "An unexpected error occurred while resetting the password.",
-        details: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 }
     );

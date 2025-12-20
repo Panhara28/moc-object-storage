@@ -218,7 +218,6 @@ export async function POST(
       {
         status: "error",
         message: "Signed upload failed.",
-        details: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 }
     );

@@ -176,7 +176,6 @@ export async function GET(
       {
         status: "error",
         message: "Failed to serve file.",
-        details: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 }
     );

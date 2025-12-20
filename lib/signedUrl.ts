@@ -45,8 +45,16 @@ export function verifyPayload(token: string): SignedPayload | null {
 
   const data = decoded.slice(0, lastDot);
   const signature = decoded.slice(lastDot + 1);
-  const expected = crypto.createHmac("sha256", secret).update(data).digest("hex");
-  if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) {
+  const expected = crypto
+    .createHmac("sha256", secret)
+    .update(data)
+    .digest("hex");
+  const signatureBuf = Buffer.from(signature);
+  const expectedBuf = Buffer.from(expected);
+  if (
+    signatureBuf.length !== expectedBuf.length ||
+    !crypto.timingSafeEqual(signatureBuf, expectedBuf)
+  ) {
     return null;
   }
 

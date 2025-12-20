@@ -46,7 +46,7 @@ export async function getAuthUser(req: Request) {
     roleId?: number | null;
   };
   if (typeof payload.id !== "number") return null;
-  return prisma.user.findUnique({
+  const user = await prisma.user.findUnique({
     where: { id: payload.id },
     include: {
       role: {
@@ -58,4 +58,6 @@ export async function getAuthUser(req: Request) {
       },
     },
   });
+  if (!user || !user.isActive) return null;
+  return user;
 }
