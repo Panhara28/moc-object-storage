@@ -468,24 +468,9 @@ export default function Sidebar() {
                 href="/admin/dashboard"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-3 w-full"
+                className="gap-3 w-full text-lg text-center"
               >
-                <Image
-                  src="/moc-object-storage-logo.png"
-                  alt="MOC Object Storage"
-                  width={522}
-                  height={142}
-                  className="flex-shrink-0 hidden dark:block h-10 w-auto"
-                  priority
-                />
-                <Image
-                  src="/moc-object-storage-logo.png"
-                  alt="MOC Object Storage"
-                  width={522}
-                  height={142}
-                  className="flex-shrink-0 block dark:hidden h-10 w-auto"
-                  priority
-                />
+                MOC Object Storage
               </Link>
             ) : (
               <div className="flex justify-center w-full">

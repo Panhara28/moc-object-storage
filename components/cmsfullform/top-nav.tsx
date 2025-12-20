@@ -123,7 +123,7 @@ export default function TopNav() {
       </div>
 
       {/* Search */}
-      <div className="hidden md:flex flex-1 max-w-md mx-4">
+      {/* <div className="hidden md:flex flex-1 max-w-md mx-4">
         <div className="relative w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <Input
@@ -132,7 +132,7 @@ export default function TopNav() {
             className="pl-10 bg-gray-50 dark:bg-gray-800"
           />
         </div>
-      </div>
+      </div> */}
 
       {/* Right side */}
       <div className="flex items-center -space-x-1">
