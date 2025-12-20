@@ -70,10 +70,12 @@ export default function OverviewStats() {
       {stats.map((stat) => (
         <div
           key={stat.title}
-          className="bg-white dark:bg-[#0F0F12] rounded-lg sm:rounded-xl p-3 sm:p-4 border border-gray-200 dark:border-[#1F1F23] hover:shadow-md transition-shadow"
+          className="rounded-lg border border-border bg-card p-3 text-card-foreground transition-shadow hover:shadow-md sm:rounded-xl sm:p-4"
         >
           <div className="flex items-center justify-between space-y-0 pb-2">
-            <div className="text-gray-600 dark:text-gray-400 flex-shrink-0">{stat.icon}</div>
+            <div className="flex-shrink-0 text-muted-foreground">
+              {stat.icon}
+            </div>
             <div className="flex items-center text-xs">
               {stat.changeType === "increase" ? (
                 <TrendingUp className="h-3 w-3 text-green-500 mr-1 flex-shrink-0" />
@@ -86,10 +88,16 @@ export default function OverviewStats() {
             </div>
           </div>
           <div className="space-y-1">
-            <div className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">{stat.value}</div>
+            <div className="text-lg font-bold text-foreground sm:text-xl">
+              {stat.value}
+            </div>
             <div className="space-y-0.5">
-              <h3 className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400">{stat.title}</h3>
-              <p className="text-xs text-gray-500 dark:text-gray-500">{stat.description}</p>
+              <h3 className="text-xs font-medium text-muted-foreground sm:text-sm">
+                {stat.title}
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                {stat.description}
+              </p>
             </div>
           </div>
         </div>

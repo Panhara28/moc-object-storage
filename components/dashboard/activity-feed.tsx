@@ -120,17 +120,17 @@ const getActivityColor = (type: Activity["type"]) => {
 
 export default function ActivityFeed() {
   return (
-    <div className="bg-white dark:bg-[#0F0F12] rounded-xl p-6 border border-gray-200 dark:border-[#1F1F23]">
+    <div className="rounded-xl border border-border bg-card p-6 text-card-foreground">
       <div className="flex items-center justify-between mb-6">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Recent Activity</h3>
-        <button className="text-sm text-blue-600 dark:text-blue-400 hover:underline">View all</button>
+        <h3 className="text-lg font-semibold text-foreground">Recent Activity</h3>
+        <button className="text-sm text-primary hover:underline">View all</button>
       </div>
 
       <div className="space-y-4">
         {activities.map((activity) => (
           <div
             key={activity.id}
-            className="flex items-start space-x-4 p-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 rounded-lg transition-colors"
+            className="flex items-start space-x-4 rounded-lg p-3 transition-colors hover:bg-muted/50"
           >
             <div className={`p-2 rounded-full ${getActivityColor(activity.type)}`}>
               {getActivityIcon(activity.type)}
@@ -138,11 +138,17 @@ export default function ActivityFeed() {
 
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-gray-900 dark:text-white">{activity.title}</p>
-                <span className="text-xs text-gray-500 dark:text-gray-400">{activity.time}</span>
+                <p className="text-sm font-medium text-foreground">
+                  {activity.title}
+                </p>
+                <span className="text-xs text-muted-foreground">
+                  {activity.time}
+                </span>
               </div>
 
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{activity.description}</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {activity.description}
+              </p>
 
               <div className="flex items-center justify-between mt-2">
                 <div className="flex items-center space-x-2">
@@ -157,7 +163,9 @@ export default function ActivityFeed() {
                             .join("")}
                         </AvatarFallback>
                       </Avatar>
-                      <span className="text-xs text-gray-500 dark:text-gray-400">{activity.user.name}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {activity.user.name}
+                      </span>
                     </div>
                   )}
                 </div>

@@ -102,15 +102,15 @@ export default function MediaMoveFolderDialog({
         <div key={node.id}>
           <div
             onClick={() => !disabled && setSelectedTarget(node.id)}
-            className={`
-              p-2 border rounded my-1 cursor-pointer flex items-center
-              ${disabled ? "bg-gray-100 text-gray-400 cursor-not-allowed" : ""}
-              ${
-                selectedTarget === node.id
-                  ? "bg-blue-100 border-blue-400"
-                  : "hover:bg-gray-50"
-              }
-            `}
+            className={`p-2 border border-border rounded my-1 cursor-pointer flex items-center text-sm ${
+              disabled
+                ? "bg-muted text-muted-foreground cursor-not-allowed"
+                : "hover:bg-muted/50"
+            } ${
+              selectedTarget === node.id
+                ? "bg-accent text-accent-foreground border-primary"
+                : ""
+            }`}
             style={{ marginLeft: depth * 20 }}
           >
             📁 {node.name}
@@ -125,19 +125,23 @@ export default function MediaMoveFolderDialog({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-md bg-white">
+      <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Move Folder</DialogTitle>
         </DialogHeader>
 
         <div>
-          <p className="text-sm mb-3">Select destination folder:</p>
+          <p className="text-sm text-muted-foreground mb-3">
+            Select destination folder:
+          </p>
 
-          <div className="border rounded p-3 max-h-60 overflow-y-auto">
+          <div className="border border-border rounded p-3 max-h-60 overflow-y-auto">
             {tree.length > 0 ? (
               renderTree(tree)
             ) : (
-              <p className="text-sm text-gray-500">No folders available</p>
+              <p className="text-sm text-muted-foreground">
+                No folders available
+              </p>
             )}
           </div>
         </div>

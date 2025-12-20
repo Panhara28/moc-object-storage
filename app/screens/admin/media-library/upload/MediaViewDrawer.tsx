@@ -158,22 +158,25 @@ export default function MediaViewDrawer({
       {/* Drawer */}
       <div
         className="
-          absolute right-0 top-0 
-          w-[420px] h-full 
-          bg-white shadow-xl
-          animate-in slide-in-from-right 
+          absolute right-0 top-0
+          h-full w-[420px]
+          bg-background shadow-xl
+          animate-in slide-in-from-right
           z-[9999]
           flex flex-col
+          border-l border-border
         "
       >
-        <div className="p-4 border-b border-gray-300">
+        <div className="border-b border-border p-4">
           <h2 className="text-lg font-semibold">Media Details</h2>
-          <p className="text-sm text-gray-500">Information about this file</p>
+          <p className="text-sm text-muted-foreground">
+            Information about this file
+          </p>
         </div>
 
         {media && (
           <div className="p-4 space-y-4 flex-1 overflow-y-auto">
-            <div className="relative w-full h-56 rounded-md overflow-hidden border bg-gray-100 flex items-center justify-center">
+            <div className="relative flex h-56 w-full items-center justify-center overflow-hidden rounded-md border border-border bg-muted">
               {type === "IMAGE" && url ? (
                 <Image
                   src={url}
@@ -182,13 +185,15 @@ export default function MediaViewDrawer({
                   className="object-contain"
                 />
               ) : type === "PDF" ? (
-                <div className="text-red-600 font-bold text-2xl">PDF</div>
+                <div className="text-2xl font-bold text-red-600">PDF</div>
               ) : type === "VIDEO" ? (
-                <div className="text-black font-bold text-xl">VIDEO</div>
+                <div className="text-xl font-bold text-foreground">VIDEO</div>
               ) : type === "DOCUMENT" ? (
                 <div className="text-blue-600 font-bold text-xl">DOC</div>
               ) : (
-                <div className="text-gray-700 font-bold text-xl">FILE</div>
+                <div className="text-xl font-bold text-muted-foreground">
+                  FILE
+                </div>
               )}
             </div>
 
@@ -216,7 +221,7 @@ export default function MediaViewDrawer({
             </div>
 
             <span
-              className="text-blue-600 underline text-sm cursor-pointer"
+              className="cursor-pointer text-sm text-primary underline"
               onClick={copyUrl}
             >
               Copy URL
@@ -224,15 +229,15 @@ export default function MediaViewDrawer({
           </div>
         )}
 
-        <div className="p-4 border-t border-gray-300">
+        <div className="border-t border-border p-4">
           {/* Select Image button */}
           {selectedBookCover && media && (
             <button
               onClick={handleSelectBookCover}
               className="
-                w-full flex items-center justify-center gap-2 
-                bg-blue-600 hover:bg-blue-700 
-                text-white py-2 rounded-md font-medium 
+                w-full flex items-center justify-center gap-2
+                bg-primary hover:bg-primary/90
+                text-primary-foreground py-2 rounded-md font-medium
                 transition mb-4
               "
             >
@@ -245,9 +250,9 @@ export default function MediaViewDrawer({
             <button
               onClick={handleSelectBook}
               className="
-                w-full flex items-center justify-center gap-2 
-                bg-blue-600 hover:bg-blue-700 
-                text-white py-2 rounded-md font-medium 
+                w-full flex items-center justify-center gap-2
+                bg-primary hover:bg-primary/90
+                text-primary-foreground py-2 rounded-md font-medium
                 transition mb-4
               "
             >
@@ -259,9 +264,9 @@ export default function MediaViewDrawer({
           <button
             onClick={handleDelete}
             className="
-              w-full flex items-center justify-center gap-2 
-              bg-red-600 hover:bg-red-700 
-              text-white py-2 rounded-md font-medium 
+              w-full flex items-center justify-center gap-2
+              bg-destructive hover:bg-destructive/90
+              text-destructive-foreground py-2 rounded-md font-medium
               transition
             "
             disabled={deleting}

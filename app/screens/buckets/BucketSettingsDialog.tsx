@@ -158,7 +158,7 @@ export default function BucketSettingsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-7xl bg-white">
+      <DialogContent className="max-w-7xl">
         <DialogHeader>
           <DialogTitle>Access Keys for "{bucket.name}"</DialogTitle>
           <DialogDescription>
@@ -256,8 +256,8 @@ export default function BucketSettingsDialog({
             {regeneratedKeys?.secretAccessKey && (
               <TableRow>
                 <TableCell colSpan={6}>
-                  <div className="p-3 bg-yellow-50 border rounded">
-                    <p className="font-medium text-yellow-800">
+                  <div className="p-3 border border-border rounded bg-muted/40">
+                    <p className="font-medium text-foreground">
                       New Secret Key (copy & save — shown once):
                     </p>
 
@@ -275,12 +275,12 @@ export default function BucketSettingsDialog({
                         setTimeout(() => setCopied(false), 1200);
                       }}
                     >
-                      <div className="font-mono bg-white p-2 border rounded text-sm mt-2 break-all cursor-pointer hover:bg-yellow-100 transition">
+                      <div className="font-mono bg-background p-2 border border-border rounded text-sm mt-2 break-all cursor-pointer hover:bg-muted/60 transition">
                         {regeneratedKeys.secretAccessKey}
                       </div>
 
                       {copied && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-white/90 rounded border text-green-700 font-semibold text-sm animate-fadeOut">
+                        <div className="absolute inset-0 flex items-center justify-center bg-background/80 rounded border border-border text-foreground font-semibold text-sm animate-fadeOut">
                           Copied!
                         </div>
                       )}

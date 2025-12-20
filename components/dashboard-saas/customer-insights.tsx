@@ -36,18 +36,27 @@ export function CustomerInsights() {
   ]
 
   return (
-    <Card className="bg-white dark:bg-gray-800">
+    <Card>
       <CardHeader>
-        <CardTitle className="text-gray-900 dark:text-white">Customer Insights</CardTitle>
-        <p className="text-sm text-gray-500 dark:text-gray-400">Customer metrics and satisfaction</p>
+        <CardTitle>Customer Insights</CardTitle>
+        <p className="text-sm text-muted-foreground">
+          Customer metrics and satisfaction
+        </p>
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-2 gap-4">
           {metrics.map((metric, index) => (
-            <div key={index} className="text-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+            <div
+              key={index}
+              className="rounded-lg bg-muted/50 p-3 text-center"
+            >
               <metric.icon className={`mx-auto h-6 w-6 mb-2 ${metric.color}`} />
-              <div className="text-lg font-semibold text-gray-900 dark:text-white">{metric.value}</div>
-              <div className="text-xs text-gray-500 dark:text-gray-400">{metric.label}</div>
+              <div className="text-lg font-semibold text-foreground">
+                {metric.value}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {metric.label}
+              </div>
               <div className={`text-xs mt-1 ${metric.color}`}>{metric.change}</div>
             </div>
           ))}

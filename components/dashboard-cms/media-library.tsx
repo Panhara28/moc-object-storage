@@ -111,17 +111,19 @@ const getFileColor = (type: string) => {
 
 export default function MediaLibrary() {
   return (
-    <div className="bg-white dark:bg-[#0F0F12] rounded-xl p-6 border border-gray-200 dark:border-[#1F1F23]">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
+    <div className="rounded-xl border border-border bg-card p-6 text-card-foreground">
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Media Library</h3>
-          <p className="text-sm text-gray-600 dark:text-gray-400">Manage your images, videos, and documents</p>
+          <h3 className="text-lg font-semibold text-foreground">Media Library</h3>
+          <p className="text-sm text-muted-foreground">
+            Manage your images, videos, and documents
+          </p>
         </div>
         <div className="flex gap-2">
-          <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium">
+          <button className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90">
             Upload Files
           </button>
-          <select className="text-sm border border-gray-200 dark:border-gray-700 rounded-md px-2 py-1 bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
+          <select className="rounded-md border border-border bg-background px-2 py-1 text-sm text-foreground">
             <option>All Files</option>
             <option>Images</option>
             <option>Videos</option>
@@ -135,18 +137,20 @@ export default function MediaLibrary() {
         {mediaFiles.map((file) => (
           <div
             key={file.id}
-            className="group border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:shadow-md transition-all hover:border-gray-300 dark:hover:border-gray-600"
+            className="group rounded-lg border border-border p-4 transition-all hover:bg-muted/30 hover:shadow-md"
           >
             <div className="flex items-start justify-between mb-3">
               <div className={`p-2 rounded-lg ${getFileColor(file.type)}`}>{getFileIcon(file.type)}</div>
-              <button className="p-1 opacity-0 group-hover:opacity-100 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-all">
-                <MoreHorizontal className="h-4 w-4 text-gray-500" />
+              <button className="rounded p-1 opacity-0 transition-all hover:bg-muted/50 group-hover:opacity-100">
+                <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
               </button>
             </div>
 
             <div className="mb-3">
-              <h4 className="text-sm font-medium text-gray-900 dark:text-white line-clamp-2 mb-1">{file.name}</h4>
-              <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400">
+              <h4 className="mb-1 line-clamp-2 text-sm font-medium text-foreground">
+                {file.name}
+              </h4>
+              <div className="flex items-center space-x-2 text-xs text-muted-foreground">
                 <span>{file.size}</span>
                 {file.dimensions && (
                   <>
@@ -165,24 +169,24 @@ export default function MediaLibrary() {
 
             <div className="flex items-center justify-between mb-3">
               <Badge className={`${getFileColor(file.type)} border-0 text-xs`}>{file.type}</Badge>
-              <span className="text-xs text-gray-500 dark:text-gray-400">{file.uploadDate}</span>
+              <span className="text-xs text-muted-foreground">{file.uploadDate}</span>
             </div>
 
             <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-1 text-xs text-gray-500 dark:text-gray-400">
+              <div className="flex items-center space-x-1 text-xs text-muted-foreground">
                 <Download className="h-3 w-3" />
                 <span>{file.downloads} downloads</span>
               </div>
 
               <div className="flex items-center space-x-1">
-                <button className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors">
-                  <Eye className="h-3 w-3 text-gray-500" />
+                <button className="rounded p-1 transition-colors hover:bg-muted/50">
+                  <Eye className="h-3 w-3 text-muted-foreground" />
                 </button>
-                <button className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors">
-                  <Download className="h-3 w-3 text-gray-500" />
+                <button className="rounded p-1 transition-colors hover:bg-muted/50">
+                  <Download className="h-3 w-3 text-muted-foreground" />
                 </button>
-                <button className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors">
-                  <Trash2 className="h-3 w-3 text-gray-500" />
+                <button className="rounded p-1 transition-colors hover:bg-muted/50">
+                  <Trash2 className="h-3 w-3 text-muted-foreground" />
                 </button>
               </div>
             </div>
@@ -190,16 +194,16 @@ export default function MediaLibrary() {
         ))}
       </div>
 
-      <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="text-sm text-gray-600 dark:text-gray-400">
+      <div className="mt-6 border-t border-border pt-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="text-sm text-muted-foreground">
             Showing {mediaFiles.length} of 1,247 files • 2.4 GB used of 10 GB
           </div>
           <div className="flex items-center space-x-2">
-            <button className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+            <button className="rounded border border-border px-3 py-1 text-sm transition-colors hover:bg-muted/50">
               Previous
             </button>
-            <button className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">
+            <button className="rounded bg-primary px-3 py-1 text-sm text-primary-foreground transition-colors hover:bg-primary/90">
               Next
             </button>
           </div>

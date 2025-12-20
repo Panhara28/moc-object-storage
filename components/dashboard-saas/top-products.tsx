@@ -43,39 +43,47 @@ export function TopProducts() {
   ]
 
   return (
-    <Card className="bg-white dark:bg-gray-800">
+    <Card>
       <CardHeader>
-        <CardTitle className="flex items-center text-gray-900 dark:text-white">
+        <CardTitle className="flex items-center">
           <Package className="mr-2 h-5 w-5" />
           Top Products
         </CardTitle>
-        <p className="text-sm text-gray-500 dark:text-gray-400">Best selling products this month</p>
+        <p className="text-sm text-muted-foreground">
+          Best selling products this month
+        </p>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
           {products.map((product, index) => (
             <div
               key={index}
-              className="flex items-center justify-between p-3 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg"
+              className="flex items-center justify-between rounded-lg p-3 hover:bg-muted/50"
             >
               <div className="flex-1">
                 <div className="flex items-center justify-between mb-1">
-                  <span className="font-medium text-gray-900 dark:text-white">{product.name}</span>
-                  <span className="font-semibold text-gray-900 dark:text-white">{product.revenue}</span>
+                  <span className="font-medium text-foreground">
+                    {product.name}
+                  </span>
+                  <span className="font-semibold text-foreground">
+                    {product.revenue}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-500 dark:text-gray-400">{product.sku}</span>
+                  <span className="text-muted-foreground">{product.sku}</span>
                   <div className="flex items-center text-green-600 dark:text-green-400">
                     <TrendingUp className="mr-1 h-3 w-3" />
                     <span>{product.trend}</span>
                   </div>
                 </div>
-                <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">{product.sales} sales</div>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  {product.sales} sales
+                </div>
               </div>
             </div>
           ))}
         </div>
-        <button className="w-full mt-4 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium">
+        <button className="mt-4 w-full text-sm font-medium text-primary hover:text-primary/80">
           View All Products
         </button>
       </CardContent>

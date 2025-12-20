@@ -153,7 +153,10 @@ export default function TopNav() {
         {/* Profile */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="flex items-center space-x-2 p-2">
+            <Button
+              variant="ghost"
+              className="no-dark-white flex items-center space-x-2 p-2"
+            >
               <Avatar className="h-8 w-8">
                 <AvatarImage src={user?.profilePicture || "/placeholder.svg"} />
                 <AvatarFallback>

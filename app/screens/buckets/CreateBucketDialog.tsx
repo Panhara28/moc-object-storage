@@ -86,7 +86,7 @@ export default function CreateBucketDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xl bg-white">
+      <DialogContent className="max-w-xl">
         <DialogHeader>
           <DialogTitle>Create New Bucket</DialogTitle>
         </DialogHeader>

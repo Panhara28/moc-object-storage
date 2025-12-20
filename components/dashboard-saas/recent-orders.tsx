@@ -64,31 +64,39 @@ export function RecentOrders() {
   }
 
   return (
-    <Card className="bg-white dark:bg-gray-800">
+    <Card>
       <CardHeader>
-        <CardTitle className="flex items-center text-gray-900 dark:text-white">
+        <CardTitle className="flex items-center">
           <ShoppingCart className="mr-2 h-5 w-5" />
           Recent Orders
         </CardTitle>
-        <p className="text-sm text-gray-500 dark:text-gray-400">Latest orders from all channels</p>
+        <p className="text-sm text-muted-foreground">
+          Latest orders from all channels
+        </p>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
           {orders.map((order, index) => (
             <div
               key={index}
-              className="flex items-center justify-between p-3 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg"
+              className="flex items-center justify-between rounded-lg p-3 hover:bg-muted/50"
             >
               <div className="flex-1">
                 <div className="flex items-center justify-between mb-1">
-                  <span className="font-medium text-gray-900 dark:text-white">{order.id}</span>
-                  <span className="font-semibold text-gray-900 dark:text-white">{order.amount}</span>
+                  <span className="font-medium text-foreground">
+                    {order.id}
+                  </span>
+                  <span className="font-semibold text-foreground">
+                    {order.amount}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-600 dark:text-gray-300">{order.customer}</span>
+                  <span className="text-muted-foreground">
+                    {order.customer}
+                  </span>
                   <Badge className={getStatusColor(order.status)}>{order.status}</Badge>
                 </div>
-                <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
+                <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
                   <span>{order.channel}</span>
                   <span>{order.time}</span>
                 </div>
@@ -96,7 +104,7 @@ export function RecentOrders() {
             </div>
           ))}
         </div>
-        <button className="w-full mt-4 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium">
+        <button className="mt-4 w-full text-sm font-medium text-primary hover:text-primary/80">
           View All Orders
         </button>
       </CardContent>

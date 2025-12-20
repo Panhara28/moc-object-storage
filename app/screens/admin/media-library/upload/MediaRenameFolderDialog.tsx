@@ -9,6 +9,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import type { MediaItem } from "@/app/types/media";
 
 type Props = {
@@ -56,15 +57,14 @@ export default function MediaRenameFolderDialog({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-md bg-white">
+      <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Rename Folder</DialogTitle>
         </DialogHeader>
 
-        <input
+        <Input
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="w-full border p-2 rounded"
           placeholder="New folder name"
         />
 

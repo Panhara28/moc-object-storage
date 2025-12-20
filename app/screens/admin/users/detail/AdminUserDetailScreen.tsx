@@ -118,7 +118,7 @@ export default function AdminUserDetailScreen({
                       Gender
                     </p>
                     <p className="text-foreground capitalize">
-                      {user.gender.toLowerCase()}
+                      {user.gender ? user.gender.toLowerCase() : "N/A"}
                     </p>
                   </div>
 

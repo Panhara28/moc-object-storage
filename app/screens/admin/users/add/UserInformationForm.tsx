@@ -120,7 +120,7 @@ export function UserInformationForm({ data, onChange, errors }: Props) {
   };
 
   return (
-    <Card className="bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-gray-700 shadow-sm">
+    <Card>
       <CardHeader>
         <CardTitle>User Information</CardTitle>
         <CardDescription>Enter basic profile details</CardDescription>
@@ -139,7 +139,7 @@ export function UserInformationForm({ data, onChange, errors }: Props) {
               />
             ) : (
               <div className="w-24 h-24 flex items-center justify-center border rounded-lg border-dashed">
-                <Upload className="w-6 h-6 text-gray-400" />
+                <Upload className="w-6 h-6 text-muted-foreground" />
               </div>
             )}
 

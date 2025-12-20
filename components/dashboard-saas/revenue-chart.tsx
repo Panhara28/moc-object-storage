@@ -21,10 +21,12 @@ const data = [
 
 export function RevenueChart() {
   return (
-    <Card className="bg-white dark:bg-gray-800">
+    <Card>
       <CardHeader>
-        <CardTitle className="text-gray-900 dark:text-white">Revenue Trends</CardTitle>
-        <p className="text-sm text-gray-500 dark:text-gray-400">Monthly revenue across all sales channels</p>
+        <CardTitle>Revenue Trends</CardTitle>
+        <p className="text-sm text-muted-foreground">
+          Monthly revenue across all sales channels
+        </p>
       </CardHeader>
       <CardContent>
         <ChartContainer

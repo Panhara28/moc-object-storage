@@ -54,10 +54,14 @@ const chartOptions = {
 
 export default function CustomerAnalytics() {
   return (
-    <div className="bg-white dark:bg-[#0F0F12] rounded-xl p-3 sm:p-6 border border-gray-200 dark:border-[#1F1F23] w-full min-w-0">
+    <div className="w-full min-w-0 rounded-xl border border-border bg-card p-3 text-card-foreground sm:p-6">
       <div className="flex items-center justify-between mb-4 sm:mb-6">
-        <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">Customer Analytics</h3>
-        <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">This month</span>
+        <h3 className="text-base font-semibold text-foreground sm:text-lg">
+          Customer Analytics
+        </h3>
+        <span className="text-xs text-muted-foreground sm:text-sm">
+          This month
+        </span>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:gap-6">
@@ -74,19 +78,29 @@ export default function CustomerAnalytics() {
             <div key={stat.label} className="flex items-center justify-between">
               <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
                 <div className={`w-3 h-3 rounded-full ${stat.color} flex-shrink-0`} />
-                <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 truncate">{stat.label}</span>
+                <span className="truncate text-xs text-muted-foreground sm:text-sm">
+                  {stat.label}
+                </span>
               </div>
               <div className="text-right flex-shrink-0">
-                <p className="text-xs sm:text-sm font-medium text-gray-900 dark:text-white">{stat.value}</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">{stat.percentage}</p>
+                <p className="text-xs font-medium text-foreground sm:text-sm">
+                  {stat.value}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {stat.percentage}
+                </p>
               </div>
             </div>
           ))}
 
-          <div className="pt-3 sm:pt-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="border-t border-border pt-3 sm:pt-4">
             <div className="flex justify-between items-center">
-              <span className="text-xs sm:text-sm font-medium text-gray-900 dark:text-white">Total Customers</span>
-              <span className="text-base sm:text-lg font-bold text-gray-900 dark:text-white">5,210</span>
+              <span className="text-xs font-medium text-foreground sm:text-sm">
+                Total Customers
+              </span>
+              <span className="text-base font-bold text-foreground sm:text-lg">
+                5,210
+              </span>
             </div>
             <p className="text-xs text-green-600 dark:text-green-400 mt-1">+12.5% from last month</p>
           </div>

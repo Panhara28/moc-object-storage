@@ -135,7 +135,7 @@ export default function AdminAssignPermissionDialog({
   if (!row) return null;
 
   return (
-    <DialogContent className="max-w-5xl bg-white dark:bg-gray-900 p-8 rounded-xl shadow-xl">
+    <DialogContent className="max-w-5xl p-8 rounded-xl shadow-xl">
       <DialogHeader>
         <DialogTitle className="text-2xl font-semibold">
           Assign Permissions For ({row.name})
@@ -145,7 +145,7 @@ export default function AdminAssignPermissionDialog({
       {/* MATRIX TABLE */}
       <div className="mt-4 border rounded-lg overflow-hidden">
         <Table>
-          <TableHeader className="bg-gray-100 dark:bg-gray-800">
+          <TableHeader className="bg-muted/40">
             <TableRow>
               <TableHead className="w-1/4 font-semibold">Module</TableHead>
               <TableHead className="text-center">Create</TableHead>
@@ -157,10 +157,7 @@ export default function AdminAssignPermissionDialog({
 
           <TableBody>
             {permissions.map((p) => (
-              <TableRow
-                key={p.slug}
-                className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all"
-              >
+              <TableRow key={p.slug}>
                 {/* MODULE LABEL */}
                 <TableCell className="font-medium text-sm">
                   {p.module?.label}
@@ -172,7 +169,7 @@ export default function AdminAssignPermissionDialog({
                     type="checkbox"
                     checked={p.create}
                     onChange={() => toggleValue(p.slug, "create")}
-                    className="h-4 w-4 cursor-pointer border border-gray-400 rounded accent-blue-600"
+                    className="h-4 w-4 cursor-pointer rounded border border-input accent-primary"
                   />
                 </TableCell>
 
@@ -182,7 +179,7 @@ export default function AdminAssignPermissionDialog({
                     type="checkbox"
                     checked={p.read}
                     onChange={() => toggleValue(p.slug, "read")}
-                    className="h-4 w-4 cursor-pointer border border-gray-400 rounded accent-blue-600"
+                    className="h-4 w-4 cursor-pointer rounded border border-input accent-primary"
                   />
                 </TableCell>
 
@@ -192,7 +189,7 @@ export default function AdminAssignPermissionDialog({
                     type="checkbox"
                     checked={p.update}
                     onChange={() => toggleValue(p.slug, "update")}
-                    className="h-4 w-4 cursor-pointer border border-gray-400 rounded accent-blue-600"
+                    className="h-4 w-4 cursor-pointer rounded border border-input accent-primary"
                   />
                 </TableCell>
 
@@ -202,7 +199,7 @@ export default function AdminAssignPermissionDialog({
                     type="checkbox"
                     checked={p.delete}
                     onChange={() => toggleValue(p.slug, "delete")}
-                    className="h-4 w-4 cursor-pointer border border-gray-400 rounded accent-blue-600"
+                    className="h-4 w-4 cursor-pointer rounded border border-input accent-primary"
                   />
                 </TableCell>
               </TableRow>

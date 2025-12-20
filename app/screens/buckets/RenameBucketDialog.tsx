@@ -63,7 +63,7 @@ export default function RenameBucketDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md bg-white">
+      <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Rename Bucket</DialogTitle>
         </DialogHeader>

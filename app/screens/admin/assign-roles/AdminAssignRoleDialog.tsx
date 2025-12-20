@@ -112,7 +112,7 @@ export default function AdminAssignRoleDialog({
   };
 
   return (
-    <DialogContent className="max-w-xl bg-white dark:bg-gray-900 p-6 rounded-lg shadow-xl">
+    <DialogContent className="max-w-xl p-6 rounded-lg shadow-xl">
       <DialogHeader>
         <DialogTitle className="text-xl font-semibold">Assign Role</DialogTitle>
       </DialogHeader>

@@ -89,16 +89,18 @@ const statusColors = {
 
 export default function RecentOrders() {
   return (
-    <div className="bg-white dark:bg-[#0F0F12] rounded-xl p-6 border border-gray-200 dark:border-[#1F1F23]">
+    <div className="rounded-xl border border-border bg-card p-6 text-card-foreground">
       <div className="flex items-center justify-between mb-6">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Recent Orders</h3>
-        <button className="text-sm text-blue-600 dark:text-blue-400 hover:underline">View all</button>
+        <h3 className="text-lg font-semibold text-foreground">Recent Orders</h3>
+        <button className="text-sm text-primary hover:underline">
+          View all
+        </button>
       </div>
       <div className="space-y-4">
         {orders.map((order) => (
           <div
             key={order.id}
-            className="flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 rounded-lg transition-colors"
+            className="flex items-center justify-between rounded-lg p-4 transition-colors hover:bg-muted/50"
           >
             <div className="flex items-center space-x-4">
               <Avatar className="h-10 w-10">
@@ -112,17 +114,25 @@ export default function RecentOrders() {
               </Avatar>
               <div>
                 <div className="flex items-center space-x-2">
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">{order.customer.name}</p>
-                  <span className="text-xs text-gray-500 dark:text-gray-400">{order.id}</span>
+                  <p className="text-sm font-medium text-foreground">
+                    {order.customer.name}
+                  </p>
+                  <span className="text-xs text-muted-foreground">
+                    {order.id}
+                  </span>
                 </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">{order.product}</p>
+                <p className="text-xs text-muted-foreground">
+                  {order.product}
+                </p>
               </div>
             </div>
             <div className="flex items-center space-x-4">
               <Badge className={`${statusColors[order.status]} border-0`}>{order.status}</Badge>
               <div className="text-right">
-                <p className="text-sm font-medium text-gray-900 dark:text-white">{order.amount}</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">{order.date}</p>
+                <p className="text-sm font-medium text-foreground">
+                  {order.amount}
+                </p>
+                <p className="text-xs text-muted-foreground">{order.date}</p>
               </div>
             </div>
           </div>

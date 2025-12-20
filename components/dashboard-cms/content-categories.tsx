@@ -65,11 +65,11 @@ const categories: Category[] = [
 
 export default function ContentCategories() {
   return (
-    <div className="bg-white dark:bg-[#0F0F12] rounded-xl p-6 border border-gray-200 dark:border-[#1F1F23]">
+    <div className="rounded-xl border border-border bg-card p-6 text-card-foreground">
       <div className="flex items-center justify-between mb-6">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Content Categories</h3>
-        <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
-          <Plus className="h-4 w-4 text-gray-600 dark:text-gray-400" />
+        <h3 className="text-lg font-semibold text-foreground">Content Categories</h3>
+        <button className="rounded-lg p-2 transition-colors hover:bg-muted/50">
+          <Plus className="h-4 w-4 text-muted-foreground" />
         </button>
       </div>
 
@@ -77,18 +77,18 @@ export default function ContentCategories() {
         {categories.map((category) => (
           <div
             key={category.id}
-            className="flex items-center justify-between p-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 rounded-lg transition-colors group"
+            className="group flex items-center justify-between rounded-lg p-3 transition-colors hover:bg-muted/50"
           >
             <div className="flex items-center space-x-3 flex-1 min-w-0">
               <Badge className={`${category.color} border-0 flex-shrink-0`}>{category.name}</Badge>
               <div className="min-w-0 flex-1">
-                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{category.description}</p>
+                <p className="truncate text-xs text-muted-foreground">{category.description}</p>
               </div>
             </div>
 
             <div className="flex items-center space-x-2 flex-shrink-0">
               <div className="text-right">
-                <p className="text-sm font-medium text-gray-900 dark:text-white">{category.count}</p>
+                <p className="text-sm font-medium text-foreground">{category.count}</p>
                 <div className="flex items-center justify-end">
                   {category.change > 0 ? (
                     <TrendingUp className="h-3 w-3 text-green-500 mr-1" />
@@ -108,10 +108,10 @@ export default function ContentCategories() {
         ))}
       </div>
 
-      <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+      <div className="mt-4 border-t border-border pt-4">
         <div className="flex justify-between items-center text-sm">
-          <span className="text-gray-600 dark:text-gray-400">Total Articles</span>
-          <span className="font-medium text-gray-900 dark:text-white">
+          <span className="text-muted-foreground">Total Articles</span>
+          <span className="font-medium text-foreground">
             {categories.reduce((sum, cat) => sum + cat.count, 0)}
           </span>
         </div>

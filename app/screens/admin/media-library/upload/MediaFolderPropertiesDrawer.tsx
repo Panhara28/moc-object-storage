@@ -102,10 +102,12 @@ export default function MediaFolderPropertiesDrawer({
     <div className="fixed inset-0 z-[9998]">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
 
-      <div className="absolute right-0 top-0 w-[420px] h-full bg-white shadow-xl p-4 flex flex-col">
-        <h2 className="text-lg font-bold">Folder Properties</h2>
+      <div className="absolute right-0 top-0 flex h-full w-[420px] flex-col border-l border-border bg-background p-4 shadow-xl">
+        <div className="border-b border-border pb-3">
+          <h2 className="text-lg font-bold">Folder Properties</h2>
+        </div>
 
-        <div className="mt-4 space-y-2 text-sm">
+        <div className="mt-4 space-y-2 text-sm text-foreground">
           <p>
             <strong>Name:</strong> {details?.name || folder.name}
           </p>
@@ -135,7 +137,7 @@ export default function MediaFolderPropertiesDrawer({
 
           <button
             onClick={() => navigator.clipboard.writeText(folderUrl)}
-            className="text-blue-600 underline"
+            className="text-primary underline"
           >
             Copy Folder URL
           </button>

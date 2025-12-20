@@ -33,8 +33,25 @@ export default function AdminMeProfileScreen({
 }: {
   initialUser?: MeUser | null;
 }) {
+  const placeholderSrc = "/placeholder.svg";
   const [user, setUser] = useState<MeUser | null>(initialUser ?? null);
   const [loading, setLoading] = useState(!initialUser); // if SSR provided, skip loading
+  const [profileSrc, setProfileSrc] = useState(() => {
+    const initial = initialUser?.profilePicture?.trim();
+    if (!initial || initial === "null" || initial === "undefined") {
+      return placeholderSrc;
+    }
+    return initial;
+  });
+
+  useEffect(() => {
+    const current = user?.profilePicture?.trim();
+    if (!current || current === "null" || current === "undefined") {
+      setProfileSrc(placeholderSrc);
+    } else {
+      setProfileSrc(current);
+    }
+  }, [user?.profilePicture]);
 
   /* -----------------------------------------------------
      Fetch Logged-in User ONLY IF no initialUser is passed
@@ -110,14 +127,15 @@ export default function AdminMeProfileScreen({
               <div className="flex flex-col items-center gap-3">
                 <div className="relative w-32 h-32 rounded-lg overflow-hidden bg-muted border-2 border-border">
                   <Image
-                    src={user.profilePicture || "/placeholder.svg"}
+                    src={profileSrc}
                     alt={
-                      user.profilePicture
+                      profileSrc !== placeholderSrc
                         ? `Profile picture of ${user.fullNameEn}`
                         : "Default placeholder image"
                     }
                     fill
                     className="object-cover"
+                    onError={() => setProfileSrc(placeholderSrc)}
                   />
                 </div>
 

@@ -54,20 +54,22 @@ export function SalesTeamActivity() {
   ]
 
   return (
-    <Card className="bg-white dark:bg-gray-800">
+    <Card>
       <CardHeader>
-        <CardTitle className="flex items-center text-gray-900 dark:text-white">
+        <CardTitle className="flex items-center">
           <Users className="mr-2 h-5 w-5" />
           Sales Team Activity
         </CardTitle>
-        <p className="text-sm text-gray-500 dark:text-gray-400">Recent actions by your sales team</p>
+        <p className="text-sm text-muted-foreground">
+          Recent actions by your sales team
+        </p>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
           {activities.map((activity, index) => (
             <div
               key={index}
-              className="flex items-start space-x-3 p-3 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg"
+              className="flex items-start space-x-3 rounded-lg p-3 hover:bg-muted/50"
             >
               <Avatar className="h-8 w-8">
                 <AvatarImage src={activity.avatar || "/placeholder.svg"} alt={activity.user} />
@@ -80,19 +82,27 @@ export function SalesTeamActivity() {
               </Avatar>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-gray-900 dark:text-white">{activity.user}</span>
-                  <span className="text-xs text-gray-500 dark:text-gray-400">{activity.time}</span>
+                  <span className="text-sm font-medium text-foreground">
+                    {activity.user}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {activity.time}
+                  </span>
                 </div>
                 <div className="flex items-center mt-1">
                   <activity.icon className={`mr-2 h-3 w-3 ${activity.color}`} />
-                  <span className="text-sm text-gray-600 dark:text-gray-300">{activity.action}</span>
+                  <span className="text-sm text-muted-foreground">
+                    {activity.action}
+                  </span>
                 </div>
-                <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">{activity.value}</div>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  {activity.value}
+                </div>
               </div>
             </div>
           ))}
         </div>
-        <button className="w-full mt-4 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium">
+        <button className="mt-4 w-full text-sm font-medium text-primary hover:text-primary/80">
           View Team Dashboard
         </button>
       </CardContent>

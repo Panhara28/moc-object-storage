@@ -249,7 +249,7 @@ export default function Sidebar() {
     const content = (
       <div
         className={cn(
-          "flex items-center py-2 text-sm rounded-md transition-colors sidebar-menu-item hover:bg-gray-50 dark:hover:bg-[#1F1F23] relative group cursor-pointer",
+          "flex items-center py-2 text-sm rounded-md transition-colors sidebar-menu-item hover:bg-accent hover:text-accent-foreground relative group cursor-pointer",
           paddingLeft
         )}
         onClick={() => {
@@ -301,7 +301,7 @@ export default function Sidebar() {
 
         {/* Tooltip for collapsed state when not hovered and not mobile */}
         {menuState === "collapsed" && !isHovered && !isMobile && (
-          <div className="absolute left-full ml-2 px-2 py-1 bg-black-100 dark:bg-gray-100 text-white dark:text-gray-900 text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-30">
+          <div className="absolute left-full ml-2 px-2 py-1 bg-popover text-popover-foreground border border-border text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-30">
             {item.label}
             {item.badge && (
               <span className="ml-1 text-blue-300">({item.badge})</span>
@@ -358,15 +358,15 @@ export default function Sidebar() {
         {/* Mobile sidebar overlay */}
         <nav
           className={`
-            fixed inset-y-0 left-0 z-[70] w-64 bg-white dark:bg-[#0F0F12] 
-            border-r border-gray-200 dark:border-[#1F1F23] 
+            fixed inset-y-0 left-0 z-[70] w-64 bg-background
+            border-r border-border 
             transform transition-transform duration-300 ease-in-out
             ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"}
           `}
         >
           <div className="h-full flex flex-col">
             {/* Header */}
-            <div className="h-16 px-3 flex items-center border-b border-gray-200 dark:border-[#1F1F23]">
+            <div className="h-16 px-3 flex items-center border-b border-border">
               <Link
                 href="/admin/dashboard"
                 target="_blank"
@@ -394,7 +394,7 @@ export default function Sidebar() {
               <div className="space-y-6">
                 {menuData.map((section) => (
                   <div key={section.id}>
-                    <div className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider sidebar-section-label">
+                    <div className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground sidebar-section-label">
                       {section.label}
                     </div>
                     <div className="space-y-1">
@@ -411,7 +411,7 @@ export default function Sidebar() {
               </div>
             </div>
 
-            <div className="px-2 py-4 border-t border-gray-200 dark:border-[#1F1F23]">
+            <div className="px-2 py-4 border-t border-border">
               <div className="space-y-1">
                 <NavItem
                   item={{
@@ -449,8 +449,8 @@ export default function Sidebar() {
   return (
     <nav
       className={`
-        fixed inset-y-0 left-0 z-[60] bg-white dark:bg-[#0F0F12] 
-        border-r border-gray-200 dark:border-[#1F1F23] transition-all duration-300 ease-in-out
+        fixed inset-y-0 left-0 z-[60] bg-background
+        border-r border-border transition-all duration-300 ease-in-out
         ${menuState === "hidden" ? "w-0 border-r-0" : getSidebarWidth()}
       `}
       onMouseEnter={() => setIsHovered(true)}
@@ -462,7 +462,7 @@ export default function Sidebar() {
       {menuState !== "hidden" && (
         <div className="h-full flex flex-col">
           {/* Header */}
-          <div className="h-16 px-3 flex items-center border-b border-gray-200 dark:border-[#1F1F23]">
+          <div className="h-16 px-3 flex items-center border-b border-border">
             {showText ? (
               <Link
                 href="/admin/dashboard"
@@ -520,7 +520,7 @@ export default function Sidebar() {
               {menuData.map((section) => (
                 <div key={section.id}>
                   {showText && (
-                    <div className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider sidebar-section-label transition-opacity duration-200">
+                    <div className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground sidebar-section-label transition-opacity duration-200">
                       {section.label}
                     </div>
                   )}
@@ -538,7 +538,7 @@ export default function Sidebar() {
             </div>
           </div>
 
-          <div className="px-2 py-4 border-t border-gray-200 dark:border-[#1F1F23]">
+          <div className="px-2 py-4 border-t border-border">
             <div className="space-y-1  text-center">
               <span className="text-xs">© 2025 Ministry of Commerce.</span>
               {/* <NavItem

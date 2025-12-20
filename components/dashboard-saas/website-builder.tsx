@@ -32,20 +32,27 @@ export function WebsiteBuilder() {
   ]
 
   return (
-    <Card className="bg-white dark:bg-gray-800">
+    <Card>
       <CardHeader>
-        <CardTitle className="flex items-center text-gray-900 dark:text-white">
+        <CardTitle className="flex items-center">
           <Globe className="mr-2 h-5 w-5" />
           Website Builder
         </CardTitle>
-        <p className="text-sm text-gray-500 dark:text-gray-400">Manage your websites and performance</p>
+        <p className="text-sm text-muted-foreground">
+          Manage your websites and performance
+        </p>
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {websites.map((website, index) => (
-            <div key={index} className="p-4 border border-gray-200 dark:border-gray-600 rounded-lg">
+            <div
+              key={index}
+              className="rounded-lg border border-border p-4"
+            >
               <div className="flex items-center justify-between mb-3">
-                <h4 className="font-medium text-gray-900 dark:text-white">{website.name}</h4>
+                <h4 className="font-medium text-foreground">
+                  {website.name}
+                </h4>
                 <span
                   className={`px-2 py-1 text-xs rounded-full ${
                     website.status === "live"
@@ -57,34 +64,42 @@ export function WebsiteBuilder() {
                 </span>
               </div>
 
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">{website.url}</p>
+              <p className="mb-3 text-sm text-muted-foreground">
+                {website.url}
+              </p>
 
               <div className="flex items-center mb-3">
-                <Eye className="h-4 w-4 text-gray-400 mr-2" />
-                <span className="text-sm text-gray-600 dark:text-gray-300">{website.visitors} visitors</span>
+                <Eye className="mr-2 h-4 w-4 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">
+                  {website.visitors} visitors
+                </span>
               </div>
 
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
                   <div className="flex items-center">
-                    <Smartphone className="h-3 w-3 text-gray-400 mr-1" />
-                    <span className="text-gray-600 dark:text-gray-300">Mobile</span>
+                    <Smartphone className="mr-1 h-3 w-3 text-muted-foreground" />
+                    <span className="text-muted-foreground">Mobile</span>
                   </div>
-                  <span className="font-medium text-gray-900 dark:text-white">{website.mobile}</span>
+                  <span className="font-medium text-foreground">
+                    {website.mobile}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <div className="flex items-center">
-                    <Monitor className="h-3 w-3 text-gray-400 mr-1" />
-                    <span className="text-gray-600 dark:text-gray-300">Desktop</span>
+                    <Monitor className="mr-1 h-3 w-3 text-muted-foreground" />
+                    <span className="text-muted-foreground">Desktop</span>
                   </div>
-                  <span className="font-medium text-gray-900 dark:text-white">{website.desktop}</span>
+                  <span className="font-medium text-foreground">
+                    {website.desktop}
+                  </span>
                 </div>
               </div>
             </div>
           ))}
         </div>
 
-        <button className="w-full mt-4 bg-blue-600 text-white py-2 px-4 rounded-lg text-sm font-medium hover:bg-blue-700">
+        <button className="mt-4 w-full rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
           Create New Website
         </button>
       </CardContent>

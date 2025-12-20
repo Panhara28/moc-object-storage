@@ -158,10 +158,12 @@ export default function ContentChart() {
   return (
     <div className="grid gap-4 sm:gap-6 grid-cols-1 xl:grid-cols-2">
       {/* Content Performance Chart */}
-      <div className="bg-white dark:bg-[#0F0F12] rounded-xl p-3 sm:p-6 border border-gray-200 dark:border-[#1F1F23] w-full min-w-0">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-2">
-          <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">Content Performance</h3>
-          <select className="text-xs sm:text-sm border border-gray-200 dark:border-gray-700 rounded-md px-2 py-1 bg-white dark:bg-gray-800 text-gray-900 dark:text-white w-full sm:w-auto">
+      <div className="w-full min-w-0 rounded-xl border border-border bg-card p-3 text-card-foreground sm:p-6">
+        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <h3 className="text-base font-semibold text-foreground sm:text-lg">
+            Content Performance
+          </h3>
+          <select className="w-full rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground sm:w-auto sm:text-sm">
             <option>Last 12 months</option>
             <option>Last 6 months</option>
             <option>Last 3 months</option>
@@ -173,10 +175,14 @@ export default function ContentChart() {
       </div>
 
       {/* Content by Category Chart */}
-      <div className="bg-white dark:bg-[#0F0F12] rounded-xl p-3 sm:p-6 border border-gray-200 dark:border-[#1F1F23] w-full min-w-0">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-2">
-          <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">Content by Category</h3>
-          <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">This year</span>
+      <div className="w-full min-w-0 rounded-xl border border-border bg-card p-3 text-card-foreground sm:p-6">
+        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <h3 className="text-base font-semibold text-foreground sm:text-lg">
+            Content by Category
+          </h3>
+          <span className="text-xs text-muted-foreground sm:text-sm">
+            This year
+          </span>
         </div>
         <div className="h-48 sm:h-64 w-full">
           <Bar data={categoryData} options={window.innerWidth < 640 ? mobileChartOptions : chartOptions} />

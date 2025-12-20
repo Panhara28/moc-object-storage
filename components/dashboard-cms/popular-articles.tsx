@@ -83,9 +83,9 @@ const categoryColors = {
 
 export default function PopularArticles() {
   return (
-    <div className="bg-white dark:bg-[#0F0F12] rounded-xl p-6 border border-gray-200 dark:border-[#1F1F23]">
+    <div className="rounded-xl border border-border bg-card p-6 text-card-foreground">
       <div className="flex items-center justify-between mb-6">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Popular Articles</h3>
+        <h3 className="text-lg font-semibold text-foreground">Popular Articles</h3>
         <select className="text-sm border border-border rounded-md px-2 py-1 bg-background text-foreground">
           <option>This week</option>
           <option>This month</option>

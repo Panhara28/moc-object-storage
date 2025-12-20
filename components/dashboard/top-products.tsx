@@ -63,10 +63,10 @@ const products: Product[] = [
 
 export default function TopProducts() {
   return (
-    <div className="bg-white dark:bg-[#0F0F12] rounded-xl p-6 border border-gray-200 dark:border-[#1F1F23]">
+    <div className="rounded-xl border border-border bg-card p-6 text-card-foreground">
       <div className="flex items-center justify-between mb-6">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Top Products</h3>
-        <select className="text-sm border border-gray-200 dark:border-gray-700 rounded-md px-2 py-1 bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
+        <h3 className="text-lg font-semibold text-foreground">Top Products</h3>
+        <select className="rounded-md border border-border bg-background px-2 py-1 text-sm text-foreground">
           <option>This month</option>
           <option>Last month</option>
           <option>Last 3 months</option>
@@ -76,10 +76,10 @@ export default function TopProducts() {
         {products.map((product, index) => (
           <div
             key={product.id}
-            className="flex items-center justify-between p-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 rounded-lg transition-colors"
+            className="flex items-center justify-between rounded-lg p-3 transition-colors hover:bg-muted/50"
           >
             <div className="flex items-center space-x-4">
-              <div className="flex items-center justify-center w-8 h-8 bg-gray-100 dark:bg-gray-800 rounded-full text-sm font-medium text-gray-600 dark:text-gray-400">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-sm font-medium text-muted-foreground">
                 {index + 1}
               </div>
               <Image
@@ -90,14 +90,22 @@ export default function TopProducts() {
                 className="rounded-lg object-cover"
               />
               <div>
-                <p className="text-sm font-medium text-gray-900 dark:text-white">{product.name}</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">{product.category}</p>
+                <p className="text-sm font-medium text-foreground">
+                  {product.name}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {product.category}
+                </p>
               </div>
             </div>
             <div className="text-right">
-              <p className="text-sm font-medium text-gray-900 dark:text-white">{product.revenue}</p>
+              <p className="text-sm font-medium text-foreground">
+                {product.revenue}
+              </p>
               <div className="flex items-center justify-end space-x-1">
-                <span className="text-xs text-gray-500 dark:text-gray-400">{product.sales} sold</span>
+                <span className="text-xs text-muted-foreground">
+                  {product.sales} sold
+                </span>
                 <div className="flex items-center">
                   {product.change > 0 ? (
                     <TrendingUp className="h-3 w-3 text-green-500" />

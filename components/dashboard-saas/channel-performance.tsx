@@ -15,10 +15,12 @@ const data = [
 
 export function ChannelPerformance() {
   return (
-    <Card className="bg-white dark:bg-gray-800">
+    <Card>
       <CardHeader>
-        <CardTitle className="text-gray-900 dark:text-white">Channel Performance</CardTitle>
-        <p className="text-sm text-gray-500 dark:text-gray-400">Sales performance by channel this month</p>
+        <CardTitle>Channel Performance</CardTitle>
+        <p className="text-sm text-muted-foreground">
+          Sales performance by channel this month
+        </p>
       </CardHeader>
       <CardContent>
         <ChartContainer

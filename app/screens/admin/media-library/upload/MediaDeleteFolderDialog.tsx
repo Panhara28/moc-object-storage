@@ -53,7 +53,7 @@ export default function MediaDeleteFolderDialog({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-md bg-white">
+      <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Delete Folder</DialogTitle>
         </DialogHeader>
@@ -66,7 +66,7 @@ export default function MediaDeleteFolderDialog({
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button className="bg-red-600 text-white" onClick={remove}>
+          <Button variant="destructive" onClick={remove}>
             Delete
           </Button>
         </DialogFooter>

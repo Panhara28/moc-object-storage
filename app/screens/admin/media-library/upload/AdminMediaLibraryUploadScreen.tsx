@@ -223,7 +223,7 @@ export default function AdminMediaLibraryUploadScreen({
       </div>
 
       {/* MAIN CARD */}
-      <Card className="bg-white border border-gray-200 shadow-sm">
+      <Card>
         <div className="px-6 pt-10">
           <MediaFilters
             selectedFilter={selectedFilter}
@@ -237,7 +237,7 @@ export default function AdminMediaLibraryUploadScreen({
             <>
               {/* FOLDERS */}
               <h1 className="text-xl font-bold mt-4">Folders</h1>
-              <hr className="border-gray-200 mb-3" />
+              <hr className="border-border mb-3" />
 
               <MediaFolderGrid
                 items={currentItems}
@@ -268,7 +268,7 @@ export default function AdminMediaLibraryUploadScreen({
               {currentParentSlug && (
                 <>
                   <h1 className="text-xl font-bold mt-8">Files</h1>
-                  <hr className="border-gray-200 mb-3" />
+                  <hr className="border-border mb-3" />
 
                   <MediaFileGrid
                     items={medias}
@@ -282,7 +282,7 @@ export default function AdminMediaLibraryUploadScreen({
               {!currentParentSlug && (
                 <>
                   <h1 className="text-xl font-bold mt-8">Medias</h1>
-                  <hr className="border-gray-200 mb-3" />
+                  <hr className="border-border mb-3" />
 
                   <MediaFileGrid
                     selectedBook={selectedBook}

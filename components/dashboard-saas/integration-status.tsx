@@ -22,32 +22,38 @@ export function IntegrationStatus() {
       case "error":
         return <XCircle className="h-4 w-4 text-red-500" />
       default:
-        return <Settings className="h-4 w-4 text-gray-400" />
+        return <Settings className="h-4 w-4 text-muted-foreground" />
     }
   }
 
   return (
-    <Card className="bg-white dark:bg-gray-800">
+    <Card>
       <CardHeader>
-        <CardTitle className="text-gray-900 dark:text-white">Integration Status</CardTitle>
-        <p className="text-sm text-gray-500 dark:text-gray-400">Platform connections and sync status</p>
+        <CardTitle>Integration Status</CardTitle>
+        <p className="text-sm text-muted-foreground">
+          Platform connections and sync status
+        </p>
       </CardHeader>
       <CardContent>
         <div className="space-y-3">
           {integrations.map((integration, index) => (
             <div
               key={index}
-              className="flex items-center justify-between p-2 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg"
+              className="flex items-center justify-between rounded-lg p-2 hover:bg-muted/50"
             >
               <div className="flex items-center">
                 {getStatusIcon(integration.status)}
-                <span className="ml-3 font-medium text-gray-900 dark:text-white">{integration.name}</span>
+                <span className="ml-3 font-medium text-foreground">
+                  {integration.name}
+                </span>
               </div>
-              <span className="text-xs text-gray-500 dark:text-gray-400">{integration.lastSync}</span>
+              <span className="text-xs text-muted-foreground">
+                {integration.lastSync}
+              </span>
             </div>
           ))}
         </div>
-        <button className="w-full mt-4 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium">
+        <button className="mt-4 w-full text-sm font-medium text-primary hover:text-primary/80">
           Manage Integrations
         </button>
       </CardContent>

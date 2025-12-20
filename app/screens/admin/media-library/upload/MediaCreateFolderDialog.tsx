@@ -9,6 +9,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 type MediaCreateFolderDialogProps = {
   open: boolean;
@@ -51,15 +52,14 @@ export default function MediaCreateFolderDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md bg-white">
+      <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Create New Folder</DialogTitle>
         </DialogHeader>
 
-        <input
+        <Input
           value={folderName}
           onChange={(e) => setFolderName(e.target.value)}
-          className="w-full border p-2 rounded"
           placeholder="Folder Name"
         />
 

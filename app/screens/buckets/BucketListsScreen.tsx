@@ -107,7 +107,7 @@ export default function BucketListsScreen() {
   return (
     <>
       <div className="min-h-screen">
-        <header className="sticky top-0 border-b backdrop-blur-sm px-6 py-4 flex justify-between">
+        <header className="sticky top-0 border-b border-border bg-background/80 backdrop-blur-sm px-6 py-4 flex justify-between">
           <div className="flex items-center gap-4">
             <Link href="/admin/news/lists">
               <Button variant="ghost" size="icon">

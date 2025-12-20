@@ -458,11 +458,9 @@ export default function DynamicTable<
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogPortal>
           <DialogOverlay className="fixed inset-0 bg-black/30 z-50" />
-          <DialogContent className="fixed left-1/2 top-1/2 z-50 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 bg-white dark:bg-gray-900 p-6 rounded-lg shadow-xl">
+          <DialogContent className="fixed left-1/2 top-1/2 z-50 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 p-6 rounded-lg shadow-xl">
             <DialogHeader>
-              <DialogTitle className="text-gray-900 dark:text-gray-100">
-                Confirm Delete
-              </DialogTitle>
+              <DialogTitle>Confirm Delete</DialogTitle>
             </DialogHeader>
 
             <p className="text-sm text-muted-foreground">
