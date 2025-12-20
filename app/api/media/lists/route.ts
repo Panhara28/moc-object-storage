@@ -65,6 +65,7 @@ export async function GET(req: NextRequest) {
     // ------------------------------------------------------------
     const where: Prisma.MediaWhereInput = {
       uploadedById: user.id,
+      isVisibility: "AVAILABLE",
     };
 
     // search by media filename

@@ -49,6 +49,39 @@ If you want admin overrides (view all), add explicit checks based on role/permis
 - Supported: png, jpg/jpeg, gif, webp, pdf, mp3, mp4, wav, ogg, flac, doc/docx, xls/xlsx, ppt/pptx, txt.
 - Unknown signatures are rejected with 400.
 
+## VirusTotal Scanning (Async Quarantine)
+
+- Uploads are stored in a quarantined state first:
+  - `Media.isVisibility = DRAFTED`
+  - `Media.isAccessible = RESTRICTED`
+  - `Media.scanStatus = PENDING`
+- A background scan runs after upload:
+  - CLEAN → `AVAILABLE/PRIVATE`
+  - MALICIOUS → `REMOVE/RESTRICTED` and the file is deleted from storage
+  - FAILED → remains quarantined; `scanStatus = FAILED`
+- API responses include `scanStatus` on upload and in media properties.
+
+## VirusTotal Scan Caching
+
+- The SHA‑256 hash is stored as `scanHash`.
+- If a previous media record with the same hash is CLEAN or MALICIOUS, the result is reused and VirusTotal is not called again.
+
+## Scan Status Fields
+
+`Media` includes:
+- `scanStatus` (PENDING | CLEAN | MALICIOUS | FAILED)
+- `scanMessage` (optional reason)
+- `scanHash` (SHA‑256)
+- `scannedAt` (timestamp)
+
+## UI Notification Pattern
+
+Recommended flow:
+- Upload returns `scanStatus: PENDING`
+- UI polls `GET /api/media/properties?slug=...` every ~2s
+- If `scanStatus === MALICIOUS`, show a destructive toast and hide the item
+- If `scanStatus === CLEAN`, refresh the list
+
 ## Rate Limiting (Login)
 
 - Login attempts are tracked in DB (`login_attempts`) and shared across instances.
@@ -65,12 +98,17 @@ If you want admin overrides (view all), add explicit checks based on role/permis
 Required:
 - `JWT_SECRET`
 - `SIGNING_SECRET` (for signed URLs)
+- `VIRUSTOTAL_API_KEY` (VirusTotal scans)
 
 Optional:
 - `MAX_SIGNED_URL_TTL_SECONDS`
 - `MAX_UPLOAD_BYTES`
 - `STORAGE_ROOT`
 - `STORAGE_PUBLIC_BASE_URL`
+- `VIRUSTOTAL_REQUIRED` (set to `true` to treat missing API key as failure)
+- `VIRUSTOTAL_TIMEOUT_MS`
+- `VIRUSTOTAL_POLL_MS`
+- `VIRUSTOTAL_MAX_POLLS`
 
 ## Operational Notes (Cloudflare)
 

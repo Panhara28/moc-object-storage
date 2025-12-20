@@ -25,6 +25,7 @@ import MediaRenameFolderDialog from "./MediaRenameFolderDialog";
 import MediaDeleteFolderDialog from "./MediaDeleteFolderDialog";
 import MediaFolderPropertiesDrawer from "./MediaFolderPropertiesDrawer";
 import MediaMoveFolderDialog from "./MediaMoveFolderDialog";
+import { useToast } from "@/hooks/use-toast";
 
 const ITEMS_PER_PAGE = 12;
 
@@ -69,6 +70,7 @@ export default function AdminMediaLibraryUploadScreen({
 }: AdminMediaLibraryUploadScreenProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { toast } = useToast();
   const [state, dispatch] = useReducer(reducer, {
     selectedFilter: "all",
     currentPage: 1,
@@ -130,6 +132,55 @@ export default function AdminMediaLibraryUploadScreen({
     ]);
   }, [currentParentSlug, loadMedia, loadSpaces]);
 
+  const pollScanStatus = useCallback(
+    async (slug: string, filename?: string) => {
+      const maxAttempts = 12;
+      const delayMs = 2000;
+
+      for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+        const res = await fetch(`/api/media/properties?slug=${slug}`, {
+          cache: "no-store",
+        });
+        if (!res.ok) return;
+        const body = await res.json();
+        const status = body.media?.scanStatus as
+          | "PENDING"
+          | "CLEAN"
+          | "MALICIOUS"
+          | "FAILED"
+          | undefined;
+        const name = filename || body.media?.filename || "File";
+
+        if (status === "MALICIOUS") {
+          toast({
+            title: "Upload blocked",
+            description: `${name} was flagged as malicious.`,
+            variant: "destructive",
+          });
+          await refreshData();
+          return;
+        }
+
+        if (status === "FAILED") {
+          toast({
+            title: "Virus scan failed",
+            description: body.media?.scanMessage || `${name} is quarantined.`,
+            variant: "destructive",
+          });
+          return;
+        }
+
+        if (status === "CLEAN") {
+          await refreshData();
+          return;
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
+    },
+    [refreshData, toast]
+  );
+
   useEffect(() => {
     const controller = new AbortController();
 
@@ -183,6 +234,15 @@ export default function AdminMediaLibraryUploadScreen({
       loadSpaces(currentParentSlug),
       loadMedia(currentParentSlug),
     ]);
+
+    const uploads = Array.isArray(jsonResponse.uploads)
+      ? jsonResponse.uploads
+      : [];
+    uploads.forEach((upload: { slug?: string; filename?: string }) => {
+      if (upload.slug) {
+        void pollScanStatus(upload.slug, upload.filename);
+      }
+    });
 
     // Clear the file input
     event.target.value = "";

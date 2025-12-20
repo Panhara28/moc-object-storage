@@ -34,6 +34,13 @@ enum MediaType {
   OTHER
 }
 
+enum ScanStatus {
+  PENDING
+  CLEAN
+  MALICIOUS
+  FAILED
+}
+
 enum Visibility {
   AVAILABLE
   PUBLIC
@@ -222,6 +229,10 @@ model Media {
   mimetype  String
   extension String
   size      Int
+  scanStatus  ScanStatus @default(PENDING)
+  scanMessage String?
+  scanHash    String?
+  scannedAt   DateTime?
 
   title       String?
   altText     String?

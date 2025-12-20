@@ -22,6 +22,8 @@ export interface MediaItem {
   height?: number | null;
   mimetype?: string;
   extension?: string;
+  scanStatus?: "PENDING" | "CLEAN" | "MALICIOUS" | "FAILED";
+  scanMessage?: string | null;
 }
 
 export type MediaViewDrawerProps = {

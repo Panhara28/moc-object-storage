@@ -60,6 +60,7 @@ export async function GET(
     // ---------------------------------------
     const where: Prisma.MediaWhereInput = {
       bucket: { slug },
+      isVisibility: "AVAILABLE",
     };
 
     if (search) {

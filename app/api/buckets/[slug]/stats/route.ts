@@ -38,12 +38,12 @@ export async function GET(
 
     const [mediaAgg, latestUpload] = await Promise.all([
       prisma.media.aggregate({
-        where: { bucketId: bucket.id },
+        where: { bucketId: bucket.id, isVisibility: "AVAILABLE" },
         _count: { _all: true },
         _sum: { size: true },
       }),
       prisma.media.findFirst({
-        where: { bucketId: bucket.id },
+        where: { bucketId: bucket.id, isVisibility: "AVAILABLE" },
         orderBy: { uploadedAt: "desc" },
         select: { uploadedAt: true },
       }),

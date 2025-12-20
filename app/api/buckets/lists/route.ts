@@ -71,7 +71,7 @@ export async function GET(req: NextRequest) {
           by: ["bucketId"],
           _sum: { size: true },
           where: {
-            isVisibility: { not: "REMOVE" },
+            isVisibility: "AVAILABLE",
             bucketId: { in: bucketIds },
           },
         })

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { verifyPayload } from "@/lib/signedUrl";
 import { validateUploadFile } from "@/lib/upload-validation";
+import { queueVirusTotalScanForMedia } from "@/lib/virustotal";
 import { randomUUID } from "crypto";
 import * as fs from "fs/promises";
 import path from "path";
@@ -151,7 +152,6 @@ export async function POST(
         { status: 400 }
       );
     }
-
     const extension = validation.ext.toLowerCase();
     const storedFilename = `${randomUUID()}.${extension}`;
     const rawPath = typeof payload.path === "string" ? payload.path : null;
@@ -191,6 +191,9 @@ export async function POST(
         uploadedById: payload.userId,
         bucketId: bucket.id,
         path: folderPath || null,
+        isVisibility: "DRAFTED",
+        isAccessible: "RESTRICTED",
+        scanStatus: "PENDING",
       },
       select: {
         slug: true,
@@ -200,7 +203,16 @@ export async function POST(
         fileType: true,
         size: true,
         path: true,
+        id: true,
+        scanStatus: true,
       },
+    });
+
+    queueVirusTotalScanForMedia({
+      mediaId: media.id,
+      filename: file.name,
+      buffer,
+      storedPath,
     });
 
     return NextResponse.json(
@@ -220,4 +232,5 @@ export async function POST(
       { status: 500 }
     );
   }
+
 }
