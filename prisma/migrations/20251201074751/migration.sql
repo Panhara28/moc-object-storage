@@ -1,2 +1,0 @@
--- AlterTable
-ALTER TABLE `categories` ADD COLUMN `categoryOf` ENUM('DEFAULT', 'BOOK', 'NEWS') NOT NULL DEFAULT 'DEFAULT';
