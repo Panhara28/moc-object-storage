@@ -19,7 +19,6 @@ import {
   DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
 import { useState } from "react";
-import { Bucket } from "@/lib/generated/prisma";
 import RenameBucketDialog from "./RenameBucketDialog";
 import DeleteBucketDialog from "./DeleteBucketDialog";
 
