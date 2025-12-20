@@ -1,7 +1,7 @@
+import "dotenv/config";
 import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
-import "dotenv/config";
 
 /* ======================================================
    Key Generators
