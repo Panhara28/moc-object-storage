@@ -6,17 +6,22 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "api:routes": "node scripts/list-api-routes.js",
+    "api:cases:gen": "node scripts/gen-api-cases.js",
+    "api:missing": "node scripts/api-missing-tests.js"
   },
   "dependencies": {
     "@prisma/adapter-mariadb": "^7.2.0",
     "@prisma/client": "^7.2.0",
+    "@types/swagger-ui-react": "^5.18.0",
     "dotenv": "^17.2.3",
     "mysql": "^2.18.1",
     "next": "16.1.0",
     "react": "19.2.3",
-    "react-dom": "19.2.3",
-    "@types/swagger-ui-react": "^5.18.0"
+    "react-dom": "19.2.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -31,14 +36,14 @@
     "eslint": "^9",
     "eslint-config-next": "16.1.0",
     "jsonwebtoken": "^9.0.3",
+    "next-swagger-doc": "^0.4.1",
     "prisma": "^7.2.0",
-    "tailwindcss": "^4",
-    "tsx": "^4.21.0",
-    "typescript": "^5",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1",
     "swagger-ui-react": "^5.30.3",
-    "next-swagger-doc": "^0.4.1"
-
+    "tailwindcss": "^4",
+    "tsx": "^4.21.0",
+    "typescript": "^5",
+    "vitest": "^4.0.16"
   }
 }
