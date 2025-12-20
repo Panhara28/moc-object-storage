@@ -1,0 +1,327 @@
+/* eslint-disable */
+import { NextRequest, NextResponse } from "next/server";
+import prisma from "@/lib/prisma";
+import { authorize, getAuthUser } from "@/lib/authorized";
+import { randomUUID } from "crypto";
+import * as fs from "fs/promises";
+import path from "path";
+import sharp from "sharp";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+const MAX_UPLOAD_BYTES =
+  Number(process.env.MAX_UPLOAD_BYTES) || 50 * 1024 * 1024; // 50MB default
+const ALLOWED_MIME_PREFIXES = ["image/", "video/", "audio/"];
+const ALLOWED_MIME_TYPES = [
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-powerpoint",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "text/plain",
+];
+
+function isMimeAllowed(mime: string) {
+  return (
+    ALLOWED_MIME_PREFIXES.some((p) => mime.startsWith(p)) ||
+    ALLOWED_MIME_TYPES.includes(mime)
+  );
+}
+
+function isSafeSegment(segment: string) {
+  return (
+    segment.length > 0 &&
+    !segment.includes("..") &&
+    !segment.includes("/") &&
+    !segment.includes("\\")
+  );
+}
+
+function assertPathInsideBase(base: string, target: string) {
+  const baseResolved = path.resolve(base);
+  const targetResolved = path.resolve(target);
+  if (
+    targetResolved !== baseResolved &&
+    !targetResolved.startsWith(baseResolved + path.sep)
+  ) {
+    throw new Error("Resolved path escapes storage root");
+  }
+}
+
+// ===============================================================
+// Detect file type
+// ===============================================================
+function detectMediaType(mime: string, extension: string) {
+  if (mime.startsWith("image")) return "IMAGE";
+  if (mime.startsWith("video")) return "VIDEO";
+  if (mime.startsWith("audio")) return "AUDIO";
+  if (extension.toLowerCase() === "pdf") return "PDF";
+
+  const docExt = ["doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt"];
+  if (docExt.includes(extension.toLowerCase())) return "DOCUMENT";
+
+  return "OTHER";
+}
+
+// ===============================================================
+// MAIN UPLOAD HANDLER
+// ===============================================================
+export async function POST(
+  req: NextRequest,
+  context: { params: Promise<{ slug: string }> }
+) {
+  try {
+    const { slug } = await context.params;
+
+    // 1. AUTHORIZATION
+    const auth = await authorize(req, "media-library", "create");
+    if (!auth.ok) {
+      return NextResponse.json(
+        { status: "error", message: auth.message },
+        { status: auth.status }
+      );
+    }
+
+    const user = await getAuthUser(req);
+    if (!user) {
+      return NextResponse.json(
+        { status: "error", message: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    // 2. READ FORM DATA
+    const form = await req.formData();
+    const files = form.getAll("files") as File[];
+    const folderSlug = form.get("folderSlug") as string | null;
+
+    if (!files || files.length === 0) {
+      return NextResponse.json(
+        { status: "error", message: "No files uploaded" },
+        { status: 400 }
+      );
+    }
+
+    for (const file of files) {
+      if (file.size > MAX_UPLOAD_BYTES) {
+        return NextResponse.json(
+          {
+            status: "error",
+            message: `File "${file.name}" exceeds size limit of ${MAX_UPLOAD_BYTES} bytes.`,
+          },
+          { status: 400 }
+        );
+      }
+
+      if (!file.type || !isMimeAllowed(file.type)) {
+        return NextResponse.json(
+          {
+            status: "error",
+            message: `File "${file.name}" has an unsupported type ${
+              file.type || "(unknown)"
+            }.`,
+          },
+          { status: 400 }
+        );
+      }
+    }
+
+    // ===============================================================
+    // 3. GET BUCKET USING SLUG
+    // ===============================================================
+    const bucket = await prisma.bucket.findUnique({
+      where: { slug, isAvailable: "AVAILABLE" },
+    });
+
+    if (!bucket) {
+      return NextResponse.json(
+        { status: "error", message: "Bucket not found" },
+        { status: 404 }
+      );
+    }
+
+    if (!isSafeSegment(bucket.name)) {
+      return NextResponse.json(
+        { status: "error", message: "Invalid bucket name." },
+        { status: 400 }
+      );
+    }
+
+    const STORAGE_ROOT = process.env.STORAGE_ROOT || "/mnt/storage";
+    const bucketDir = path.join(STORAGE_ROOT, bucket.name);
+    assertPathInsideBase(STORAGE_ROOT, bucketDir);
+    await fs.mkdir(bucketDir, { recursive: true });
+
+    // ===============================================================
+    // 4. RESOLVE FOLDER (SPACE) AND CHECK FILESYSTEM FOLDER
+    // ===============================================================
+    let folderPath = "";
+    let space = null; // Declare space outside the if block so it can be used later
+
+    if (folderSlug) {
+      space = await prisma.space.findUnique({
+        where: { slug: folderSlug },
+        select: { id: true, name: true, bucketId: true },
+      });
+
+      if (space && space.bucketId !== bucket.id) {
+        return NextResponse.json(
+          { status: "error", message: "Folder belongs to another bucket" },
+          { status: 400 }
+        );
+      }
+
+      // If the folder isn't found, gracefully fall back to bucket root
+      if (space) {
+        if (!isSafeSegment(space.name)) {
+          return NextResponse.json(
+            { status: "error", message: "Invalid folder name." },
+            { status: 400 }
+          );
+        }
+        folderPath = space.name;
+      }
+
+      // ===============================================================
+      // Create folder on filesystem only if it doesn't exist
+      // ===============================================================
+      if (folderPath) {
+        const folderFullPath = path.join(bucketDir, folderPath);
+        assertPathInsideBase(bucketDir, folderFullPath);
+
+        try {
+          await fs.mkdir(folderFullPath, { recursive: true }); // Create folder if it doesn't exist
+        } catch (error) {
+          console.error("Error creating folder on filesystem:", error);
+          return NextResponse.json(
+            { status: "error", message: "Error creating folder on filesystem" },
+            { status: 500 }
+          );
+        }
+      }
+    }
+
+    // ===============================================================
+    // 5. CREATE UPLOAD SESSION
+    // ===============================================================
+    const uploadSession = await prisma.mediaUpload.create({
+      data: { userId: user.id },
+    });
+
+    const uploads = [];
+
+    // ===============================================================
+    // 6. PROCESS EACH FILE
+    // ===============================================================
+    for (const file of files) {
+      const buffer = Buffer.from(await file.arrayBuffer());
+      const extension = file.name.split(".").pop() || "";
+      const storedFilename = `${randomUUID()}.${extension}`;
+
+      const storedPath = folderPath
+        ? path.join(bucketDir, folderPath, storedFilename)
+        : path.join(bucketDir, storedFilename);
+      assertPathInsideBase(bucketDir, storedPath);
+
+      await fs.writeFile(storedPath, buffer);
+
+      // Extract image metadata (if it's an image)
+      let width: number | undefined = undefined;
+      let height: number | undefined = undefined;
+
+      if (file.type.startsWith("image/")) {
+        try {
+          const meta = await sharp(buffer).metadata();
+          width = meta.width ?? undefined;
+          height = meta.height ?? undefined;
+        } catch {}
+      }
+
+      const type = detectMediaType(file.type, extension);
+
+      // ===============================================================
+      // CREATE MEDIA RECORD
+      // ===============================================================
+      const publicBaseUrl =
+        process.env.STORAGE_PUBLIC_BASE_URL ||
+        (process.env.NODE_ENV === "production"
+          ? "https://moc-drive.moc.gov.kh"
+          : "http://localhost:3000/storage");
+
+      const mediaPath = folderPath
+        ? `${bucket.name}/${folderPath}/${storedFilename}`
+        : `${bucket.name}/${storedFilename}`;
+
+      const trimmedBase = publicBaseUrl.endsWith("/")
+        ? publicBaseUrl.slice(0, -1)
+        : publicBaseUrl;
+
+      const publicUrl = `${trimmedBase}/${mediaPath}`;
+
+      const media = await prisma.media.create({
+        data: {
+          filename: file.name,
+          storedFilename,
+          url: publicUrl,
+          fileType: type,
+          mimetype: file.type,
+          extension: extension.toLowerCase(),
+          size: file.size,
+          width,
+          height,
+          uploadedById: user.id,
+          bucketId: bucket.id,
+          path: folderPath,
+        },
+      });
+
+      // Save upload details (Always create the upload detail)
+      await prisma.mediaUploadDetail.create({
+        data: {
+          mediaUploadId: uploadSession.id,
+          mediaId: media.id,
+          // Pass null for spaceId if no folderSlug is provided
+          spaceId: folderSlug ? (space ? space.id : null) : null,
+        },
+      });
+
+      uploads.push({
+        id: media.slug,
+        slug: media.slug,
+        url: media.url,
+        filename: media.filename,
+        storedFilename: media.storedFilename,
+        type: media.fileType,
+        width: media.width,
+        height: media.height,
+      });
+    }
+
+    // ===============================================================
+    // 8. RESPONSE
+    // ===============================================================
+    return NextResponse.json(
+      {
+        status: "ok",
+        bucket: bucket.name,
+        folder: folderPath || null,
+        uploadSessionId: uploadSession.id,
+        uploads,
+      },
+      { status: 201 }
+    );
+  } catch (error: unknown) {
+    console.error("❌ Upload Error:", error);
+    return NextResponse.json(
+      {
+        status: "error",
+        message: "Upload failed",
+        details: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 500 }
+    );
+  }
+}

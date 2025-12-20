@@ -1,0 +1,168 @@
+import prisma from "@/lib/prisma";
+import { NextRequest, NextResponse } from "next/server";
+import { authorize } from "@/lib/authorized";
+import { signPayload } from "@/lib/signedUrl";
+
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ slug: string }> }
+) {
+  try {
+    const { slug } = await params;
+    const uiHeader = req.headers.get("x-ui-request");
+    const referer = req.headers.get("referer");
+    const requestOrigin = new URL(req.url).origin;
+    const refererOrigin = referer ? new URL(referer).origin : null;
+
+    if (uiHeader?.toLowerCase() !== "true" && refererOrigin !== requestOrigin) {
+      return NextResponse.json(
+        { status: "error", message: "Forbidden" },
+        { status: 403 }
+      );
+    }
+    // --------------------------------------------------------------------------
+    // 1. AUTHORIZATION CHECK
+    // --------------------------------------------------------------------------
+    const auth = await authorize(req, "users", "read");
+
+    if (!auth.ok) {
+      return NextResponse.json(
+        { ok: false, message: auth.message },
+        { status: auth.status }
+      );
+    }
+
+    // --------------------------------------------------------------------------
+    // 2. FETCH USER BY SLUG
+    // --------------------------------------------------------------------------
+    const user = await prisma.user.findUnique({
+      where: { slug },
+      select: {
+        slug: true,
+        profilePicture: true,
+        name: true,
+
+        fullNameKh: true,
+        fullNameEn: true,
+        gender: true,
+        generalDepartment: true,
+        department: true,
+        office: true,
+        phoneNumber: true,
+        currentRole: true,
+
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    if (!user) {
+      return NextResponse.json(
+        { ok: false, message: "User not found." },
+        { status: 404 }
+      );
+    }
+
+    // --------------------------------------------------------------------------
+    // 3. Build signed profile picture URL if possible
+    // --------------------------------------------------------------------------
+    const profilePictureRaw = user.profilePicture;
+    let profilePictureSigned = profilePictureRaw;
+    if (profilePictureRaw) {
+      try {
+        let media = await prisma.media.findFirst({
+          where: { url: profilePictureRaw },
+          select: {
+            slug: true,
+            filename: true,
+            storedFilename: true,
+            mimetype: true,
+            path: true,
+            bucket: { select: { name: true, slug: true, isAvailable: true } },
+          },
+        });
+
+        if (!media) {
+          try {
+            const parsed = new URL(profilePictureRaw);
+            const segments = parsed.pathname.split("/").filter(Boolean);
+            const storageIndex = segments[0] === "storage" ? 1 : 0;
+            const bucketName = segments[storageIndex];
+            const storedFilename = segments[segments.length - 1];
+            const pathSegments = segments.slice(
+              storageIndex + 1,
+              segments.length - 1
+            );
+            const path = pathSegments.length ? pathSegments.join("/") : null;
+
+            if (bucketName && storedFilename) {
+              media = await prisma.media.findFirst({
+                where: {
+                  storedFilename,
+                  bucket: { name: bucketName },
+                  OR: [{ path }, { path: null }, { path: "" }],
+                },
+                select: {
+                  slug: true,
+                  filename: true,
+                  storedFilename: true,
+                  mimetype: true,
+                  path: true,
+                  bucket: {
+                    select: { name: true, slug: true, isAvailable: true },
+                  },
+                },
+              });
+            }
+          } catch {
+            /* ignore parse failures */
+          }
+        }
+
+        if (media && media.bucket && media.bucket.isAvailable !== "REMOVE") {
+          const exp = Math.floor(Date.now() / 1000) + 900;
+          const token = signPayload({
+            action: "download",
+            bucket: media.bucket.name,
+            mediaSlug: media.slug,
+            storedFilename: media.storedFilename,
+            filename: media.filename,
+            mimetype: media.mimetype,
+            path: media.path ?? null,
+            exp,
+          });
+          profilePictureSigned = `/api/buckets/${media.bucket.slug}/download?token=${token}&inline=true`;
+        }
+      } catch {
+        // fall back to stored URL on any error
+      }
+    }
+
+    // --------------------------------------------------------------------------
+    // 4. SUCCESS RESPONSE
+    // --------------------------------------------------------------------------
+    return NextResponse.json(
+      {
+        ok: true,
+        message: "User detail retrieved successfully.",
+        data: {
+          ...user,
+          profilePicture: profilePictureSigned,
+          profilePictureRaw,
+        },
+      },
+      { status: 200 }
+    );
+  } catch (error: unknown) {
+    console.error("❌ USER DETAIL ERROR:", error);
+
+    return NextResponse.json(
+      {
+        ok: false,
+        message: "Failed to fetch user details.",
+        error: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 500 }
+    );
+  }
+}
