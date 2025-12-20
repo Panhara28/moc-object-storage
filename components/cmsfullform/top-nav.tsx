@@ -190,14 +190,14 @@ export default function TopNav() {
               </Link>
             </DropdownMenuItem>
 
-            <DropdownMenuItem>
+            {/* <DropdownMenuItem>
               <Link href="/admin/auth/forget-password">
                 <div className="flex">
                   <Settings className="mr-2 h-4 w-4" />
                   Forget Password
                 </div>
               </Link>
-            </DropdownMenuItem>
+            </DropdownMenuItem> */}
 
             <DropdownMenuSeparator />
 
