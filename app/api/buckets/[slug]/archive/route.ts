@@ -57,7 +57,6 @@ export async function PATCH(
       {
         status: "error",
         message: "Failed to archive bucket.",
-        details: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 }
     );

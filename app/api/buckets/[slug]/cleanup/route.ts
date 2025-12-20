@@ -134,7 +134,6 @@ export async function POST(
       {
         status: "error",
         message: "Failed to clean bucket.",
-        details: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 }
     );

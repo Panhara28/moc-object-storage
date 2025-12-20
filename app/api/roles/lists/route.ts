@@ -29,6 +29,11 @@ export async function GET(req: Request) {
       );
     }
 
+    const user = auth.user;
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     // --------------------------------------------------------------------------
     // 2. QUERY PARAMS
     // --------------------------------------------------------------------------
@@ -43,7 +48,19 @@ export async function GET(req: Request) {
     // --------------------------------------------------------------------------
     // 3. WHERE CLAUSE
     // --------------------------------------------------------------------------
-    const where: Prisma.RoleWhereInput = {};
+    if (!user.roleId) {
+      return NextResponse.json({
+        status: "ok",
+        page,
+        limit,
+        total: 0,
+        data: [],
+      });
+    }
+
+    const where: Prisma.RoleWhereInput = {
+      id: user.roleId,
+    };
 
     if (search) {
       where.name = {
@@ -128,7 +145,6 @@ export async function GET(req: Request) {
       {
         status: "error",
         message: "Failed to fetch roles",
-        details: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 }
     );

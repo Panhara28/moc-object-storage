@@ -16,6 +16,10 @@ export async function GET(
         { status: auth.status }
       );
     }
+    const user = auth.user;
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     if (!slug) {
       return NextResponse.json({ error: "Slug is required." }, { status: 400 });
@@ -26,6 +30,7 @@ export async function GET(
       where: {
         slug,
         mediaId: null, // ensures it's a folder, not a file
+        userId: user.id,
       },
       select: {
         id: true,
@@ -47,7 +52,6 @@ export async function GET(
     return NextResponse.json(
       {
         error: "Server error",
-        details: err instanceof Error ? err.message : "Unknown error",
       },
       { status: 500 }
     );

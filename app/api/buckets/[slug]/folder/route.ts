@@ -24,6 +24,13 @@ export async function GET(
         { status: auth.status }
       );
     }
+    const user = auth.user;
+    if (!user) {
+      return NextResponse.json(
+        { status: "error", message: "Unauthorized" },
+        { status: 401 }
+      );
+    }
     const { searchParams } = new URL(req.url);
     const page = Number(searchParams.get("page") || 1);
     const limit = Number(searchParams.get("limit") || 20);
@@ -35,7 +42,7 @@ export async function GET(
       where: { slug },
     });
 
-    if (!bucket) {
+    if (!bucket || bucket.createdById !== user.id) {
       return NextResponse.json(
         { status: "error", message: "Bucket not found" },
         { status: 404 }

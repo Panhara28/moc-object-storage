@@ -80,7 +80,6 @@ export async function PATCH(
     return NextResponse.json(
       {
         error: "An unexpected error occurred while assigning the role.",
-        details: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 }
     );

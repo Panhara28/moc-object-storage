@@ -27,11 +27,20 @@ export async function GET(req: NextRequest) {
         { status: auth.status }
       );
     }
+    const user = auth.user;
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     /* --------------------------------------------------------------------------
      * 2. FETCH PERMISSION MODULES
      * -------------------------------------------------------------------------- */
+    if (!user.roleId) {
+      return NextResponse.json({ modules: [] });
+    }
+
     const modules = await prisma.permissionModule.findMany({
+      where: { roles: { some: { roleId: user.roleId } } },
       orderBy: { name: "asc" },
     });
 
@@ -41,7 +50,6 @@ export async function GET(req: NextRequest) {
       {
         error:
           "An unexpected error occurred while fetching permission modules.",
-        details: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 }
     );

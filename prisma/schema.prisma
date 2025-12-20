@@ -152,6 +152,24 @@ model RolePermission {
 
 /**
  * ============================================================
+ * AUTH RATE LIMITING
+ * ============================================================
+ */
+
+model LoginAttempt {
+  id             Int      @id @default(autoincrement())
+  key            String   @unique
+  count          Int      @default(0)
+  firstAttemptAt DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([firstAttemptAt])
+  @@map("login_attempts")
+}
+
+/**
+ * ============================================================
  * BUCKET MODEL (TOP LEVEL STORAGE UNIT)
  * ============================================================
  */

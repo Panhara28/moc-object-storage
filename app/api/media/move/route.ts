@@ -204,7 +204,6 @@ export async function POST(req: NextRequest) {
       {
         status: "error",
         message: "Failed to move media.",
-        details: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 }
     );

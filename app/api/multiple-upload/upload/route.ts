@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { authorize, getAuthUser } from "@/lib/authorized";
+import { validateUploadFile } from "@/lib/upload-validation";
 import { randomUUID, randomBytes } from "crypto";
 import * as fs from "fs/promises";
 import path from "path";
@@ -20,13 +21,6 @@ const ALLOWED_MIME_TYPES = [
   "application/vnd.openxmlformats-officedocument.presentationml.presentation",
   "text/plain",
 ];
-
-function isMimeAllowed(mime: string) {
-  return (
-    ALLOWED_MIME_PREFIXES.some((p) => mime.startsWith(p)) ||
-    ALLOWED_MIME_TYPES.includes(mime)
-  );
-}
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -144,18 +138,6 @@ export async function POST(req: NextRequest) {
           { status: 400 }
         );
       }
-
-      if (!file.type || !isMimeAllowed(file.type)) {
-        return NextResponse.json(
-          {
-            status: "error",
-            message: `File "${file.name}" has an unsupported type ${
-              file.type || "(unknown)"
-            }.`,
-          },
-          { status: 400 }
-        );
-      }
     }
 
     if (!isSafeSegment(bucketName)) {
@@ -252,6 +234,32 @@ export async function POST(req: NextRequest) {
       await fs.mkdir(folderDir, { recursive: true });
     }
 
+    const validatedFiles = [];
+    for (const file of files) {
+      const buffer = Buffer.from(await file.arrayBuffer());
+      const validation = validateUploadFile({
+        file,
+        buffer,
+        allowedMimePrefixes: ALLOWED_MIME_PREFIXES,
+        allowedMimeTypes: ALLOWED_MIME_TYPES,
+      });
+      if (!validation.ok) {
+        return NextResponse.json(
+          {
+            status: "error",
+            message: `File "${file.name}" ${validation.reason}`,
+          },
+          { status: 400 }
+        );
+      }
+      validatedFiles.push({
+        file,
+        buffer,
+        mime: validation.mime,
+        ext: validation.ext,
+      });
+    }
+
     // ===============================================================
     // 6. CREATE UPLOAD SESSION
     // ===============================================================
@@ -264,11 +272,9 @@ export async function POST(req: NextRequest) {
     // ===============================================================
     // 7. PROCESS EACH FILE
     // ===============================================================
-    for (const file of files) {
-      const arrayBuffer = await file.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-
-      const extension = file.name.split(".").pop() || "";
+    for (const entry of validatedFiles) {
+      const { file, buffer, mime, ext } = entry;
+      const extension = ext.toLowerCase();
       const storedFilename = `${randomUUID()}.${extension}`;
 
       // actual disk path
@@ -283,7 +289,7 @@ export async function POST(req: NextRequest) {
       let width: number | null = null;
       let height: number | null = null;
 
-      if (file.type.startsWith("image/")) {
+      if (mime.startsWith("image/")) {
         try {
           const meta = await sharp(buffer).metadata();
           width = meta.width ?? null;
@@ -291,7 +297,7 @@ export async function POST(req: NextRequest) {
         } catch {}
       }
 
-      const type = detectMediaType(file.type, extension);
+      const type = detectMediaType(mime, extension);
 
       // ===============================================================
       // 8. CREATE MEDIA RECORD
@@ -316,7 +322,7 @@ export async function POST(req: NextRequest) {
           storedFilename,
           url: publicUrl,
           fileType: type,
-          mimetype: file.type,
+          mimetype: mime,
           extension: extension.toLowerCase(),
           size: file.size,
           width,
@@ -376,7 +382,6 @@ export async function POST(req: NextRequest) {
       {
         status: "error",
         message: "Upload failed",
-        details: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 }
     );

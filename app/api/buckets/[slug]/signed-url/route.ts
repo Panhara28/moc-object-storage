@@ -3,6 +3,10 @@ import prisma from "@/lib/prisma";
 import { authorize, getAuthUser } from "@/lib/authorized";
 import { signPayload, SignedPayload } from "@/lib/signedUrl";
 
+const DEFAULT_SIGNED_URL_TTL_SECONDS = 900;
+const MAX_SIGNED_URL_TTL_SECONDS =
+  Number(process.env.MAX_SIGNED_URL_TTL_SECONDS) || 60 * 60;
+
 type Body =
   | {
       action: "download";
@@ -28,6 +32,14 @@ function normalizePath(input?: string | null) {
     if (seg.includes("..") || seg.includes(":")) return null;
   }
   return segments.join("/");
+}
+
+function clampTtlSeconds(value?: number) {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return DEFAULT_SIGNED_URL_TTL_SECONDS;
+  }
+  if (value <= 0) return DEFAULT_SIGNED_URL_TTL_SECONDS;
+  return Math.min(Math.floor(value), MAX_SIGNED_URL_TTL_SECONDS);
 }
 
 export async function POST(
@@ -87,7 +99,7 @@ export async function POST(
       }
 
       const exp =
-        Math.floor(Date.now() / 1000) + (body.expiresInSeconds ?? 900);
+        Math.floor(Date.now() / 1000) + clampTtlSeconds(body.expiresInSeconds);
 
       const payload: SignedPayload = {
         action: "download",
@@ -139,7 +151,7 @@ export async function POST(
       }
 
       const exp =
-        Math.floor(Date.now() / 1000) + (body.expiresInSeconds ?? 900);
+        Math.floor(Date.now() / 1000) + clampTtlSeconds(body.expiresInSeconds);
 
       const payload: SignedPayload = {
         action: "upload",
@@ -181,7 +193,6 @@ export async function POST(
       {
         status: "error",
         message: "Failed to generate signed URL.",
-        details: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 }
     );

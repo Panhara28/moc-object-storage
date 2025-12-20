@@ -15,9 +15,16 @@ export async function GET(
         { error: auth.message },
         { status: auth.status }
       );
+    const user = auth.user;
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-    const role = await prisma.role.findUnique({
-      where: { slug },
+    const role = await prisma.role.findFirst({
+      where: {
+        slug,
+        id: user.roleId ?? -1,
+      },
     });
 
     if (!role)
@@ -38,7 +45,6 @@ export async function GET(
     return NextResponse.json(
       {
         error: "Failed to fetch role",
-        details: err instanceof Error ? err.message : "Unknown error",
       },
       { status: 500 }
     );

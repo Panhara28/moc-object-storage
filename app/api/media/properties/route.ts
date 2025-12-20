@@ -14,6 +14,13 @@ export async function GET(req: NextRequest) {
         { status: auth.status }
       );
     }
+    const user = auth.user;
+    if (!user) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
 
     const { searchParams } = new URL(req.url);
     const slug = searchParams.get("slug");
@@ -28,8 +35,11 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const media = await prisma.media.findUnique({
-      where: slug ? { slug } : { id },
+    const media = await prisma.media.findFirst({
+      where: {
+        ...(slug ? { slug } : { id }),
+        uploadedById: user.id,
+      },
       select: {
         id: true,
         slug: true,

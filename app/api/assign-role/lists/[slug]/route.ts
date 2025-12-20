@@ -26,9 +26,13 @@ export async function GET(
   if (!auth.ok) {
     return NextResponse.json({ error: auth.message }, { status: auth.status });
   }
+  const user = auth.user;
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-  const data = await prisma.role.findUnique({
-    where: { slug },
+  const data = await prisma.role.findFirst({
+    where: { slug, id: user.roleId ?? -1 },
     include: {
       users: {
         // <-- relation Role -> Users
@@ -39,6 +43,10 @@ export async function GET(
       },
     },
   });
+
+  if (!data) {
+    return NextResponse.json({ error: "Role not found." }, { status: 404 });
+  }
 
   return NextResponse.json({ data: data?.users || [] });
 }

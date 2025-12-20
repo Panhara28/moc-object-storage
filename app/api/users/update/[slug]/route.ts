@@ -179,7 +179,6 @@ export async function PATCH(
     return NextResponse.json(
       {
         error: "Unexpected server error.",
-        details: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 }
     );

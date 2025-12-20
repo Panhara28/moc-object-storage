@@ -58,7 +58,6 @@ export async function POST(req: Request) {
       {
         error:
           "An unexpected error occurred while creating the role. Please try again later.",
-        details: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 }
     );

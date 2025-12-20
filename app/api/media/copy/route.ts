@@ -211,7 +211,6 @@ export async function POST(req: NextRequest) {
       {
         status: "error",
         message: "Failed to copy media.",
-        details: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 }
     );

@@ -26,6 +26,13 @@ export async function GET(
         { status: auth.status }
       );
     }
+    const user = auth.user;
+    if (!user) {
+      return NextResponse.json(
+        { status: "error", message: "Unauthorized" },
+        { status: 401 }
+      );
+    }
 
     const { searchParams } = new URL(req.url);
 
@@ -48,7 +55,7 @@ export async function GET(
       },
     });
 
-    if (!bucket) {
+    if (!bucket || bucket.createdById !== user.id) {
       return NextResponse.json(
         { status: "error", message: "Bucket not found" },
         { status: 404 }
@@ -140,7 +147,6 @@ export async function GET(
       {
         status: "error",
         message: "Failed to fetch bucket details",
-        details: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 }
     );

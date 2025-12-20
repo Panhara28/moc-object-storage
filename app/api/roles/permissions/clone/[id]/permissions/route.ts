@@ -122,7 +122,6 @@ export async function POST(
     return NextResponse.json(
       {
         error: "An unexpected error occurred while cloning permissions.",
-        details: message,
       },
       { status: 500 }
     );

@@ -36,6 +36,13 @@ export async function GET(req: NextRequest) {
         { status: auth.status }
       );
     }
+    const user = auth.user;
+    if (!user) {
+      return NextResponse.json(
+        { status: "error", message: "Unauthorized" },
+        { status: 401 }
+      );
+    }
 
     // ------------------------------------------------------------
     // 1. QUERY PARAMS
@@ -56,7 +63,9 @@ export async function GET(req: NextRequest) {
     // ------------------------------------------------------------
     // 2. BUILD WHERE CLAUSE
     // ------------------------------------------------------------
-    const where: Prisma.MediaWhereInput = {};
+    const where: Prisma.MediaWhereInput = {
+      uploadedById: user.id,
+    };
 
     // search by media filename
     if (search) {
@@ -133,7 +142,6 @@ export async function GET(req: NextRequest) {
       {
         status: "error",
         message: "Failed to fetch media items",
-        details: e instanceof Error ? e.message : "Unknown error",
       },
       { status: 500 }
     );

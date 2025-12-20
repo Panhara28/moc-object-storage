@@ -14,15 +14,22 @@ export async function GET(
         { status: auth.status }
       );
     }
+    const user = auth.user;
+    if (!user) {
+      return NextResponse.json(
+        { status: "error", message: "Unauthorized" },
+        { status: 401 }
+      );
+    }
 
     const { slug } = await params;
 
     const bucket = await prisma.bucket.findUnique({
       where: { slug },
-      select: { id: true, name: true, isAvailable: true },
+      select: { id: true, name: true, isAvailable: true, createdById: true },
     });
 
-    if (!bucket) {
+    if (!bucket || bucket.createdById !== user.id) {
       return NextResponse.json(
         { status: "error", message: "Bucket not found." },
         { status: 404 }
@@ -56,7 +63,6 @@ export async function GET(
       {
         status: "error",
         message: "Failed to fetch bucket stats.",
-        details: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 }
     );

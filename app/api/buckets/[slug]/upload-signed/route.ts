@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { verifyPayload } from "@/lib/signedUrl";
+import { validateUploadFile } from "@/lib/upload-validation";
 import { randomUUID } from "crypto";
 import * as fs from "fs/promises";
 import path from "path";
@@ -18,13 +19,6 @@ const ALLOWED_MIME_TYPES = [
   "application/vnd.openxmlformats-officedocument.presentationml.presentation",
   "text/plain",
 ];
-
-function isMimeAllowed(mime: string) {
-  return (
-    ALLOWED_MIME_PREFIXES.some((p) => mime.startsWith(p)) ||
-    ALLOWED_MIME_TYPES.includes(mime)
-  );
-}
 
 function getStorageRoot() {
   if (process.env.STORAGE_ROOT) return process.env.STORAGE_ROOT;
@@ -140,21 +134,25 @@ export async function POST(
       );
     }
 
-    if (!file.type || !isMimeAllowed(file.type)) {
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const validation = validateUploadFile({
+      file,
+      buffer,
+      allowedMimePrefixes: ALLOWED_MIME_PREFIXES,
+      allowedMimeTypes: ALLOWED_MIME_TYPES,
+    });
+    if (!validation.ok) {
       return NextResponse.json(
         {
           status: "error",
-          message: `File "${file.name}" has an unsupported type ${
-            file.type || "(unknown)"
-          }.`,
+          message: `File "${file.name}" ${validation.reason}`,
         },
         { status: 400 }
       );
     }
 
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    const extension = file.name.split(".").pop() || "";
+    const extension = validation.ext.toLowerCase();
     const storedFilename = `${randomUUID()}.${extension}`;
     const rawPath = typeof payload.path === "string" ? payload.path : null;
     const normalizedPath = normalizePath(rawPath);
@@ -177,7 +175,7 @@ export async function POST(
     await fs.mkdir(path.dirname(storedPath), { recursive: true });
     await fs.writeFile(storedPath, buffer);
 
-    const type = detectMediaType(file.type, extension);
+    const type = detectMediaType(validation.mime, extension);
 
     const media = await prisma.media.create({
       data: {
@@ -187,7 +185,7 @@ export async function POST(
           ? `https://moc-drive.moc.gov.kh/${bucket.name}/${folderPath}/${storedFilename}`
           : `https://moc-drive.moc.gov.kh/${bucket.name}/${storedFilename}`,
         fileType: type,
-        mimetype: file.type,
+        mimetype: validation.mime,
         extension: extension.toLowerCase(),
         size: file.size,
         uploadedById: payload.userId,

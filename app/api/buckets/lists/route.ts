@@ -52,47 +52,54 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const [buckets, mediaSizes] = await Promise.all([
-      prisma.bucket.findMany({
-        where: { isAvailable: "AVAILABLE" },
-        orderBy: { createdAt: "desc" },
-        include: {
-          _count: {
-            select: {
-              medias: true,
-              spaces: true,
-            },
+    const buckets = await prisma.bucket.findMany({
+      where: { isAvailable: "AVAILABLE", createdById: user.id },
+      orderBy: { createdAt: "desc" },
+      include: {
+        _count: {
+          select: {
+            medias: true,
+            spaces: true,
           },
         },
-      }),
-      prisma.media.groupBy({
-        by: ["bucketId"],
-        _sum: { size: true },
-        where: { isVisibility: { not: "REMOVE" } },
-      }),
-    ]);
+      },
+    });
+
+    const bucketIds = buckets.map((b) => b.id);
+    const mediaSizes = bucketIds.length
+      ? await prisma.media.groupBy({
+          by: ["bucketId"],
+          _sum: { size: true },
+          where: {
+            isVisibility: { not: "REMOVE" },
+            bucketId: { in: bucketIds },
+          },
+        })
+      : [];
 
     const sizeMap = new Map<number, number>();
     mediaSizes.forEach((row) => {
       sizeMap.set(row.bucketId, row._sum.size ?? 0);
     });
 
-    const sanitized = buckets.map((b) => ({
-      id: b.id,
-      name: b.name,
-      slug: b.slug,
-      accessKeyName: b.accessKeyName,
-      accessKeyId: b.accessKeyId,
+    const sanitized = buckets.map((b) => {
+      return {
+        id: b.id,
+        name: b.name,
+        slug: b.slug,
+        accessKeyName: b.accessKeyName,
+        accessKeyId: b.accessKeyId,
 
-      permission: b.permission,
-      createdAt: formatDate(b.createdAt),
-      updatedAt: formatDate(b.updatedAt),
+        permission: b.permission,
+        createdAt: formatDate(b.createdAt),
+        updatedAt: formatDate(b.updatedAt),
 
-      mediaCount: b._count.medias,
-      folderCount: b._count.spaces,
-      sizeBytes: sizeMap.get(b.id) ?? 0,
-      sizeLabel: formatBytes(sizeMap.get(b.id) ?? 0),
-    }));
+        mediaCount: b._count.medias,
+        folderCount: b._count.spaces,
+        sizeBytes: sizeMap.get(b.id) ?? 0,
+        sizeLabel: formatBytes(sizeMap.get(b.id) ?? 0),
+      };
+    });
 
     return NextResponse.json(
       {
@@ -107,7 +114,6 @@ export async function GET(req: NextRequest) {
       {
         status: "error",
         message: "Failed to fetch bucket list",
-        details: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 }
     );

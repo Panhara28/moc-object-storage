@@ -18,6 +18,10 @@ export async function GET(
         { status: auth.status }
       );
     }
+    const user = auth.user;
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     /* --------------------------------------------------------------------------
        2. EXTRACT ROLE SLUG
@@ -34,8 +38,11 @@ export async function GET(
     /* --------------------------------------------------------------------------
        3. GET ROLE BY SLUG
     -------------------------------------------------------------------------- */
-    const role = await prisma.role.findUnique({
-      where: { slug },
+    const role = await prisma.role.findFirst({
+      where: {
+        slug,
+        id: user.roleId ?? -1,
+      },
     });
 
     if (!role) {
@@ -65,7 +72,6 @@ export async function GET(
     return NextResponse.json(
       {
         error: "Failed to fetch role permissions.",
-        details: error instanceof Error ? error.message : JSON.stringify(error),
       },
       { status: 500 }
     );

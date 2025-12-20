@@ -24,6 +24,10 @@ export async function GET(req: NextRequest) {
         { status: auth.status }
       );
     }
+    const user = auth.user;
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     const { searchParams } = new URL(req.url);
     const page = Number(searchParams.get("page") || 1);
@@ -35,7 +39,9 @@ export async function GET(req: NextRequest) {
 
     const skip = (page - 1) * limit;
 
-    const where: Prisma.UserWhereInput = {};
+    const where: Prisma.UserWhereInput = {
+      id: user.id,
+    };
 
     const orFilters = [];
     if (search) {
@@ -91,7 +97,6 @@ export async function GET(req: NextRequest) {
       {
         status: "error",
         message: "Failed to fetch users",
-        details: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 }
     );

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { authorize } from "@/lib/authorized";
-import { getAuthUser } from "@/lib/auth";
 import { format as formatDateFns } from "date-fns";
 
 export const runtime = "nodejs";
@@ -23,8 +22,7 @@ export async function GET(req: NextRequest) {
         { status: auth.status }
       );
     }
-
-    const user = await getAuthUser(req);
+    const user = auth.user;
     if (!user) {
       return NextResponse.json(
         { error: "You must be logged in." },

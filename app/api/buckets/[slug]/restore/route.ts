@@ -57,7 +57,6 @@ export async function PATCH(
       {
         status: "error",
         message: "Failed to restore bucket.",
-        details: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 }
     );

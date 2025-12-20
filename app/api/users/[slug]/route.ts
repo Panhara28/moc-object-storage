@@ -31,12 +31,19 @@ export async function GET(
         { status: auth.status }
       );
     }
+    const authUser = auth.user;
+    if (!authUser) {
+      return NextResponse.json(
+        { ok: false, message: "Unauthorized" },
+        { status: 401 }
+      );
+    }
 
     // --------------------------------------------------------------------------
     // 2. FETCH USER BY SLUG
     // --------------------------------------------------------------------------
-    const user = await prisma.user.findUnique({
-      where: { slug },
+    const user = await prisma.user.findFirst({
+      where: { slug, id: authUser.id },
       select: {
         slug: true,
         profilePicture: true,
