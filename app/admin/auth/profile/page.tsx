@@ -9,7 +9,7 @@ async function getMe() {
   // Extract session token safely
   const session = cookieStore.get("session")?.value || "";
 
-  const res = await fetch(`http://localhost:3000/api/auth/me`, {
+  const res = await fetch(`http://localhost:3000/api/auth/profile`, {
     cache: "no-store",
     headers: {
       cookie: `session=${session}`, // ✔ This is the correct way
