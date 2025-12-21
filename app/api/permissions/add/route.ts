@@ -1,6 +1,7 @@
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { authorize } from "@/lib/authorized";
+import { getAuditRequestInfo, logAudit } from "@/lib/audit";
 
 export async function POST(req: Request) {
   try {
@@ -15,6 +16,7 @@ export async function POST(req: Request) {
         { status: auth.status }
       );
     }
+    const auditInfo = getAuditRequestInfo(req);
 
     /* --------------------------------------------------------------------------
      * 2. PARSE BODY
@@ -69,6 +71,19 @@ export async function POST(req: Request) {
     );
 
     await Promise.all(rows);
+
+    await logAudit({
+      ...auditInfo,
+      actorId: auth.user.id,
+      action: "permission.create",
+      resourceType: "PermissionModule",
+      resourceId: permissionModule.id,
+      status: 200,
+      metadata: {
+        name: permissionModule.name,
+        rolesUpdated: roles.length,
+      },
+    });
 
     return NextResponse.json({
       message:

@@ -3,6 +3,7 @@ import { authorize } from "@/lib/authorized";
 import prisma from "@/lib/prisma";
 import * as fs from "fs/promises";
 import path from "path";
+import { getAuditRequestInfo, logAudit } from "@/lib/audit";
 
 function getStorageRoot() {
   if (process.env.STORAGE_ROOT) return process.env.STORAGE_ROOT;
@@ -85,6 +86,7 @@ export async function POST(req: Request) {
         { status: auth.status }
       );
     }
+    const auditInfo = getAuditRequestInfo(req);
 
     const { folderId, name } = await req.json();
     const numericFolderId =
@@ -113,6 +115,7 @@ export async function POST(req: Request) {
     if (!folder) {
       return NextResponse.json({ error: "Folder not found" }, { status: 404 });
     }
+    const oldName = folder.name;
 
     // Prevent renaming files
     if (folder.mediaId !== null) {
@@ -221,6 +224,20 @@ export async function POST(req: Request) {
         }
         throw dbErr;
       });
+
+    await logAudit({
+      ...auditInfo,
+      actorId: auth.user.id,
+      action: "folder.rename",
+      resourceType: "Space",
+      resourceId: folder.id,
+      status: 200,
+      metadata: {
+        bucketId: folder.bucketId,
+        oldName,
+        newName,
+      },
+    });
 
     return NextResponse.json({
       message: "Folder renamed successfully",

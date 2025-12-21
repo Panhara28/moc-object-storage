@@ -1,6 +1,7 @@
 import { authorize } from "@/lib/authorized";
 import prisma from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
+import { getAuditRequestInfo, logAudit } from "@/lib/audit";
 
 /* -------------------------------------------
    TYPES
@@ -29,6 +30,7 @@ export async function POST(
         { status: auth.status }
       );
     }
+    const auditInfo = getAuditRequestInfo(req);
 
     /* -------------------------------------------
        2. PARAM VALIDATION
@@ -106,6 +108,20 @@ export async function POST(
     );
 
     await Promise.all(updateOperations);
+
+    await logAudit({
+      ...auditInfo,
+      actorId: auth.user.id,
+      action: "role.permissions.clone",
+      resourceType: "Role",
+      resourceId: targetRoleId,
+      status: 200,
+      metadata: {
+        fromRoleId,
+        toRoleId: targetRoleId,
+        permissionCount: sourcePermissions.length,
+      },
+    });
 
     /* -------------------------------------------
        6. SUCCESS

@@ -3,6 +3,7 @@ import { authorize } from "@/lib/authorized";
 import prisma from "@/lib/prisma";
 import * as fs from "fs/promises";
 import path from "path";
+import { getAuditRequestInfo, logAudit } from "@/lib/audit";
 
 function isSafeSegment(segment: string) {
   return (
@@ -102,6 +103,7 @@ export async function POST(
       );
     }
     const user = auth.user;
+    const auditInfo = getAuditRequestInfo(req);
 
     const { slug } = await context.params;
     const body = await req.json();
@@ -247,6 +249,22 @@ export async function POST(
 
     // Create the folder on the filesystem (ensure parent directories exist)
     await fs.mkdir(folderFullPath, { recursive: true });
+
+    await logAudit({
+      ...auditInfo,
+      actorId: user!.id,
+      action: "folder.create",
+      resourceType: "Space",
+      resourceId: newFolder.id,
+      status: 200,
+      metadata: {
+        bucketId: bucket.id,
+        bucketSlug: bucket.slug,
+        parentId: numericParentId,
+        name: newFolder.name,
+        path: folderPath,
+      },
+    });
 
     // 5. Response
     return NextResponse.json({

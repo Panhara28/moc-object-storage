@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { authorize, getAuthUser } from "@/lib/authorized";
+import { getAuditRequestInfo, logAudit } from "@/lib/audit";
 import * as crypto from "crypto";
 import * as fs from "fs/promises";
 import path from "path";
@@ -88,6 +89,7 @@ export async function POST(req: NextRequest) {
         { status: 401 }
       );
     }
+    const auditInfo = getAuditRequestInfo(req);
 
     // 📥 Payload
     const body = await req.json();
@@ -166,6 +168,21 @@ export async function POST(req: NextRequest) {
 
     // Ensure bucket folder exists
     await fs.mkdir(bucketDir, { recursive: true });
+
+    await logAudit({
+      ...auditInfo,
+      actorId: user.id,
+      action: "bucket.create",
+      resourceType: "Bucket",
+      resourceId: bucket.id,
+      status: 201,
+      metadata: {
+        bucketSlug: bucket.slug,
+        bucketName: bucket.name,
+        restored: Boolean(existingBucket && existingBucket.isAvailable === "REMOVE"),
+        permission: bucket.permission,
+      },
+    });
 
     /* -------------------------------------------------------
        RESPONSE

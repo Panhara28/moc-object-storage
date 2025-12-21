@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { authorize, getAuthUser } from "@/lib/authorized";
 import { signPayload, SignedPayload } from "@/lib/signedUrl";
+import { getAuditRequestInfo, logAudit } from "@/lib/audit";
 
 const DEFAULT_SIGNED_URL_TTL_SECONDS = 900;
 const MAX_SIGNED_URL_TTL_SECONDS =
@@ -47,6 +48,7 @@ export async function POST(
   { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
+    const auditInfo = getAuditRequestInfo(req);
     const { slug } = await params;
     const body = (await req.json()) as Body;
 
@@ -113,6 +115,18 @@ export async function POST(
       };
 
       const token = signPayload(payload);
+      await logAudit({
+        ...auditInfo,
+        actorId: auth.user.id,
+        action: "media.signed-url.download",
+        resourceType: "Media",
+        resourceId: media.slug,
+        status: 200,
+        metadata: {
+          bucketSlug: slug,
+          expiresAt: exp,
+        },
+      });
       return NextResponse.json({
         status: "ok",
         url: `/api/buckets/${slug}/download?token=${token}`,
@@ -175,6 +189,20 @@ export async function POST(
       }
 
       const token = signPayload(payload);
+      await logAudit({
+        ...auditInfo,
+        actorId: user.id,
+        action: "media.signed-url.upload",
+        resourceType: "Bucket",
+        resourceId: bucket.id,
+        status: 200,
+        metadata: {
+          bucketSlug: slug,
+          filename: body.filename,
+          path: payload.path ?? null,
+          expiresAt: exp,
+        },
+      });
       return NextResponse.json({
         status: "ok",
         url: `/api/buckets/${slug}/upload-signed?token=${token}`,

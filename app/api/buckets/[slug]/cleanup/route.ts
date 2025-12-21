@@ -3,6 +3,7 @@ import { authorize } from "@/lib/authorized";
 import prisma from "@/lib/prisma";
 import * as fs from "fs/promises";
 import path from "path";
+import { getAuditRequestInfo, logAudit } from "@/lib/audit";
 
 function getStorageRoot() {
   if (process.env.STORAGE_ROOT) return process.env.STORAGE_ROOT;
@@ -46,6 +47,7 @@ export async function POST(
         { status: auth.status }
       );
     }
+    const auditInfo = getAuditRequestInfo(req);
 
     const { slug } = await params;
     const body = await req.json().catch(() => ({}));
@@ -120,6 +122,20 @@ export async function POST(
     assertPathInsideBase(STORAGE_ROOT, bucketDir);
     await fs.rm(bucketDir, { recursive: true, force: true });
     await fs.mkdir(bucketDir, { recursive: true });
+
+    await logAudit({
+      ...auditInfo,
+      actorId: auth.user.id,
+      action: "bucket.cleanup",
+      resourceType: "Bucket",
+      resourceId: bucket.id,
+      status: 200,
+      metadata: {
+        bucketSlug: slug,
+        removedMedia: mediaIdList.length,
+        removedFolders: spaceIdList.length,
+      },
+    });
 
     return NextResponse.json({
       status: "ok",

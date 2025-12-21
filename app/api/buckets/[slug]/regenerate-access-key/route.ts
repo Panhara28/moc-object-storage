@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { authorize } from "@/lib/authorized";
 import crypto from "crypto";
+import { getAuditRequestInfo, logAudit } from "@/lib/audit";
 
 function generateAccessKeyId() {
   return "AKIA-" + crypto.randomBytes(8).toString("hex").toUpperCase();
@@ -25,6 +26,7 @@ export async function PATCH(
         { status: auth.status }
       );
     }
+    const auditInfo = getAuditRequestInfo(req);
 
     const newAccessKeyId = generateAccessKeyId();
     const newSecretAccessKey = generateSecretAccessKey();
@@ -34,6 +36,18 @@ export async function PATCH(
       data: {
         accessKeyId: newAccessKeyId,
         secretAccessKey: newSecretAccessKey,
+      },
+    });
+
+    await logAudit({
+      ...auditInfo,
+      actorId: auth.user.id,
+      action: "bucket.access-key.regenerate",
+      resourceType: "Bucket",
+      resourceId: bucket.id,
+      status: 200,
+      metadata: {
+        bucketSlug: bucket.slug,
       },
     });
 

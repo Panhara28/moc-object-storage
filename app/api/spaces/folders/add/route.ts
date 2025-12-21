@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth";
 import { authorize } from "@/lib/authorized";
 import prisma from "@/lib/prisma";
+import { getAuditRequestInfo, logAudit } from "@/lib/audit";
 
 export async function POST(req: Request) {
   try {
@@ -13,6 +14,7 @@ export async function POST(req: Request) {
         { status: auth.status }
       );
     }
+    const auditInfo = getAuditRequestInfo(req);
 
     const user = await getAuthUser(req);
 
@@ -110,6 +112,20 @@ export async function POST(req: Request) {
         isAvailable: "AVAILABLE",
         uploadedAt: new Date(), // simple timestamp
         mediaId: null, // ensures it's a folder
+      },
+    });
+
+    await logAudit({
+      ...auditInfo,
+      actorId: user.id,
+      action: "folder.create",
+      resourceType: "Space",
+      resourceId: newFolder.id,
+      status: 200,
+      metadata: {
+        bucketId: bucket.id,
+        parentId: numericParentId,
+        name: newFolder.name,
       },
     });
 

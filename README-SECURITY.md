@@ -7,6 +7,7 @@ This document summarizes the current security posture and the guardrails impleme
 - Auth uses JWT session cookies with server-side verification.
 - Authorization uses role/module permissions via `authorize()`.
 - Signed URLs are HMAC-protected and TTL-capped.
+- Audit logging records mutation activity in `audit_log`.
 - Upload validation verifies file signatures, not just client-provided MIME or extensions.
 - Error responses avoid leaking internal stack/config details.
 - List/detail APIs are owner-scoped for buckets, media, spaces, roles, users, and assign-role.
@@ -88,6 +89,13 @@ Recommended flow:
 - Default: 5 attempts per 5 minutes per IP+email.
 - Ensure migrations are applied so `login_attempts` exists.
 
+## Audit Logging
+
+- Audit events are stored in the `audit_log` table.
+- Use `logAudit()` from `lib/audit.ts` in mutation routes (POST/PATCH/DELETE).
+- Logged fields include actor ID, action, resource type/id, status, and metadata.
+- `getAuditRequestInfo()` captures IP, user-agent, request ID, and trace ID.
+
 ## Error Handling
 
 - 500 responses return generic errors; internal details are logged only.
@@ -118,6 +126,7 @@ Optional:
 ## Checklist for New Endpoints
 
 - Require `authorize()` and check owner scope when returning user-owned data.
+- Add `logAudit()` for mutation routes with actor/resource context.
 - Validate input and return 400 for bad payloads.
 - Avoid returning raw error messages in 500 responses.
 - For uploads: validate file signatures and enforce size/type allowlists.

@@ -1,6 +1,7 @@
 import { authorize } from "@/lib/authorized";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { getAuditRequestInfo, logAudit } from "@/lib/audit";
 
 export async function POST(req: Request) {
   try {
@@ -13,6 +14,7 @@ export async function POST(req: Request) {
         { status: auth.status }
       );
     }
+    const auditInfo = getAuditRequestInfo(req);
 
     const data = await req.json();
 
@@ -48,6 +50,18 @@ export async function POST(req: Request) {
         })
       )
     );
+
+    await logAudit({
+      ...auditInfo,
+      actorId: auth.user.id,
+      action: "role.create",
+      resourceType: "Role",
+      resourceId: role.id,
+      status: 200,
+      metadata: {
+        roleName: role.name,
+      },
+    });
 
     return NextResponse.json({
       message: "Role created successfully.",

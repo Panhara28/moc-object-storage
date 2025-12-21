@@ -4,6 +4,7 @@ import * as fs from "fs/promises";
 import { randomUUID } from "crypto";
 import prisma from "@/lib/prisma";
 import { authorize } from "@/lib/authorized";
+import { getAuditRequestInfo, logAudit } from "@/lib/audit";
 
 function getStorageRoot() {
   if (process.env.STORAGE_ROOT) return process.env.STORAGE_ROOT;
@@ -58,6 +59,7 @@ export async function POST(req: NextRequest) {
         { status: auth.status }
       );
     }
+    const auditInfo = getAuditRequestInfo(req);
 
     const body = await req.json();
     const mediaSlug: string | undefined = body.mediaSlug;
@@ -187,6 +189,7 @@ export async function POST(req: NextRequest) {
       },
       select: {
         slug: true,
+        id: true,
         filename: true,
         storedFilename: true,
         url: true,
@@ -194,6 +197,21 @@ export async function POST(req: NextRequest) {
         size: true,
         path: true,
         bucketId: true,
+      },
+    });
+
+    await logAudit({
+      ...auditInfo,
+      actorId: auth.user.id,
+      action: "media.copy",
+      resourceType: "Media",
+      resourceId: newMedia.id,
+      status: 201,
+      metadata: {
+        sourceSlug: media.slug,
+        sourceBucketSlug: media.bucket.slug,
+        targetBucketSlug: targetBucket.slug,
+        targetPath: normalizedTargetPath || null,
       },
     });
 

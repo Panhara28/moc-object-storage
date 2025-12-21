@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { authorize } from "@/lib/authorized";
 import prisma from "@/lib/prisma";
+import { getAuditRequestInfo, logAudit } from "@/lib/audit";
 
 export async function POST(req: Request) {
   try {
@@ -11,6 +12,7 @@ export async function POST(req: Request) {
         { status: auth.status }
       );
     }
+    const auditInfo = getAuditRequestInfo(req);
 
     const { folderId, newParentId } = await req.json();
 
@@ -63,6 +65,20 @@ export async function POST(req: Request) {
       where: { id: folderId },
       data: {
         parentId: newParentId,
+      },
+    });
+
+    await logAudit({
+      ...auditInfo,
+      actorId: auth.user.id,
+      action: "folder.move",
+      resourceType: "Space",
+      resourceId: folder.id,
+      status: 200,
+      metadata: {
+        fromParentId: folder.parentId,
+        toParentId: newParentId,
+        bucketId: folder.bucketId,
       },
     });
 

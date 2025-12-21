@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { authorize } from "@/lib/authorized";
 import * as fs from "fs/promises";
 import path from "path";
+import { getAuditRequestInfo, logAudit } from "@/lib/audit";
 
 function getStorageRoot() {
   if (process.env.STORAGE_ROOT) return process.env.STORAGE_ROOT;
@@ -50,6 +51,7 @@ export async function PATCH(
         { status: auth.status }
       );
     }
+    const auditInfo = getAuditRequestInfo(req);
 
     const { name } = await req.json();
 
@@ -79,6 +81,7 @@ export async function PATCH(
         { status: 404 }
       );
     }
+    const oldName = bucketExists.name;
 
     if (!isSafeSegment(bucketExists.name)) {
       return NextResponse.json(
@@ -176,6 +179,20 @@ export async function PATCH(
         }
         throw dbErr;
       });
+
+    await logAudit({
+      ...auditInfo,
+      actorId: auth.user.id,
+      action: "bucket.rename",
+      resourceType: "Bucket",
+      resourceId: updatedBucket.id,
+      status: 200,
+      metadata: {
+        bucketSlug: slug,
+        oldName,
+        newName,
+      },
+    });
 
     return NextResponse.json({
       status: "ok",

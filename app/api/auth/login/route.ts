@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { signToken } from "@/lib/auth";
-import prisma from "@/lib/prisma";
 import { getAuditRequestInfo, logAudit } from "@/lib/audit";
+import prisma from "@/lib/prisma";
 
 const RATE_LIMIT_WINDOW_MS = 5 * 60 * 1000;
 const RATE_LIMIT_MAX_ATTEMPTS = 5;
@@ -56,7 +56,10 @@ async function recordAttempt(key: string) {
       firstAttemptAt: true,
     },
   });
-  if (!entry || now.getTime() - entry.firstAttemptAt.getTime() > RATE_LIMIT_WINDOW_MS) {
+  if (
+    !entry ||
+    now.getTime() - entry.firstAttemptAt.getTime() > RATE_LIMIT_WINDOW_MS
+  ) {
     await prisma.loginAttempt.upsert({
       where: { key },
       create: {

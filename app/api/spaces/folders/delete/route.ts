@@ -4,6 +4,7 @@ import { getAuthUser } from "@/lib/auth";
 import { authorize } from "@/lib/authorized";
 import * as fs from "fs/promises";
 import path from "path";
+import { getAuditRequestInfo, logAudit } from "@/lib/audit";
 
 function isSafeSegment(segment: string) {
   return (
@@ -81,6 +82,7 @@ export async function POST(req: Request) {
         { status: auth.status }
       );
     }
+    const auditInfo = getAuditRequestInfo(req);
 
     const user = await getAuthUser(req);
     if (!user) {
@@ -195,6 +197,20 @@ export async function POST(req: Request) {
     } catch (fsErr) {
       console.error("Failed to delete folder on filesystem:", fsErr);
     }
+
+    await logAudit({
+      ...auditInfo,
+      actorId: user.id,
+      action: "folder.delete",
+      resourceType: "Space",
+      resourceId: folder.id,
+      status: 200,
+      metadata: {
+        bucketId: folder.bucketId,
+        removedFolderIds: ids,
+        removedMediaIds: mediaIds,
+      },
+    });
 
     return NextResponse.json({
       message: "Folder deleted successfully.",

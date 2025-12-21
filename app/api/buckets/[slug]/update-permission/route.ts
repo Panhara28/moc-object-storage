@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { authorize } from "@/lib/authorized";
+import { getAuditRequestInfo, logAudit } from "@/lib/audit";
 
 export async function PATCH(
   req: NextRequest,
@@ -17,6 +18,7 @@ export async function PATCH(
         { status: auth.status }
       );
     }
+    const auditInfo = getAuditRequestInfo(req);
 
     const { permission } = await req.json();
 
@@ -39,6 +41,19 @@ export async function PATCH(
         isAvailable: true,
         updatedAt: true,
         createdAt: true,
+      },
+    });
+
+    await logAudit({
+      ...auditInfo,
+      actorId: auth.user.id,
+      action: "bucket.permission.update",
+      resourceType: "Bucket",
+      resourceId: bucket.id,
+      status: 200,
+      metadata: {
+        bucketSlug: bucket.slug,
+        permission,
       },
     });
 
