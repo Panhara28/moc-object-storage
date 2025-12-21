@@ -195,6 +195,7 @@ export default function Sidebar() {
   // Export functions to window for TopNav and ThemeCustomizer to access
   useEffect(() => {
     if (typeof window !== "undefined") {
+      window.toggleMenuState = toggleMenuState;
       window.menuState = menuState;
       window.isHovered = isHovered;
       window.isMobile = isMobile;
