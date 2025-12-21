@@ -2,6 +2,9 @@
   "name": "nextjs-prisma",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -12,7 +15,9 @@
     "api:routes": "node scripts/list-api-routes.js",
     "api:cases:gen": "node scripts/gen-api-cases.js",
     "api:missing": "node scripts/api-missing-tests.js",
-    "db:seed": "DOTENV_CONFIG_PATH=.env.local tsx prisma/seed.ts"
+    "db:seed": "DOTENV_CONFIG_PATH=.env.local tsx prisma/seed.ts",
+    "db:migrate": "npx prisma migrate dev",
+    "db:reset": "npx prisma migrate reset"
   },
   "dependencies": {
     "@prisma/adapter-mariadb": "^7.2.0",

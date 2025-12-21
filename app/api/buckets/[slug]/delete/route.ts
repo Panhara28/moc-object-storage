@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { authorize } from "@/lib/authorized";
+import { getAuditRequestInfo, logAudit } from "@/lib/audit";
 import * as fs from "fs/promises";
 import path from "path";
 
@@ -49,6 +50,7 @@ export async function PATCH(
         { status: auth.status }
       );
     }
+    const auditInfo = getAuditRequestInfo(req);
 
     // Ensure bucket exists
     const bucket = await prisma.bucket.findUnique({ where: { slug } });
@@ -106,6 +108,20 @@ export async function PATCH(
         fsErr
       );
     }
+
+    await logAudit({
+      ...auditInfo,
+      actorId: auth.user.id,
+      action: "bucket.delete",
+      resourceType: "Bucket",
+      resourceId: updatedBucket.id,
+      status: 200,
+      metadata: {
+        bucketSlug: updatedBucket.slug,
+        spacesUpdated: spacesUpdated.count,
+        mediaUpdated: mediaUpdated.count,
+      },
+    });
 
     return NextResponse.json({
       status: "ok",

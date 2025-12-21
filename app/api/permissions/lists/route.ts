@@ -35,12 +35,7 @@ export async function GET(req: NextRequest) {
     /* --------------------------------------------------------------------------
      * 2. FETCH PERMISSION MODULES
      * -------------------------------------------------------------------------- */
-    if (!user.roleId) {
-      return NextResponse.json({ modules: [] });
-    }
-
     const modules = await prisma.permissionModule.findMany({
-      where: { roles: { some: { roleId: user.roleId } } },
       orderBy: { name: "asc" },
     });
 

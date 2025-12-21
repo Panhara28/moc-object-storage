@@ -3,6 +3,7 @@
 import { authorize } from "@/lib/authorized";
 import prisma from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
+import { getAuditRequestInfo, logAudit } from "@/lib/audit";
 
 export async function PATCH(
   req: NextRequest,
@@ -16,6 +17,7 @@ export async function PATCH(
         { status: auth.status }
       );
     }
+    const auditInfo = getAuditRequestInfo(req);
 
     const { slug } = await context.params;
     const { users: selectedUserIds } = await req.json();
@@ -71,6 +73,20 @@ export async function PATCH(
         data: { roleId: role.id },
       });
     }
+
+    await logAudit({
+      ...auditInfo,
+      actorId: auth.user.id,
+      action: "role.assign",
+      resourceType: "Role",
+      resourceId: role.id,
+      status: 200,
+      metadata: {
+        roleSlug: role.slug,
+        addedUserIds: addIds,
+        removedUserIds: removeIds,
+      },
+    });
 
     return NextResponse.json({ message: "Role assignment updated" });
   } catch (error) {

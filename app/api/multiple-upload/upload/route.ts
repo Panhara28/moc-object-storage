@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { authorize, getAuthUser } from "@/lib/authorized";
 import { validateUploadFile } from "@/lib/upload-validation";
 import { queueVirusTotalScanForMedia } from "@/lib/virustotal";
+import { getAuditRequestInfo, logAudit } from "@/lib/audit";
 import { randomUUID, randomBytes } from "crypto";
 import * as fs from "fs/promises";
 import path from "path";
@@ -113,6 +114,7 @@ export async function POST(req: NextRequest) {
         { status: 401 }
       );
     }
+    const auditInfo = getAuditRequestInfo(req);
 
     // 2. READ FORM DATA
     const form = await req.formData();
@@ -364,6 +366,21 @@ export async function POST(req: NextRequest) {
         width: media.width,
         height: media.height,
         scanStatus: media.scanStatus,
+      });
+
+      await logAudit({
+        ...auditInfo,
+        actorId: user.id,
+        action: "media.upload",
+        resourceType: "Media",
+        resourceId: media.id,
+        status: 201,
+        metadata: {
+          bucketId: bucket.id,
+          bucketSlug: bucket.slug,
+          filename: file.name,
+          path: folderPath || null,
+        },
       });
 
       queueVirusTotalScanForMedia({

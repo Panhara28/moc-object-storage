@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { authorize } from "@/lib/authorized";
+import { getAuditRequestInfo, logAudit } from "@/lib/audit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,6 +15,7 @@ export async function POST(req: NextRequest) {
         { status: auth.status }
       );
     }
+    const auditInfo = getAuditRequestInfo(req);
 
     const body = await req.json();
     const { slug, id } = body;
@@ -38,6 +40,16 @@ export async function POST(req: NextRequest) {
     await prisma.media.update({
       where: { id: media.id },
       data: { isVisibility: "REMOVE" },
+    });
+
+    await logAudit({
+      ...auditInfo,
+      actorId: auth.user.id,
+      action: "media.delete",
+      resourceType: "Media",
+      resourceId: media.id,
+      status: 200,
+      metadata: { slug: media.slug },
     });
 
     return NextResponse.json({ message: "Media removed", slug: media.slug });

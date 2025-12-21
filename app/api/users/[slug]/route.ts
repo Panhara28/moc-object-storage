@@ -42,8 +42,8 @@ export async function GET(
     // --------------------------------------------------------------------------
     // 2. FETCH USER BY SLUG
     // --------------------------------------------------------------------------
-    const user = await prisma.user.findFirst({
-      where: { slug, id: authUser.id },
+    const user = await prisma.user.findUnique({
+      where: { slug },
       select: {
         slug: true,
         profilePicture: true,

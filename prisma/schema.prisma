@@ -98,6 +98,7 @@ model User {
   mediaUploads   MediaUpload[]
   spaces         Space[]
   buckets        Bucket[]      @relation("BucketCreatedBy")
+  auditLogs      AuditLog[]
 
   @@index([roleId])
   @@map("users")
@@ -173,6 +174,36 @@ model LoginAttempt {
 
   @@index([firstAttemptAt])
   @@map("login_attempts")
+}
+
+/**
+ * ============================================================
+ * AUDIT LOGS
+ * ============================================================
+ */
+
+model AuditLog {
+  id           Int      @id @default(autoincrement())
+  createdAt    DateTime @default(now())
+  actorId      Int?
+  action       String   @db.VarChar(64)
+  resourceType String   @db.VarChar(64)
+  resourceId   String?  @db.VarChar(191)
+  method       String   @db.VarChar(12)
+  path         String   @db.VarChar(191)
+  status       Int
+  ip           String?  @db.VarChar(64)
+  userAgent    String?  @db.VarChar(191)
+  requestId    String?  @db.VarChar(64)
+  traceId      String?  @db.VarChar(64)
+  metadata     Json?
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([actorId, createdAt])
+  @@index([resourceType, resourceId])
+  @@index([createdAt])
+  @@map("audit_logs")
 }
 
 /**

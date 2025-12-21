@@ -39,9 +39,7 @@ export async function GET(req: NextRequest) {
 
     const skip = (page - 1) * limit;
 
-    const where: Prisma.UserWhereInput = {
-      id: user.id,
-    };
+    const where: Prisma.UserWhereInput = {};
 
     const orFilters = [];
     if (search) {

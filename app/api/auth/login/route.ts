@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { signToken } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { getAuditRequestInfo, logAudit } from "@/lib/audit";
 
 const RATE_LIMIT_WINDOW_MS = 5 * 60 * 1000;
 const RATE_LIMIT_MAX_ATTEMPTS = 5;
@@ -85,8 +86,17 @@ async function clearAttempts(key: string) {
 export async function POST(req: Request) {
   const { email, password } = await req.json();
   const clientKey = getClientKey(req, email);
+  const auditInfo = getAuditRequestInfo(req);
   const rateLimit = await getRateLimitState(clientKey);
   if (rateLimit.limited) {
+    await logAudit({
+      ...auditInfo,
+      action: "auth.login.rate_limited",
+      resourceType: "Auth",
+      resourceId: null,
+      status: 429,
+      metadata: { email: typeof email === "string" ? email : null },
+    });
     return NextResponse.json(
       { error: "Too many login attempts. Please try again later." },
       {
@@ -113,17 +123,43 @@ export async function POST(req: Request) {
 
   if (!user) {
     await recordAttempt(clientKey);
+    await logAudit({
+      ...auditInfo,
+      action: "auth.login.failed",
+      resourceType: "Auth",
+      resourceId: null,
+      status: 401,
+      metadata: { email: typeof email === "string" ? email : null },
+    });
     return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
   }
 
   const valid = await bcrypt.compare(password, user.password);
   if (!valid) {
     await recordAttempt(clientKey);
+    await logAudit({
+      ...auditInfo,
+      actorId: user.id,
+      action: "auth.login.failed",
+      resourceType: "User",
+      resourceId: user.id,
+      status: 401,
+      metadata: { email: user.email },
+    });
     return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
   }
 
   if (!user.isActive) {
     await recordAttempt(clientKey);
+    await logAudit({
+      ...auditInfo,
+      actorId: user.id,
+      action: "auth.login.disabled",
+      resourceType: "User",
+      resourceId: user.id,
+      status: 403,
+      metadata: { email: user.email },
+    });
     return NextResponse.json({ error: "User disabled" }, { status: 403 });
   }
 
@@ -141,6 +177,14 @@ export async function POST(req: Request) {
     maxAge: 60 * 60 * 24 * 7, // 7 days
   });
   await clearAttempts(clientKey);
+  await logAudit({
+    ...auditInfo,
+    actorId: user.id,
+    action: "auth.login.success",
+    resourceType: "User",
+    resourceId: user.id,
+    status: 200,
+  });
 
   return res;
 }

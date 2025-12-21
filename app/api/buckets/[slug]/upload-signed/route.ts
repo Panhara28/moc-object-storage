@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { verifyPayload } from "@/lib/signedUrl";
 import { validateUploadFile } from "@/lib/upload-validation";
 import { queueVirusTotalScanForMedia } from "@/lib/virustotal";
+import { getAuditRequestInfo, logAudit } from "@/lib/audit";
 import { randomUUID } from "crypto";
 import * as fs from "fs/promises";
 import path from "path";
@@ -95,6 +96,7 @@ export async function POST(
         { status: 400 }
       );
     }
+    const auditInfo = getAuditRequestInfo(req);
 
     const bucket = await prisma.bucket.findUnique({
       where: { slug, isAvailable: "AVAILABLE" },
@@ -213,6 +215,21 @@ export async function POST(
       filename: file.name,
       buffer,
       storedPath,
+    });
+
+    await logAudit({
+      ...auditInfo,
+      actorId: payload.userId,
+      action: "media.upload",
+      resourceType: "Media",
+      resourceId: media.id,
+      status: 201,
+      metadata: {
+        bucketId: bucket.id,
+        bucketSlug: slug,
+        filename: file.name,
+        path: folderPath || null,
+      },
     });
 
     return NextResponse.json(

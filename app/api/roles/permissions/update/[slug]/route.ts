@@ -1,6 +1,7 @@
 import { authorize } from "@/lib/authorized";
 import prisma from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
+import { getAuditRequestInfo, logAudit } from "@/lib/audit";
 
 /* -----------------------------------------------------
    TYPES
@@ -38,6 +39,7 @@ export async function PATCH(
         { status: auth.status }
       );
     }
+    const auditInfo = getAuditRequestInfo(req);
 
     /* ------------------------------ PARAMS ------------------------------ */
     const { slug } = await context.params;
@@ -89,6 +91,19 @@ export async function PATCH(
     );
 
     await Promise.all(updateOps);
+
+    await logAudit({
+      ...auditInfo,
+      actorId: auth.user.id,
+      action: "role.permissions.update",
+      resourceType: "Role",
+      resourceId: roleId,
+      status: 200,
+      metadata: {
+        roleSlug: role.slug,
+        updatedCount: body.permissions.length,
+      },
+    });
 
     return NextResponse.json({
       message: "Permissions updated successfully.",
