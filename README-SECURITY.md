@@ -86,7 +86,7 @@ Recommended flow:
 
 - Login attempts are tracked in DB (`login_attempts`) and shared across instances.
 - Default: 5 attempts per 5 minutes per IP+email.
-- Auto-creates the table on first use if missing.
+- Ensure migrations are applied so `login_attempts` exists.
 
 ## Error Handling
 

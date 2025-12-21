@@ -5,7 +5,6 @@ import prisma from "@/lib/prisma";
 
 const RATE_LIMIT_WINDOW_MS = 5 * 60 * 1000;
 const RATE_LIMIT_MAX_ATTEMPTS = 5;
-let loginAttemptsTableReady: Promise<unknown> | null = null;
 
 function getClientKey(req: Request, email: unknown) {
   const forwarded = req.headers.get("x-forwarded-for");
@@ -21,38 +20,21 @@ function getClientKey(req: Request, email: unknown) {
   return `${ip}:${emailKey}`;
 }
 
-function ensureLoginAttemptsTable() {
-  if (loginAttemptsTableReady) return loginAttemptsTableReady;
-  loginAttemptsTableReady = prisma.$executeRawUnsafe(`
-    CREATE TABLE IF NOT EXISTS login_attempts (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      \`key\` VARCHAR(255) NOT NULL UNIQUE,
-      count INT NOT NULL DEFAULT 0,
-      firstAttemptAt DATETIME NOT NULL,
-      createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-    )
-  `);
-  return loginAttemptsTableReady;
-}
-
 async function getRateLimitState(key: string) {
-  await ensureLoginAttemptsTable();
-  const rows = await prisma.$queryRaw<
-    { count: number; firstAttemptAt: Date | string }[]
-  >`SELECT count, firstAttemptAt FROM login_attempts WHERE \`key\` = ${key} LIMIT 1`;
-  const entry = rows[0];
+  const entry = await prisma.loginAttempt.findUnique({
+    where: { key },
+    select: {
+      count: true,
+      firstAttemptAt: true,
+    },
+  });
   if (!entry) {
     return { limited: false, retryAfterSeconds: null };
   }
 
-  const firstAttemptAt =
-    entry.firstAttemptAt instanceof Date
-      ? entry.firstAttemptAt
-      : new Date(entry.firstAttemptAt);
-  const elapsed = Date.now() - firstAttemptAt.getTime();
+  const elapsed = Date.now() - entry.firstAttemptAt.getTime();
   if (elapsed > RATE_LIMIT_WINDOW_MS) {
-    await prisma.$executeRaw`DELETE FROM login_attempts WHERE \`key\` = ${key}`;
+    await prisma.loginAttempt.deleteMany({ where: { key } });
     return { limited: false, retryAfterSeconds: null };
   }
 
@@ -65,40 +47,39 @@ async function getRateLimitState(key: string) {
 }
 
 async function recordAttempt(key: string) {
-  await ensureLoginAttemptsTable();
-  const rows = await prisma.$queryRaw<
-    { count: number; firstAttemptAt: Date | string }[]
-  >`SELECT count, firstAttemptAt FROM login_attempts WHERE \`key\` = ${key} LIMIT 1`;
-  const entry = rows[0];
   const now = new Date();
-  if (
-    !entry ||
-    Date.now() -
-      (entry.firstAttemptAt instanceof Date
-        ? entry.firstAttemptAt.getTime()
-        : new Date(entry.firstAttemptAt).getTime()) >
-      RATE_LIMIT_WINDOW_MS
-  ) {
-    await prisma.$executeRaw`
-      INSERT INTO login_attempts (\`key\`, count, firstAttemptAt, createdAt, updatedAt)
-      VALUES (${key}, 1, ${now}, ${now}, ${now})
-      ON DUPLICATE KEY UPDATE
-        count = 1,
-        firstAttemptAt = ${now},
-        updatedAt = ${now}
-    `;
+  const entry = await prisma.loginAttempt.findUnique({
+    where: { key },
+    select: {
+      count: true,
+      firstAttemptAt: true,
+    },
+  });
+  if (!entry || now.getTime() - entry.firstAttemptAt.getTime() > RATE_LIMIT_WINDOW_MS) {
+    await prisma.loginAttempt.upsert({
+      where: { key },
+      create: {
+        key,
+        count: 1,
+        firstAttemptAt: now,
+      },
+      update: {
+        count: 1,
+        firstAttemptAt: now,
+      },
+    });
     return;
   }
-  await prisma.$executeRaw`
-    UPDATE login_attempts
-    SET count = count + 1, updatedAt = ${now}
-    WHERE \`key\` = ${key}
-  `;
+  await prisma.loginAttempt.update({
+    where: { key },
+    data: {
+      count: { increment: 1 },
+    },
+  });
 }
 
 async function clearAttempts(key: string) {
-  await ensureLoginAttemptsTable();
-  await prisma.$executeRaw`DELETE FROM login_attempts WHERE \`key\` = ${key}`;
+  await prisma.loginAttempt.deleteMany({ where: { key } });
 }
 
 export async function POST(req: Request) {
