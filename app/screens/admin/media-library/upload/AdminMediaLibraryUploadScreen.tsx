@@ -14,20 +14,29 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
 import MediaFilters from "@/components/media-library/media-filters";
+import MediaPagination from "@/components/media-library/media-pagination";
 import MediaCreateFolderDialog from "./MediaCreateFolderDialog";
 import MediaViewDrawer from "./MediaViewDrawer";
 import MediaFileGrid from "./MediaFileGrid";
 import MediaFolderGrid from "./MediaFolderGrid";
 import MediaUploadButton from "./MediaUploadButton";
 import MediaBreadcrumb from "./MediaBreadcrumb";
-import { ApiResponse, MediaItem } from "@/app/types/media";
 import MediaRenameFolderDialog from "./MediaRenameFolderDialog";
 import MediaDeleteFolderDialog from "./MediaDeleteFolderDialog";
 import MediaFolderPropertiesDrawer from "./MediaFolderPropertiesDrawer";
-import MediaMoveFolderDialog from "./MediaMoveFolderDialog";
 import { useToast } from "@/hooks/use-toast";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import { FileText, FolderOpen } from "lucide-react";
+import { MediaItem } from "@/app/types/media";
 
-const ITEMS_PER_PAGE = 12;
+const ITEMS_PER_PAGE = 30;
 
 type State = {
   selectedFilter: string;
@@ -79,7 +88,10 @@ export default function AdminMediaLibraryUploadScreen({
 
   /* STATES */
   const [selectedFilter, setSelectedFilter] = useState("all");
-  const [currentPage, setCurrentPage] = useState(1);
+  const [folderPage, setFolderPage] = useState(1);
+  const [mediaPage, setMediaPage] = useState(1);
+  const [searchValue, setSearchValue] = useState("");
+  const [createdAtSort, setCreatedAtSort] = useState("newest");
   const [items, setItems] = useState<MediaItem[]>([]);
   const [medias, setMedias] = useState<MediaItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -165,6 +177,7 @@ export default function AdminMediaLibraryUploadScreen({
             title: "Upload blocked",
             description: `${name} was flagged as malicious.`,
             variant: "destructive",
+            duration: 5000,
           });
           await refreshData();
           return;
@@ -175,6 +188,7 @@ export default function AdminMediaLibraryUploadScreen({
             title: "Virus scan failed",
             description: body.media?.scanMessage || `${name} is quarantined.`,
             variant: "destructive",
+            duration: 5000,
           });
           return;
         }
@@ -204,16 +218,90 @@ export default function AdminMediaLibraryUploadScreen({
 
   /* FILTER */
   const filteredItems = useMemo(() => {
-    if (selectedFilter === "all") return items;
-    return items.filter((i) => i.type === selectedFilter);
-  }, [selectedFilter, items]);
+    const query = searchValue.trim().toLowerCase();
+    const next = query
+      ? items.filter((item) => item.name.toLowerCase().includes(query))
+      : items.slice();
+    const getCreatedAt = (item: MediaItem) => {
+      const raw = item.createdAtRaw || item.createdAt;
+      const time = raw ? new Date(raw).getTime() : 0;
+      return Number.isNaN(time) ? 0 : time;
+    };
+    return next.sort((a, b) => {
+      const diff = getCreatedAt(a) - getCreatedAt(b);
+      return createdAtSort === "oldest" ? diff : -diff;
+    });
+  }, [createdAtSort, items, searchValue]);
+  const filteredMedias = useMemo(() => {
+    const query = searchValue.trim().toLowerCase();
+    const matchesSearch = (media: MediaItem) => {
+      if (!query) return true;
+      const name = (media.filename || media.name || "").toLowerCase();
+      return name.includes(query);
+    };
+    if (selectedFilter === "all") return medias.filter(matchesSearch);
+    if (selectedFilter === "image") {
+      return medias.filter((m) => m.type === "IMAGE").filter(matchesSearch);
+    }
+    if (selectedFilter === "video") {
+      return medias.filter((m) => m.type === "VIDEO").filter(matchesSearch);
+    }
+    if (selectedFilter === "document") {
+      return medias
+        .filter((m) => m.type === "DOCUMENT" || m.type === "PDF")
+        .filter(matchesSearch);
+    }
+    return medias.filter(matchesSearch);
+  }, [medias, searchValue, selectedFilter]);
+  const sortedMedias = useMemo(() => {
+    const getCreatedAt = (media: MediaItem) => {
+      const raw = media.createdAtRaw || media.createdAt;
+      const time = raw ? new Date(raw).getTime() : 0;
+      return Number.isNaN(time) ? 0 : time;
+    };
+    const next = filteredMedias.slice();
+    next.sort((a, b) => {
+      const diff = getCreatedAt(a) - getCreatedAt(b);
+      return createdAtSort === "oldest" ? diff : -diff;
+    });
+    return next;
+  }, [createdAtSort, filteredMedias]);
+  const showEmptyState = items.length === 0 && medias.length === 0;
 
   /* PAGINATION */
-  const totalPages = Math.ceil(filteredItems.length / ITEMS_PER_PAGE);
-  const currentItems = filteredItems.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
+  const folderTotalPages = Math.max(
+    1,
+    Math.ceil(filteredItems.length / ITEMS_PER_PAGE)
   );
+  const currentItems = filteredItems.slice(
+    (folderPage - 1) * ITEMS_PER_PAGE,
+    folderPage * ITEMS_PER_PAGE
+  );
+  const mediaTotalPages = Math.max(
+    1,
+    Math.ceil(sortedMedias.length / ITEMS_PER_PAGE)
+  );
+  const pagedMedias = sortedMedias.slice(
+    (mediaPage - 1) * ITEMS_PER_PAGE,
+    mediaPage * ITEMS_PER_PAGE
+  );
+
+  useEffect(() => {
+    setFolderPage(1);
+    setMediaPage(1);
+  }, [createdAtSort, currentParentSlug, searchValue, selectedFilter]);
+
+  useEffect(() => {
+    if (folderPage > folderTotalPages) {
+      setFolderPage(folderTotalPages);
+    }
+  }, [folderPage, folderTotalPages]);
+
+  useEffect(() => {
+    if (mediaPage > mediaTotalPages) {
+      setMediaPage(mediaTotalPages);
+    }
+  }, [mediaPage, mediaTotalPages]);
 
   /* UPLOAD HANDLER */
   const handleUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -359,8 +447,7 @@ export default function AdminMediaLibraryUploadScreen({
               />
             </div>
             <div className="mt-2 text-xs text-muted-foreground">
-              {uploadProgress.message ||
-                `${uploadProgress.percent}%`}
+              {uploadProgress.message || `${uploadProgress.percent}%`}
             </div>
           </div>
         </div>
@@ -397,16 +484,50 @@ export default function AdminMediaLibraryUploadScreen({
           <MediaFilters
             selectedFilter={selectedFilter}
             onFilterChange={setSelectedFilter}
-            itemCount={filteredItems.length}
+            searchValue={searchValue}
+            onSearchChange={setSearchValue}
+            createdAtSort={createdAtSort}
+            onCreatedAtSortChange={setCreatedAtSort}
           />
 
           {loading ? (
             <div className="py-16 text-center">Loading...</div>
+          ) : showEmptyState ? (
+            <Empty>
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <FolderOpen className="size-5" />
+                </EmptyMedia>
+                <EmptyTitle>
+                  {currentParentSlug
+                    ? "This folder is empty"
+                    : "This bucket is empty"}
+                </EmptyTitle>
+                <EmptyDescription>
+                  {currentParentSlug
+                    ? "Upload files or create a folder here."
+                    : "Upload files or create a folder to get started."}
+                </EmptyDescription>
+              </EmptyHeader>
+              <EmptyContent>
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  <Button onClick={() => uploadInputRef.current?.click()}>
+                    Upload Media
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => setCreateFolderDialogOpen(true)}
+                  >
+                    Create Folder
+                  </Button>
+                </div>
+              </EmptyContent>
+            </Empty>
           ) : (
             <>
               {/* FOLDERS */}
-              <h1 className="text-xl font-bold mt-4">Folders</h1>
-              <hr className="border-border mb-3" />
+              {/* <h1 className="text-xl font-bold mt-4">Folders</h1>
+              <hr className="border-border mb-3" /> */}
 
               <MediaFolderGrid
                 items={currentItems}
@@ -432,26 +553,40 @@ export default function AdminMediaLibraryUploadScreen({
                 //   setMoveOpen(true);
                 // }}
               />
+              {folderTotalPages > 1 && (
+                <MediaPagination
+                  currentPage={folderPage}
+                  totalPages={folderTotalPages}
+                  onPageChange={setFolderPage}
+                />
+              )}
 
               {/* FILES inside folder */}
               {currentParentSlug && (
                 <>
-                  <h1 className="text-xl font-bold mt-8">Files</h1>
-                  <hr className="border-border mb-3" />
+                  {/* <h1 className="text-xl font-bold mt-8">Files</h1>
+                  <hr className="border-border mb-3" /> */}
 
                   <MediaFileGrid
-                    items={medias}
+                    items={pagedMedias}
                     bucketSlug={bucketSlug}
                     onOpenMedia={openMedia}
                   />
+                  {mediaTotalPages > 1 && (
+                    <MediaPagination
+                      currentPage={mediaPage}
+                      totalPages={mediaTotalPages}
+                      onPageChange={setMediaPage}
+                    />
+                  )}
                 </>
               )}
 
               {/* ROOT MEDIA FILES */}
               {!currentParentSlug && (
                 <>
-                  <h1 className="text-xl font-bold mt-8">Medias</h1>
-                  <hr className="border-border mb-3" />
+                  {/* <h1 className="text-xl font-bold mt-8">Medias</h1>
+                  <hr className="border-border mb-3" /> */}
 
                   <MediaFileGrid
                     selectedBook={selectedBook}
@@ -459,10 +594,17 @@ export default function AdminMediaLibraryUploadScreen({
                     selectedBookCover={selectedBookCover}
                     setSelectedBookCover={setSelectedBookCover}
                     bucketSlug={bucketSlug}
-                    items={medias}
+                    items={pagedMedias}
                     onOpenMedia={openMedia}
                     isRoot
                   />
+                  {mediaTotalPages > 1 && (
+                    <MediaPagination
+                      currentPage={mediaPage}
+                      totalPages={mediaTotalPages}
+                      onPageChange={setMediaPage}
+                    />
+                  )}
                 </>
               )}
             </>

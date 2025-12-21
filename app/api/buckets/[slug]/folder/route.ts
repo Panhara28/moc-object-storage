@@ -73,6 +73,7 @@ export async function GET(
       type: "folder",
       parentId: folder.parentId,
       createdAt: formatDate(folder.createdAt),
+      createdAtRaw: folder.createdAt.toISOString(),
     }));
 
     const parentSpace = await prisma.space.findUnique({
@@ -122,6 +123,7 @@ export async function GET(
           scanStatus: m.scanStatus,
           scanMessage: m.scanMessage,
           createdAt: formatDate(m.createdAt),
+          createdAtRaw: m.createdAt.toISOString(),
           //   folderId: m.spaceId,
         })),
       },

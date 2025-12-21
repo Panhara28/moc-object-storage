@@ -121,6 +121,7 @@ export async function GET(
         name: f.name,
         slug: f.slug,
         createdAt: formatDate(f.createdAt),
+        createdAtRaw: f.createdAt.toISOString(),
       })),
 
       // 🟩 MEDIA RESULT WITH PAGINATION
@@ -138,6 +139,7 @@ export async function GET(
           scanStatus: m.scanStatus,
           scanMessage: m.scanMessage,
           createdAt: formatDate(m.createdAt),
+          createdAtRaw: m.createdAt.toISOString(),
           //   folderId: m.spaceId,
         })),
       },

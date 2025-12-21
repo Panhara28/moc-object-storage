@@ -16,6 +16,7 @@ export interface MediaItem {
   type: MediaType;
   parentId?: number | null;
   createdAt?: string;
+  createdAtRaw?: string;
   updatedAt?: string;
   size?: number;
   width?: number | null;
