@@ -29,6 +29,9 @@ export default function MediaFileGrid({
     null
   );
   const [previewUrls, setPreviewUrls] = useState<Record<number, string>>({});
+  const [loadedPreviews, setLoadedPreviews] = useState<Record<number, boolean>>(
+    {}
+  );
 
   useEffect(() => {
     const controller = new AbortController();
@@ -112,14 +115,30 @@ export default function MediaFileGrid({
             `}
           >
             <div className="relative w-full h-full flex items-center justify-center rounded-md overflow-hidden">
-              {item.type === "IMAGE" &&
-                (previewUrls[item.id] || item.url) && (
-                <Image
-                  src={previewUrls[item.id] || item.url!}
-                  alt={item.filename || item.name}
-                  fill
-                  className="object-cover"
-                />
+              {item.type === "IMAGE" && previewUrls[item.id] && (
+                <>
+                  <Image
+                    src={previewUrls[item.id]}
+                    alt={item.filename || item.name}
+                    fill
+                    className={`object-cover transition-opacity ${
+                      loadedPreviews[item.id] ? "opacity-100" : "opacity-0"
+                    }`}
+                    onLoadingComplete={() =>
+                      setLoadedPreviews((prev) => ({
+                        ...prev,
+                        [item.id]: true,
+                      }))
+                    }
+                  />
+                  {!loadedPreviews[item.id] && (
+                    <div className="absolute inset-0 animate-pulse bg-gradient-to-br from-muted via-muted/70 to-muted/40" />
+                  )}
+                </>
+              )}
+
+              {item.type === "IMAGE" && !previewUrls[item.id] && (
+                <div className="absolute inset-0 animate-pulse bg-gradient-to-br from-muted via-muted/70 to-muted/40" />
               )}
 
               {item.type === "PDF" && (

@@ -17,9 +17,11 @@ export type VirusTotalScanResult =
   | { status: "skipped"; reason: string };
 
 const VT_BASE_URL = "https://www.virustotal.com/api/v3";
-const DEFAULT_TIMEOUT_MS = 10_000;
-const DEFAULT_POLL_MS = 1_500;
-const DEFAULT_MAX_POLLS = 10;
+const DEFAULT_TIMEOUT_MS = 15_000;
+const DEFAULT_POLL_MS = 2_000;
+const DEFAULT_MAX_POLLS = 20;
+
+let scanQueue = Promise.resolve();
 
 function getApiKey() {
   return process.env.VIRUSTOTAL_API_KEY || "";
@@ -174,6 +176,119 @@ export async function scanBufferWithVirusTotal(
   return { status: "clean", hash, stats: analysis.stats };
 }
 
+async function runVirusTotalScanForMedia({
+  mediaId,
+  filename,
+  buffer,
+  storedPath,
+}: {
+  mediaId: number;
+  filename: string;
+  buffer: Buffer;
+  storedPath?: string;
+}) {
+  try {
+    const hash = crypto.createHash("sha256").update(buffer).digest("hex");
+    const cached = await prisma.media.findFirst({
+      where: {
+        scanHash: hash,
+        scanStatus: { in: ["CLEAN", "MALICIOUS"] },
+      },
+      select: { scanStatus: true, scanMessage: true },
+    });
+    const scannedAt = new Date();
+
+    if (cached?.scanStatus === "CLEAN") {
+      await prisma.media.update({
+        where: { id: mediaId },
+        data: {
+          isVisibility: "AVAILABLE",
+          isAccessible: "PRIVATE",
+          scanStatus: "CLEAN",
+          scanMessage: cached.scanMessage ?? null,
+          scanHash: hash,
+          scannedAt,
+        },
+      });
+      return;
+    }
+
+    if (cached?.scanStatus === "MALICIOUS") {
+      await prisma.media.update({
+        where: { id: mediaId },
+        data: {
+          isVisibility: "REMOVE",
+          isAccessible: "RESTRICTED",
+          scanStatus: "MALICIOUS",
+          scanMessage: cached.scanMessage ?? "Virus scan flagged this file.",
+          scanHash: hash,
+          scannedAt,
+        },
+      });
+      if (storedPath) {
+        await fs.rm(storedPath, { force: true }).catch(() => {});
+      }
+      return;
+    }
+
+    const result = await scanBufferWithVirusTotal(buffer, filename);
+    const treatSkippedAsClean =
+      result.status === "skipped" && !isScanRequired();
+    const finalHash = "hash" in result ? result.hash : hash;
+
+    if (result.status === "clean" || treatSkippedAsClean) {
+      await prisma.media.update({
+        where: { id: mediaId },
+        data: {
+          isVisibility: "AVAILABLE",
+          isAccessible: "PRIVATE",
+          scanStatus: "CLEAN",
+          scanMessage: null,
+          scanHash: finalHash,
+          scannedAt,
+        },
+      });
+      return;
+    }
+
+    if (result.status === "malicious") {
+      await prisma.media.update({
+        where: { id: mediaId },
+        data: {
+          isVisibility: "REMOVE",
+          isAccessible: "RESTRICTED",
+          scanStatus: "MALICIOUS",
+          scanMessage: "Virus scan flagged this file.",
+          scanHash: finalHash,
+          scannedAt,
+        },
+      });
+      if (storedPath) {
+        await fs.rm(storedPath, { force: true }).catch(() => {});
+      }
+      return;
+    }
+
+    if (result.status === "unknown" || result.status === "skipped") {
+      await prisma.media.update({
+        where: { id: mediaId },
+        data: {
+          scanStatus: "FAILED",
+          scanMessage: result.reason,
+          scanHash: finalHash,
+          scannedAt,
+        },
+      });
+      console.warn("Virus scan incomplete for media", {
+        mediaId,
+        reason: result.reason,
+      });
+    }
+  } catch (error) {
+    console.error("Virus scan failed:", error);
+  }
+}
+
 export function queueVirusTotalScanForMedia({
   mediaId,
   filename,
@@ -185,106 +300,16 @@ export function queueVirusTotalScanForMedia({
   buffer: Buffer;
   storedPath?: string;
 }) {
-  void (async () => {
-    try {
-      const hash = crypto.createHash("sha256").update(buffer).digest("hex");
-      const cached = await prisma.media.findFirst({
-        where: {
-          scanHash: hash,
-          scanStatus: { in: ["CLEAN", "MALICIOUS"] },
-        },
-        select: { scanStatus: true, scanMessage: true },
-      });
-      const scannedAt = new Date();
-
-      if (cached?.scanStatus === "CLEAN") {
-        await prisma.media.update({
-          where: { id: mediaId },
-          data: {
-            isVisibility: "AVAILABLE",
-            isAccessible: "PRIVATE",
-            scanStatus: "CLEAN",
-            scanMessage: cached.scanMessage ?? null,
-            scanHash: hash,
-            scannedAt,
-          },
-        });
-        return;
-      }
-
-      if (cached?.scanStatus === "MALICIOUS") {
-        await prisma.media.update({
-          where: { id: mediaId },
-          data: {
-            isVisibility: "REMOVE",
-            isAccessible: "RESTRICTED",
-            scanStatus: "MALICIOUS",
-            scanMessage: cached.scanMessage ?? "Virus scan flagged this file.",
-            scanHash: hash,
-            scannedAt,
-          },
-        });
-        if (storedPath) {
-          await fs.rm(storedPath, { force: true }).catch(() => {});
-        }
-        return;
-      }
-
-      const result = await scanBufferWithVirusTotal(buffer, filename);
-      const treatSkippedAsClean =
-        result.status === "skipped" && !isScanRequired();
-      const finalHash = "hash" in result ? result.hash : hash;
-
-      if (result.status === "clean" || treatSkippedAsClean) {
-        await prisma.media.update({
-          where: { id: mediaId },
-          data: {
-            isVisibility: "AVAILABLE",
-            isAccessible: "PRIVATE",
-            scanStatus: "CLEAN",
-            scanMessage: null,
-            scanHash: finalHash,
-            scannedAt,
-          },
-        });
-        return;
-      }
-
-      if (result.status === "malicious") {
-        await prisma.media.update({
-          where: { id: mediaId },
-          data: {
-            isVisibility: "REMOVE",
-            isAccessible: "RESTRICTED",
-            scanStatus: "MALICIOUS",
-            scanMessage: "Virus scan flagged this file.",
-            scanHash: finalHash,
-            scannedAt,
-          },
-        });
-        if (storedPath) {
-          await fs.rm(storedPath, { force: true }).catch(() => {});
-        }
-        return;
-      }
-
-      if (result.status === "unknown" || result.status === "skipped") {
-        await prisma.media.update({
-          where: { id: mediaId },
-          data: {
-            scanStatus: "FAILED",
-            scanMessage: result.reason,
-            scanHash: finalHash,
-            scannedAt,
-          },
-        });
-        console.warn("Virus scan incomplete for media", {
-          mediaId,
-          reason: result.reason,
-        });
-      }
-    } catch (error) {
+  scanQueue = scanQueue
+    .then(() =>
+      runVirusTotalScanForMedia({
+        mediaId,
+        filename,
+        buffer,
+        storedPath,
+      })
+    )
+    .catch((error) => {
       console.error("Virus scan failed:", error);
-    }
-  })();
+    });
 }

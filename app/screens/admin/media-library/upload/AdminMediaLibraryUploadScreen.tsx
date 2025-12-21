@@ -94,6 +94,15 @@ export default function AdminMediaLibraryUploadScreen({
   const [activeFolder, setActiveFolder] = useState<MediaItem | null>(null);
   const [moveOpen, setMoveOpen] = useState(false);
   const uploadInputRef = useRef<HTMLInputElement>(null);
+  const [uploadProgress, setUploadProgress] = useState({
+    visible: false,
+    percent: 0,
+    uploadedBytes: 0,
+    totalBytes: 0,
+    totalFiles: 0,
+    status: "idle" as "idle" | "uploading" | "processing" | "error",
+    message: "",
+  });
 
   /* FETCH FOLDERS */
   const loadSpaces = useCallback(
@@ -222,30 +231,106 @@ export default function AdminMediaLibraryUploadScreen({
       formData.append("files", file);
     });
 
-    const res = await fetch(`/api/buckets/${bucketSlug}/upload`, {
-      method: "POST",
-      body: formData, // browser sets multipart boundary; do not override Content-Type
+    const totalBytes = fileArray.reduce((sum, file) => sum + file.size, 0);
+    setUploadProgress({
+      visible: true,
+      percent: 0,
+      uploadedBytes: 0,
+      totalBytes,
+      totalFiles: fileArray.length,
+      status: "uploading",
+      message: "",
     });
 
-    const jsonResponse = await res.json();
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `/api/buckets/${bucketSlug}/upload`, true);
+    xhr.upload.onprogress = (evt) => {
+      if (!evt.lengthComputable && totalBytes === 0) return;
+      const loaded = evt.lengthComputable ? evt.loaded : evt.loaded;
+      const percent = totalBytes
+        ? Math.min(100, Math.round((loaded / totalBytes) * 100))
+        : 0;
+      setUploadProgress((prev) => ({
+        ...prev,
+        percent,
+        uploadedBytes: loaded,
+      }));
+    };
 
-    // Optionally, refresh the media and folder data after uploading
-    await Promise.all([
-      loadSpaces(currentParentSlug),
-      loadMedia(currentParentSlug),
-    ]);
+    xhr.onload = async () => {
+      let jsonResponse: { uploads?: { slug?: string; filename?: string }[] } =
+        {};
+      try {
+        jsonResponse = xhr.responseText ? JSON.parse(xhr.responseText) : {};
+      } catch {}
 
-    const uploads = Array.isArray(jsonResponse.uploads)
-      ? jsonResponse.uploads
-      : [];
-    uploads.forEach((upload: { slug?: string; filename?: string }) => {
-      if (upload.slug) {
-        void pollScanStatus(upload.slug, upload.filename);
+      if (xhr.status >= 200 && xhr.status < 300) {
+        setUploadProgress((prev) => ({
+          ...prev,
+          percent: 100,
+          status: "processing",
+          message: "Upload complete. Processing scans...",
+        }));
+
+        await Promise.all([
+          loadSpaces(currentParentSlug),
+          loadMedia(currentParentSlug),
+        ]);
+
+        const uploads = Array.isArray(jsonResponse.uploads)
+          ? jsonResponse.uploads
+          : [];
+        uploads.forEach((upload) => {
+          if (upload.slug) {
+            void pollScanStatus(upload.slug, upload.filename);
+          }
+        });
+
+        setTimeout(() => {
+          setUploadProgress((prev) => ({
+            ...prev,
+            visible: false,
+            status: "idle",
+            message: "",
+          }));
+        }, 5000);
+      } else {
+        setUploadProgress((prev) => ({
+          ...prev,
+          status: "error",
+          message: "Upload failed. Please try again.",
+        }));
+        setTimeout(() => {
+          setUploadProgress((prev) => ({
+            ...prev,
+            visible: false,
+            status: "idle",
+            message: "",
+          }));
+        }, 2000);
       }
-    });
 
-    // Clear the file input
-    event.target.value = "";
+      event.target.value = "";
+    };
+
+    xhr.onerror = () => {
+      setUploadProgress((prev) => ({
+        ...prev,
+        status: "error",
+        message: "Upload failed. Please try again.",
+      }));
+      setTimeout(() => {
+        setUploadProgress((prev) => ({
+          ...prev,
+          visible: false,
+          status: "idle",
+          message: "",
+        }));
+      }, 2000);
+      event.target.value = "";
+    };
+
+    xhr.send(formData);
   };
 
   /* OPEN MEDIA DRAWER */
@@ -256,6 +341,30 @@ export default function AdminMediaLibraryUploadScreen({
 
   return (
     <>
+      {uploadProgress.visible && (
+        <div className="fixed bottom-6 right-6 z-50 w-96 max-w-[90vw] rounded-lg border border-border bg-background shadow-lg">
+          <div className="px-4 pt-3 text-sm font-medium">
+            Uploading {uploadProgress.totalFiles} file
+            {uploadProgress.totalFiles === 1 ? "" : "s"}
+          </div>
+          <div className="px-4 pb-3 pt-2">
+            <div className="h-2 w-full rounded-full bg-muted">
+              <div
+                className={`h-2 rounded-full transition-all ${
+                  uploadProgress.status === "error"
+                    ? "bg-red-500"
+                    : "bg-emerald-500"
+                }`}
+                style={{ width: `${uploadProgress.percent}%` }}
+              />
+            </div>
+            <div className="mt-2 text-xs text-muted-foreground">
+              {uploadProgress.message ||
+                `${uploadProgress.percent}%`}
+            </div>
+          </div>
+        </div>
+      )}
       {/* HEADER */}
       <div className="flex justify-between items-center mb-5">
         <div>
