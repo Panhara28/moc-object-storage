@@ -38,7 +38,10 @@ export default function MediaFileGrid({
 
     const fetchSignedPreviewUrls = async () => {
       const imageItems = items.filter(
-        (item) => item.type === "IMAGE" && item.slug
+        (item) =>
+          item.type === "IMAGE" &&
+          item.slug &&
+          (item.scanStatus === "CLEAN" || !item.scanStatus)
       );
       const missing = imageItems.filter((item) => !previewUrls[item.id]);
       if (!missing.length) return;
@@ -94,7 +97,12 @@ export default function MediaFileGrid({
   };
   return (
     <section className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-10 gap-6 mb-8">
-      {items.map((item) => (
+      {items.map((item) => {
+        const canPreview = item.scanStatus === "CLEAN" || !item.scanStatus;
+        const imageSrc =
+          previewUrls[item.id] || (canPreview ? item.url : undefined);
+
+        return (
         <div key={item.id} className="flex flex-col">
           <div
             onClick={() => {
@@ -115,10 +123,20 @@ export default function MediaFileGrid({
             `}
           >
             <div className="relative w-full h-full flex items-center justify-center rounded-md overflow-hidden">
-              {item.type === "IMAGE" && previewUrls[item.id] && (
+              {item.scanStatus === "PENDING" && (
+                <div className="absolute left-2 top-2 z-10 rounded-full bg-amber-500/90 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+                  Scanning
+                </div>
+              )}
+              {item.scanStatus === "FAILED" && (
+                <div className="absolute left-2 top-2 z-10 rounded-full bg-red-500/90 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+                  Scan failed
+                </div>
+              )}
+              {item.type === "IMAGE" && imageSrc && (
                 <>
                   <Image
-                    src={previewUrls[item.id]}
+                    src={imageSrc}
                     alt={item.filename || item.name}
                     fill
                     className={`object-cover transition-opacity ${
@@ -137,7 +155,7 @@ export default function MediaFileGrid({
                 </>
               )}
 
-              {item.type === "IMAGE" && !previewUrls[item.id] && (
+              {item.type === "IMAGE" && !imageSrc && (
                 <div className="absolute inset-0 animate-pulse bg-gradient-to-br from-muted via-muted/70 to-muted/40" />
               )}
 
@@ -163,7 +181,8 @@ export default function MediaFileGrid({
             {item.filename || item.name}
           </p>
         </div>
-      ))}
+        );
+      })}
     </section>
   );
 }
