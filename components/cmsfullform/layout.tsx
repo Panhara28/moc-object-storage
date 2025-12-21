@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import Sidebar from "./sidebar";
 import TopNav from "./top-nav";
+import AuthGuard from "./auth-guard";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 
@@ -85,7 +86,7 @@ export default function Layout({ children }: LayoutProps) {
           <TopNav />
         </header>
         <main className="flex-1 p-3 sm:p-6 bg-background min-w-0">
-          {children}
+          <AuthGuard>{children}</AuthGuard>
         </main>
       </div>
 
