@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
 
 type PermissionAction = "create" | "read" | "update" | "delete";
 type PermissionMap = Record<
@@ -20,15 +21,15 @@ const routeRules: RouteRule[] = [
   { pattern: /^\/admin\/users\/add$/, module: "users", action: "create" },
   { pattern: /^\/admin\/users\/lists$/, module: "users", action: "read" },
   { pattern: /^\/admin\/users\/[^/]+$/, module: "users", action: "read" },
-  { pattern: /^\/admin\/assign-roles$/, module: "users", action: "update" },
+  { pattern: /^\/admin\/assign-roles$/, module: "roles", action: "update" },
   { pattern: /^\/admin\/roles\/[^/]+\/edit$/, module: "roles", action: "update" },
+  { pattern: /^\/admin\/buckets\/lists$/, module: "buckets", action: "read" },
   {
     pattern: /^\/admin\/buckets\/[^/]+\/media-library$/,
     module: "media-library",
     action: "read",
   },
   { pattern: /^\/admin\/buckets\/[^/]+$/, module: "media-library", action: "read" },
-  { pattern: /^\/admin\/buckets\/lists$/, module: "media-library", action: "read" },
   { pattern: /^\/admin\/dashboard$/, module: "media-library", action: "read" },
   { pattern: /^\/admin\/v1\/api\/docs$/ },
   { pattern: /^\/admin\/auth\/profile$/ },
@@ -102,6 +103,14 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   }
 
   if (!accessCheck.allowed) {
+    const handleBack = () => {
+      if (typeof window !== "undefined" && window.history.length > 1) {
+        router.back();
+      } else {
+        router.replace("/admin/dashboard");
+      }
+    };
+
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 text-center">
         <h2 className="text-lg font-semibold text-foreground">
@@ -111,6 +120,9 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
           You do not have permission to {accessCheck.action}{" "}
           {accessCheck.module}.
         </p>
+        <Button type="button" onClick={handleBack} variant="outline">
+          Go back
+        </Button>
       </div>
     );
   }

@@ -95,7 +95,7 @@ export async function POST(
   context: { params: Promise<{ slug: string }> }
 ) {
   try {
-    const auth = await authorize(req, "media-library", "create");
+    const auth = await authorize(req, "spaces", "create");
     if (!auth.ok) {
       return NextResponse.json(
         { error: auth.message },

@@ -14,13 +14,18 @@ import {
   PencilRuler,
   DatabaseIcon,
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 
 type MenuState = "full" | "collapsed" | "hidden";
+type PermissionAction = "create" | "read" | "update" | "delete";
+type PermissionMap = Record<
+  string,
+  { create: boolean; read: boolean; update: boolean; delete: boolean }
+>;
 
 declare global {
   interface Window {
@@ -44,6 +49,7 @@ interface SubMenuItem {
   badge?: string;
   isNew?: boolean;
   children?: SubMenuItem[];
+  permission?: { module: string; action: PermissionAction };
 }
 
 interface MenuItem {
@@ -54,6 +60,7 @@ interface MenuItem {
   badge?: string;
   isNew?: boolean;
   children?: SubMenuItem[];
+  permission?: { module: string; action: PermissionAction };
 }
 
 interface MenuSection {
@@ -73,6 +80,7 @@ const menuData: MenuSection[] = [
         label: "Dashboard",
         href: "/admin/dashboard",
         icon: Home,
+        permission: { module: "media-library", action: "read" },
       },
 
       // Media Library
@@ -86,6 +94,7 @@ const menuData: MenuSection[] = [
             label: "Buckets",
             href: "/admin/buckets/lists",
             icon: PencilRuler,
+            permission: { module: "buckets", action: "read" },
           },
         ],
       },
@@ -102,12 +111,14 @@ const menuData: MenuSection[] = [
             label: "All Users",
             href: "/admin/users/lists",
             icon: User,
+            permission: { module: "users", action: "read" },
           },
           {
             id: "users-create",
             label: "Create User",
             href: "/admin/users/add",
             icon: EditIcon,
+            permission: { module: "users", action: "create" },
           },
         ],
       },
@@ -118,12 +129,14 @@ const menuData: MenuSection[] = [
         label: "Role & Permission",
         href: "/admin/roles-and-permissions",
         icon: Shield,
+        permission: { module: "roles", action: "read" },
         children: [
           {
             id: "role-assign",
             label: "Assign Role",
             href: "/admin/assign-roles",
             icon: ShieldCheck,
+            permission: { module: "roles", action: "update" },
           },
         ],
       },
@@ -139,6 +152,8 @@ export default function Sidebar() {
     useState<MenuState>("full");
   const [isMobile, setIsMobile] = useState(false);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+  const [permissions, setPermissions] = useState<PermissionMap | null>(null);
+  const [permissionsLoaded, setPermissionsLoaded] = useState(false);
 
   // Cycle through menu states: full -> collapsed -> hidden -> full
   const toggleMenuState = () => {
@@ -192,6 +207,42 @@ export default function Sidebar() {
     return () => window.removeEventListener("resize", handleResize);
   }, [menuState, previousDesktopState]);
 
+  useEffect(() => {
+    let active = true;
+    const loadPermissions = async () => {
+      try {
+        const res = await fetch("/api/auth/me", { cache: "no-store" });
+        if (res.status === 401) {
+          if (active) {
+            setPermissions({});
+          }
+          return;
+        }
+        if (!res.ok) {
+          throw new Error("Failed to load permissions");
+        }
+        const payload = await res.json();
+        if (active) {
+          setPermissions((payload?.user?.permissions as PermissionMap) || {});
+        }
+      } catch (error) {
+        console.error("Failed to load sidebar permissions:", error);
+        if (active) {
+          setPermissions({});
+        }
+      } finally {
+        if (active) {
+          setPermissionsLoaded(true);
+        }
+      }
+    };
+
+    loadPermissions();
+    return () => {
+      active = false;
+    };
+  }, []);
+
   // Export functions to window for TopNav and ThemeCustomizer to access
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -222,6 +273,78 @@ export default function Sidebar() {
       return newSet;
     });
   };
+
+  const hasPermission = (
+    permission: { module: string; action: PermissionAction },
+    perms: PermissionMap
+  ) => {
+    const modulePerms = perms[permission.module];
+    return Boolean(modulePerms && modulePerms[permission.action]);
+  };
+
+  const filterSubItems = (
+    items: SubMenuItem[],
+    perms: PermissionMap
+  ): SubMenuItem[] => {
+    return items
+      .map((item) => {
+        const children = item.children
+          ? filterSubItems(item.children, perms)
+          : undefined;
+        const allowedSelf = item.permission
+          ? hasPermission(item.permission, perms)
+          : !item.children;
+        const allowed = allowedSelf || (children && children.length > 0);
+        if (!allowed) {
+          return null;
+        }
+        return {
+          ...item,
+          ...(children ? { children } : {}),
+        };
+      })
+      .filter((item): item is SubMenuItem => Boolean(item));
+  };
+
+  const filterMenuItems = (
+    items: MenuItem[],
+    perms: PermissionMap
+  ): MenuItem[] => {
+    return items
+      .map((item) => {
+        const children = item.children
+          ? filterSubItems(item.children, perms)
+          : undefined;
+        const allowedSelf = item.permission
+          ? hasPermission(item.permission, perms)
+          : !item.children;
+        const allowed = allowedSelf || (children && children.length > 0);
+        if (!allowed) {
+          return null;
+        }
+        return {
+          ...item,
+          ...(children ? { children } : {}),
+        };
+      })
+      .filter((item): item is MenuItem => Boolean(item));
+  };
+
+  const filteredMenuData = useMemo(() => {
+    if (!permissionsLoaded) {
+      return menuData;
+    }
+    const perms = permissions ?? {};
+    return menuData
+      .map((section) => {
+        const items = filterMenuItems(section.items, perms);
+        if (items.length === 0) {
+          return null;
+        }
+        return { ...section, items };
+      })
+      .filter((section): section is MenuSection => Boolean(section));
+  }, [permissions, permissionsLoaded]);
 
   function NavItem({
     item,
@@ -393,7 +516,7 @@ export default function Sidebar() {
               }}
             >
               <div className="space-y-6">
-                {menuData.map((section) => (
+                {filteredMenuData.map((section) => (
                   <div key={section.id}>
                     <div className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground sidebar-section-label">
                       {section.label}
@@ -503,7 +626,7 @@ export default function Sidebar() {
             }}
           >
             <div className="space-y-6">
-              {menuData.map((section) => (
+              {filteredMenuData.map((section) => (
                 <div key={section.id}>
                   {showText && (
                     <div className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground sidebar-section-label transition-opacity duration-200">

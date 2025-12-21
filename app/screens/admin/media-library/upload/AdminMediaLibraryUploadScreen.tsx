@@ -95,6 +95,11 @@ export default function AdminMediaLibraryUploadScreen({
   const [items, setItems] = useState<MediaItem[]>([]);
   const [medias, setMedias] = useState<MediaItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [canCreateMedia, setCanCreateMedia] = useState(false);
+  const [canCreateFolder, setCanCreateFolder] = useState(false);
+  const [canReadFolder, setCanReadFolder] = useState(false);
+  const [canUpdateFolder, setCanUpdateFolder] = useState(false);
+  const [canDeleteFolder, setCanDeleteFolder] = useState(false);
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selectedMedia, setSelectedMedia] = useState<MediaItem | null>(null);
@@ -215,6 +220,51 @@ export default function AdminMediaLibraryUploadScreen({
 
     return () => controller.abort();
   }, [currentParentSlug, refreshData]);
+
+  useEffect(() => {
+    let active = true;
+    const loadPermissions = async () => {
+      try {
+        const res = await fetch("/api/auth/me", { cache: "no-store" });
+        if (!res.ok) {
+          if (active) {
+            setCanCreateMedia(false);
+            setCanCreateFolder(false);
+          }
+          return;
+        }
+        const data = await res.json();
+        const perms = data?.user?.permissions || {};
+        const mediaCreate = Boolean(perms?.["media-library"]?.create);
+        const folderPerms = perms?.spaces || {};
+        const folderCreate = Boolean(folderPerms.create);
+        const folderRead = Boolean(folderPerms.read);
+        const folderUpdate = Boolean(folderPerms.update);
+        const folderDelete = Boolean(folderPerms.delete);
+        if (active) {
+          setCanCreateMedia(mediaCreate);
+          setCanCreateFolder(folderCreate);
+          setCanReadFolder(folderRead);
+          setCanUpdateFolder(folderUpdate);
+          setCanDeleteFolder(folderDelete);
+        }
+      } catch (error) {
+        console.error("Failed to load media permissions:", error);
+        if (active) {
+          setCanCreateMedia(false);
+          setCanCreateFolder(false);
+          setCanReadFolder(false);
+          setCanUpdateFolder(false);
+          setCanDeleteFolder(false);
+        }
+      }
+    };
+
+    loadPermissions();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   /* FILTER */
   const filteredItems = useMemo(() => {
@@ -463,19 +513,25 @@ export default function AdminMediaLibraryUploadScreen({
           />
         </div>
 
-        <div className="flex gap-2">
-          <MediaUploadButton
-            inputRef={uploadInputRef}
-            onUpload={handleUpload}
-          />
+        {(canCreateMedia || canCreateFolder) && (
+          <div className="flex gap-2">
+            {canCreateMedia && (
+              <MediaUploadButton
+                inputRef={uploadInputRef}
+                onUpload={handleUpload}
+              />
+            )}
 
-          <Button
-            variant="outline"
-            onClick={() => setCreateFolderDialogOpen(true)}
-          >
-            Create Folder
-          </Button>
-        </div>
+            {canCreateFolder && (
+              <Button
+                variant="outline"
+                onClick={() => setCreateFolderDialogOpen(true)}
+              >
+                Create Folder
+              </Button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* MAIN CARD */}
@@ -509,19 +565,25 @@ export default function AdminMediaLibraryUploadScreen({
                     : "Upload files or create a folder to get started."}
                 </EmptyDescription>
               </EmptyHeader>
-              <EmptyContent>
-                <div className="flex flex-wrap items-center justify-center gap-2">
-                  <Button onClick={() => uploadInputRef.current?.click()}>
-                    Upload Media
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => setCreateFolderDialogOpen(true)}
-                  >
-                    Create Folder
-                  </Button>
-                </div>
-              </EmptyContent>
+              {(canCreateMedia || canCreateFolder) && (
+                <EmptyContent>
+                  <div className="flex flex-wrap items-center justify-center gap-2">
+                    {canCreateMedia && (
+                      <Button onClick={() => uploadInputRef.current?.click()}>
+                        Upload Media
+                      </Button>
+                    )}
+                    {canCreateFolder && (
+                      <Button
+                        variant="outline"
+                        onClick={() => setCreateFolderDialogOpen(true)}
+                      >
+                        Create Folder
+                      </Button>
+                    )}
+                  </div>
+                </EmptyContent>
+              )}
             </Empty>
           ) : (
             <>
@@ -548,6 +610,9 @@ export default function AdminMediaLibraryUploadScreen({
                   setActiveFolder(folder);
                   setPropsOpen(true);
                 }}
+                canReadFolder={canReadFolder}
+                canUpdateFolder={canUpdateFolder}
+                canDeleteFolder={canDeleteFolder}
                 // onMoveFolder={(folder) => {
                 //   setActiveFolder(folder);
                 //   setMoveOpen(true);

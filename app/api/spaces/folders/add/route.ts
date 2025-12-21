@@ -7,7 +7,7 @@ import { getAuditRequestInfo, logAudit } from "@/lib/audit";
 export async function POST(req: Request) {
   try {
     // Require permission to manage media folders
-    const auth = await authorize(req, "media-library", "create");
+    const auth = await authorize(req, "spaces", "create");
     if (!auth.ok) {
       return NextResponse.json(
         { error: auth.message },

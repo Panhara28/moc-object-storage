@@ -40,6 +40,9 @@ export default function BucketListsScreen() {
   const [buckets, setBuckets] = useState<BucketDetail[]>([]);
   const [open, setOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [canCreate, setCanCreate] = useState(false);
+  const [canUpdate, setCanUpdate] = useState(false);
+  const [canDelete, setCanDelete] = useState(false);
 
   // ❌ Was any | null  →  ✅ Now strongly typed
   const [selectedBucket, setSelectedBucket] = useState<BucketDetail | null>(
@@ -66,13 +69,14 @@ export default function BucketListsScreen() {
     setBuckets(data.buckets || []);
   };
 
-  const loadBucketDetails = async (slug: string) => {
-    const res = await fetch(`/api/buckets/${slug}`);
-    const data = await res.json();
-    if (res.ok) {
-      setSelectedBucket(data.bucket as BucketDetail);
-      setSettingsOpen(true);
+  const loadBucketDetails = (slug: string) => {
+    const bucket = buckets.find((item) => item.slug === slug) || null;
+    if (!bucket) {
+      setSelectedBucket(null);
+      return;
     }
+    setSelectedBucket(bucket);
+    setSettingsOpen(true);
   };
 
   useEffect(() => {
@@ -93,6 +97,37 @@ export default function BucketListsScreen() {
   }, []);
 
   useEffect(() => {
+    let active = true;
+    const loadPermissions = async () => {
+      try {
+        const res = await fetch("/api/auth/me", { cache: "no-store" });
+        if (!res.ok) {
+          if (active) setCanCreate(false);
+          return;
+        }
+        const data = await res.json();
+        const perms = data?.user?.permissions || {};
+        const allowed = Boolean(perms?.buckets?.create);
+        const allowUpdate = Boolean(perms?.buckets?.update);
+        const allowDelete = Boolean(perms?.buckets?.delete);
+        if (active) setCanCreate(allowed);
+        if (active) setCanUpdate(allowUpdate);
+        if (active) setCanDelete(allowDelete);
+      } catch (error) {
+        console.error("Failed to load bucket permissions:", error);
+        if (active) setCanCreate(false);
+        if (active) setCanUpdate(false);
+        if (active) setCanDelete(false);
+      }
+    };
+
+    loadPermissions();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
     const handler = () => refreshBuckets();
     window.addEventListener("refresh-buckets", handler);
     return () => window.removeEventListener("refresh-buckets", handler);
@@ -103,6 +138,14 @@ export default function BucketListsScreen() {
     window.addEventListener("refresh-buckets", handler);
     return () => window.removeEventListener("refresh-buckets", handler);
   }, []);
+
+  useEffect(() => {
+    if (!selectedBucket) return;
+    const updated = buckets.find((item) => item.slug === selectedBucket.slug);
+    if (updated && updated !== selectedBucket) {
+      setSelectedBucket(updated);
+    }
+  }, [buckets, selectedBucket]);
 
   return (
     <>
@@ -119,10 +162,12 @@ export default function BucketListsScreen() {
             </h1>
           </div>
 
-          <Button onClick={() => setOpen(true)} className="gap-2">
-            <Plus className="h-4 w-4" />
-            Create Bucket
-          </Button>
+          {canCreate && (
+            <Button onClick={() => setOpen(true)} className="gap-2">
+              <Plus className="h-4 w-4" />
+              Create Bucket
+            </Button>
+          )}
         </header>
 
         <main className="px-6 py-8">
@@ -130,6 +175,8 @@ export default function BucketListsScreen() {
             buckets={buckets}
             newCredentials={newBucketCredentials}
             onOpenSettings={(slug) => loadBucketDetails(slug)}
+            canUpdate={canUpdate}
+            canDelete={canDelete}
           />
         </main>
       </div>
@@ -147,17 +194,19 @@ export default function BucketListsScreen() {
         }}
       />
 
-      <BucketSettingsDialog
-        open={settingsOpen}
-        onOpenChange={setSettingsOpen}
-        bucket={selectedBucket}
-        onUpdate={async (type) => {
-          await refreshBuckets();
-          if (type === "permission" && selectedBucket) {
-            await loadBucketDetails(selectedBucket.slug);
-          }
-        }}
-      />
+      {canUpdate && (
+        <BucketSettingsDialog
+          open={settingsOpen}
+          onOpenChange={setSettingsOpen}
+          bucket={selectedBucket}
+          onUpdate={async (type) => {
+            await refreshBuckets();
+            if (type === "permission" && selectedBucket) {
+              setSettingsOpen(true);
+            }
+          }}
+        />
+      )}
     </>
   );
 }

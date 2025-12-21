@@ -22,7 +22,7 @@ export async function GET(
     );
   }
 
-  const auth = await authorize(req, "users", "update");
+  const auth = await authorize(req, "roles", "read");
   if (!auth.ok) {
     return NextResponse.json({ error: auth.message }, { status: auth.status });
   }

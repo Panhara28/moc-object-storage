@@ -27,7 +27,45 @@ export async function authorize(
   }
 
   // ⭐ Safe: role exists here
-  const perm = user.role.permissions?.find((p) => p.module.name === module);
+  const moduleKey = module.toLowerCase();
+  const aliases =
+    moduleKey === "buckets" ? new Set(["buckets", "bucket"]) : null;
+  const rolePermissions = user.role.permissions ?? [];
+
+  if (aliases) {
+    const matching = rolePermissions.filter((p) =>
+      aliases.has(p.module.name.toLowerCase())
+    );
+    if (matching.length === 0) {
+      return {
+        ok: false,
+        status: 403,
+        message: `Your role (${user.role.name}) does not have access to the "${module}" module.`,
+      };
+    }
+    const allowed = matching.some((p) => p[action]);
+    if (!allowed) {
+      const actionLabel =
+        action === "create"
+          ? "create"
+          : action === "read"
+          ? "view"
+          : action === "update"
+          ? "update"
+          : "delete";
+
+      return {
+        ok: false,
+        status: 403,
+        message: `You do not have permission to ${actionLabel} ${module}. Please contact an administrator if you believe this is a mistake.`,
+      };
+    }
+    return { ok: true, user };
+  }
+
+  const perm = rolePermissions.find(
+    (p) => p.module.name.toLowerCase() === moduleKey
+  );
 
   if (!perm) {
     return {

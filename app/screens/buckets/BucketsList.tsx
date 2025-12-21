@@ -47,12 +47,16 @@ interface BucketsListProps {
   buckets: BucketListItem[];
   newCredentials: NewBucketCredentials | null;
   onOpenSettings: (bucket: string) => void;
+  canUpdate: boolean;
+  canDelete: boolean;
 }
 
 export default function BucketsList({
   buckets,
   newCredentials,
   onOpenSettings,
+  canUpdate,
+  canDelete,
 }: BucketsListProps) {
   const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
   const [renameOpen, setRenameOpen] = useState(false);
@@ -101,54 +105,62 @@ export default function BucketsList({
                   </Link>
 
                   {/* ⋯ menu */}
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="rounded-full h-10 w-10 opacity-70 hover:opacity-100 cursor-pointer"
-                        onClick={(e) => e.preventDefault()}
-                      >
-                        <EllipsisVertical className="w-4 h-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-40">
-                      <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                      <DropdownMenuSeparator className="bg-black/50" />
+                  {(canUpdate || canDelete) && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="rounded-full h-10 w-10 opacity-70 hover:opacity-100 cursor-pointer"
+                          onClick={(e) => e.preventDefault()}
+                        >
+                          <EllipsisVertical className="w-4 h-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-40">
+                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                        <DropdownMenuSeparator className="bg-black/50" />
 
-                      <DropdownMenuItem
-                        onClick={(e) => {
-                          e.preventDefault();
-                          onOpenSettings(bucket.slug); // notify parent which bucket to load
-                        }}
-                      >
-                        Settings
-                      </DropdownMenuItem>
+                        {canUpdate && (
+                          <>
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.preventDefault();
+                                onOpenSettings(bucket.slug); // notify parent which bucket to load
+                              }}
+                            >
+                              Settings
+                            </DropdownMenuItem>
 
-                      <DropdownMenuItem
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setRenameBucket(bucket);
-                          setRenameOpen(true);
-                        }}
-                      >
-                        Rename
-                      </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.preventDefault();
+                                setRenameBucket(bucket);
+                                setRenameOpen(true);
+                              }}
+                            >
+                              Rename
+                            </DropdownMenuItem>
+                          </>
+                        )}
 
-                      <DropdownMenuSeparator />
+                        {canUpdate && canDelete && <DropdownMenuSeparator />}
 
-                      <DropdownMenuItem
-                        className="text-red-600"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setDeleteBucket(bucket);
-                          setDeleteOpen(true);
-                        }}
-                      >
-                        Delete Bucket
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                        {canDelete && (
+                          <DropdownMenuItem
+                            className="text-red-600"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              setDeleteBucket(bucket);
+                              setDeleteOpen(true);
+                            }}
+                          >
+                            Delete Bucket
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
                 </div>
               </CardHeader>
 

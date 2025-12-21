@@ -10,7 +10,7 @@ export async function PATCH(
   context: { params: Promise<{ slug: string }> } // ❌ remove Promise
 ) {
   try {
-    const auth = await authorize(req, "users", "update");
+    const auth = await authorize(req, "roles", "update");
     if (!auth.ok) {
       return NextResponse.json(
         { error: auth.message },

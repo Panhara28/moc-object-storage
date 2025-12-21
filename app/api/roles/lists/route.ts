@@ -48,19 +48,7 @@ export async function GET(req: Request) {
     // --------------------------------------------------------------------------
     // 3. WHERE CLAUSE
     // --------------------------------------------------------------------------
-    if (!user.roleId) {
-      return NextResponse.json({
-        status: "ok",
-        page,
-        limit,
-        total: 0,
-        data: [],
-      });
-    }
-
-    const where: Prisma.RoleWhereInput = {
-      id: user.roleId,
-    };
+    const where: Prisma.RoleWhereInput = {};
 
     if (search) {
       where.name = {

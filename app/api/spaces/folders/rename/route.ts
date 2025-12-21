@@ -79,7 +79,7 @@ async function buildFolderPathSegments(
 
 export async function POST(req: Request) {
   try {
-    const auth = await authorize(req, "media-library", "update");
+    const auth = await authorize(req, "spaces", "update");
     if (!auth.ok) {
       return NextResponse.json(
         { error: auth.message },

@@ -34,7 +34,7 @@ import {
 } from "@/components/ui/select";
 
 import { EllipsisVertical, Key } from "lucide-react";
-import { useState, useEffect, useLayoutEffect } from "react";
+import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import type { BucketDetail } from "./BucketListsScreen"; // ✅ Import type
 
@@ -63,17 +63,28 @@ export default function BucketSettingsDialog({
     accessKeyId: string;
     secretAccessKey: string;
   } | null>(null);
+  const lastBucketSlug = useRef<string | null>(null);
 
   // Reset state when switching buckets
   useLayoutEffect(() => {
     if (!bucket) return;
-
+    const slugChanged = lastBucketSlug.current !== bucket.slug;
     setPermission(bucket.permission);
-    setEditing(false);
-    setRegeneratedKeys(null);
+    if (slugChanged) {
+      setEditing(false);
+      setRegeneratedKeys(null);
+    }
+    lastBucketSlug.current = bucket.slug;
   }, [bucket]);
 
   if (!bucket) return null;
+
+  useEffect(() => {
+    if (!open) {
+      setEditing(false);
+      setRegeneratedKeys(null);
+    }
+  }, [open]);
 
   /* -----------------------------------
       UPDATE PERMISSION

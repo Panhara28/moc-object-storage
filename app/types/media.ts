@@ -50,4 +50,7 @@ export type MediaFolderGridProps = {
   onDeleteFolder: (folder: MediaItem) => void;
   onFolderProps: (folder: MediaItem) => void;
   onMoveFolder?: (folder: MediaItem) => void;
+  canReadFolder?: boolean;
+  canUpdateFolder?: boolean;
+  canDeleteFolder?: boolean;
 };

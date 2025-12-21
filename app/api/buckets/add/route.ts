@@ -74,7 +74,7 @@ function assertPathInsideBase(base: string, target: string) {
 export async function POST(req: NextRequest) {
   try {
     // 🛡 Authorization
-    const auth = await authorize(req, "media-library", "create");
+    const auth = await authorize(req, "buckets", "create");
     if (!auth.ok) {
       return NextResponse.json(
         { status: "error", message: auth.message },

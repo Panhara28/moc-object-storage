@@ -54,6 +54,7 @@ export default function MediaViewDrawer({
   const [details, setDetails] = useState<MediaDetails | null>(null);
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [canDeleteMedia, setCanDeleteMedia] = useState(false);
 
   useEffect(() => {
     if (!open || (!media?.slug && !media?.id)) return;
@@ -84,6 +85,32 @@ export default function MediaViewDrawer({
       cancelled = true;
     };
   }, [open, media?.slug]);
+
+  useEffect(() => {
+    let active = true;
+    const loadPermissions = async () => {
+      try {
+        const res = await fetch("/api/auth/me", { cache: "no-store" });
+        if (!res.ok) {
+          if (active) setCanDeleteMedia(false);
+          return;
+        }
+        const data = await res.json();
+        const perms = data?.user?.permissions || {};
+        if (active) {
+          setCanDeleteMedia(Boolean(perms?.["media-library"]?.delete));
+        }
+      } catch (error) {
+        console.error("Failed to load media permissions:", error);
+        if (active) setCanDeleteMedia(false);
+      }
+    };
+
+    loadPermissions();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   if (!open) return null;
 
@@ -260,20 +287,21 @@ export default function MediaViewDrawer({
             </button>
           )}
 
-          {/* Delete button */}
-          <button
-            onClick={handleDelete}
-            className="
-              w-full flex items-center justify-center gap-2
-              bg-destructive hover:bg-destructive/90
-              text-destructive-foreground py-2 rounded-md font-medium
-              transition
-            "
-            disabled={deleting}
-          >
-            <Trash className="w-4" />
-            {deleting ? "Deleting..." : "Delete"}
-          </button>
+          {canDeleteMedia && (
+            <button
+              onClick={handleDelete}
+              className="
+                w-full flex items-center justify-center gap-2
+                bg-destructive hover:bg-destructive/90
+                text-destructive-foreground py-2 rounded-md font-medium
+                transition
+              "
+              disabled={deleting}
+            >
+              <Trash className="w-4" />
+              {deleting ? "Deleting..." : "Delete"}
+            </button>
+          )}
         </div>
       </div>
     </div>

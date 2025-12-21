@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const auth = await authorize(req, "media-library", "read");
+    const auth = await authorize(req, "buckets", "read");
     if (!auth.ok) {
       return NextResponse.json(
         { status: "error", message: auth.message },

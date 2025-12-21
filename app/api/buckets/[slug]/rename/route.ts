@@ -44,7 +44,7 @@ export async function PATCH(
 
   try {
     // Authorization check
-    const auth = await authorize(req, "media-library", "update");
+    const auth = await authorize(req, "buckets", "update");
     if (!auth.ok) {
       return NextResponse.json(
         { status: "error", message: auth.message },

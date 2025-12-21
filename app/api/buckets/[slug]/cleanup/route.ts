@@ -40,7 +40,7 @@ export async function POST(
   { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
-    const auth = await authorize(req, "media-library", "delete");
+    const auth = await authorize(req, "buckets", "delete");
     if (!auth.ok) {
       return NextResponse.json(
         { status: "error", message: auth.message },
