@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
 
 type PermissionAction = "create" | "read" | "update" | "delete";
 type PermissionMap = Record<
@@ -103,28 +102,8 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   }
 
   if (!accessCheck.allowed) {
-    const handleBack = () => {
-      if (typeof window !== "undefined" && window.history.length > 1) {
-        router.back();
-      } else {
-        router.replace("/admin/dashboard");
-      }
-    };
-
-    return (
-      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 text-center">
-        <h2 className="text-lg font-semibold text-foreground">
-          Access denied
-        </h2>
-        <p className="max-w-md text-sm text-muted-foreground">
-          You do not have permission to {accessCheck.action}{" "}
-          {accessCheck.module}.
-        </p>
-        <Button type="button" onClick={handleBack} variant="outline">
-          Go back
-        </Button>
-      </div>
-    );
+    router.replace("/admin/unauthorized");
+    return null;
   }
 
   return <>{children}</>;

@@ -30,8 +30,14 @@ export async function GET(req: NextRequest) {
     }
 
     const { searchParams } = new URL(req.url);
-    const page = Number(searchParams.get("page") || 1);
-    const limit = Number(searchParams.get("limit") || 20);
+    const pageParam = Number(searchParams.get("page") ?? 1);
+    const page =
+      Number.isFinite(pageParam) && pageParam > 0 ? Math.floor(pageParam) : 1;
+    const limitParam = Number(searchParams.get("limit") ?? 20);
+    const limit =
+      Number.isFinite(limitParam) && limitParam > 0
+        ? Math.min(Math.floor(limitParam), 100)
+        : 20;
 
     const search = searchParams.get("search") || "";
     const roleId = searchParams.get("role");

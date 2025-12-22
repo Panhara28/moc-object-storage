@@ -50,10 +50,19 @@ export async function PATCH(
         { status: auth.status }
       );
     }
+    const user = auth.user;
+    if (!user) {
+      return NextResponse.json(
+        { status: "error", message: "Unauthorized" },
+        { status: 401 }
+      );
+    }
     const auditInfo = getAuditRequestInfo(req);
 
     // Ensure bucket exists
-    const bucket = await prisma.bucket.findUnique({ where: { slug } });
+    const bucket = await prisma.bucket.findFirst({
+      where: { slug, createdById: user.id },
+    });
 
     if (!bucket) {
       return NextResponse.json(
@@ -76,7 +85,7 @@ export async function PATCH(
     const [updatedBucket, spacesUpdated, mediaUpdated] =
       await prisma.$transaction([
         prisma.bucket.update({
-          where: { slug },
+          where: { id: bucket.id },
           data: { isAvailable: "REMOVE" },
           select: {
             id: true,

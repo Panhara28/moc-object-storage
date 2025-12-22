@@ -47,6 +47,13 @@ export async function POST(
         { status: auth.status }
       );
     }
+    const user = auth.user;
+    if (!user) {
+      return NextResponse.json(
+        { status: "error", message: "Unauthorized" },
+        { status: 401 }
+      );
+    }
     const auditInfo = getAuditRequestInfo(req);
 
     const { slug } = await params;
@@ -68,8 +75,8 @@ export async function POST(
       );
     }
 
-    const bucket = await prisma.bucket.findUnique({
-      where: { slug },
+    const bucket = await prisma.bucket.findFirst({
+      where: { slug, createdById: user.id },
       select: { id: true, name: true, isAvailable: true },
     });
 

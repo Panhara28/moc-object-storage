@@ -15,6 +15,7 @@
     "api:routes": "node scripts/list-api-routes.js",
     "api:cases:gen": "node scripts/gen-api-cases.js",
     "api:missing": "node scripts/api-missing-tests.js",
+    "virus:worker": "tsx scripts/virus-scan-worker.ts",
     "db:seed": "DOTENV_CONFIG_PATH=.env.local tsx prisma/seed.ts",
     "db:win:seed": "powershell -NoProfile -Command \"$env:DOTENV_CONFIG_PATH='.env.local'; npx tsx prisma/seed.ts\"",
     "db:migrate": "npx prisma migrate dev",

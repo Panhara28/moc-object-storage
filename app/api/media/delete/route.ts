@@ -15,6 +15,10 @@ export async function POST(req: NextRequest) {
         { status: auth.status }
       );
     }
+    const user = auth.user;
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const auditInfo = getAuditRequestInfo(req);
 
     const body = await req.json();
@@ -29,7 +33,10 @@ export async function POST(req: NextRequest) {
     }
 
     const media = await prisma.media.findFirst({
-      where,
+      where: {
+        ...where,
+        uploadedById: user.id,
+      },
       select: { id: true, slug: true },
     });
 

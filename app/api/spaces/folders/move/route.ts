@@ -12,6 +12,10 @@ export async function POST(req: Request) {
         { status: auth.status }
       );
     }
+    const user = auth.user;
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const auditInfo = getAuditRequestInfo(req);
 
     const { folderId, newParentId } = await req.json();
@@ -23,9 +27,23 @@ export async function POST(req: Request) {
       );
     }
 
+    const numericFolderId = Number(folderId);
+    const numericParentId = Number(newParentId);
+    if (Number.isNaN(numericFolderId) || Number.isNaN(numericParentId)) {
+      return NextResponse.json(
+        { error: "folderId and newParentId must be numbers" },
+        { status: 400 }
+      );
+    }
+
     // Fetch the folder
-    const folder = await prisma.space.findUnique({
-      where: { id: folderId },
+    const folder = await prisma.space.findFirst({
+      where: {
+        id: numericFolderId,
+        isAvailable: "AVAILABLE",
+        bucket: { createdById: user.id },
+      },
+      select: { id: true, parentId: true, bucketId: true, mediaId: true },
     });
 
     if (!folder) {
@@ -41,8 +59,15 @@ export async function POST(req: Request) {
     }
 
     // Fetch the target folder (parent)
-    const target = await prisma.space.findUnique({
-      where: { id: newParentId },
+    const target = await prisma.space.findFirst({
+      where: {
+        id: numericParentId,
+        isAvailable: "AVAILABLE",
+        mediaId: null,
+        bucketId: folder.bucketId,
+        bucket: { createdById: user.id },
+      },
+      select: { id: true, bucketId: true },
     });
 
     if (!target) {
@@ -62,22 +87,22 @@ export async function POST(req: Request) {
 
     // Move the folder by updating its parentId
     await prisma.space.update({
-      where: { id: folderId },
+      where: { id: folder.id },
       data: {
-        parentId: newParentId,
+        parentId: target.id,
       },
     });
 
     await logAudit({
       ...auditInfo,
-      actorId: auth.user.id,
+      actorId: user.id,
       action: "folder.move",
       resourceType: "Space",
       resourceId: folder.id,
       status: 200,
       metadata: {
         fromParentId: folder.parentId,
-        toParentId: newParentId,
+        toParentId: target.id,
         bucketId: folder.bucketId,
       },
     });

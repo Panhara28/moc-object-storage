@@ -51,6 +51,13 @@ export async function PATCH(
         { status: auth.status }
       );
     }
+    const user = auth.user;
+    if (!user) {
+      return NextResponse.json(
+        { status: "error", message: "Unauthorized" },
+        { status: 401 }
+      );
+    }
     const auditInfo = getAuditRequestInfo(req);
 
     const { name } = await req.json();
@@ -71,8 +78,8 @@ export async function PATCH(
     }
 
     // Ensure bucket exists
-    const bucketExists = await prisma.bucket.findUnique({
-      where: { slug },
+    const bucketExists = await prisma.bucket.findFirst({
+      where: { slug, createdById: user.id },
     });
 
     if (!bucketExists) {
@@ -153,7 +160,7 @@ export async function PATCH(
     // Update bucket name
     const updatedBucket = await prisma.bucket
       .update({
-        where: { slug },
+        where: { id: bucketExists.id },
         data: { name: newName },
         select: {
           id: true,

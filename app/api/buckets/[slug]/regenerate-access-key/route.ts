@@ -26,13 +26,32 @@ export async function PATCH(
         { status: auth.status }
       );
     }
+    const user = auth.user;
+    if (!user) {
+      return NextResponse.json(
+        { status: "error", message: "Unauthorized" },
+        { status: 401 }
+      );
+    }
     const auditInfo = getAuditRequestInfo(req);
 
     const newAccessKeyId = generateAccessKeyId();
     const newSecretAccessKey = generateSecretAccessKey();
 
+    const existingBucket = await prisma.bucket.findFirst({
+      where: { slug, createdById: user.id },
+      select: { id: true, slug: true },
+    });
+
+    if (!existingBucket) {
+      return NextResponse.json(
+        { status: "error", message: "Bucket not found" },
+        { status: 404 }
+      );
+    }
+
     const bucket = await prisma.bucket.update({
-      where: { slug },
+      where: { id: existingBucket.id },
       data: {
         accessKeyId: newAccessKeyId,
         secretAccessKey: newSecretAccessKey,

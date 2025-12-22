@@ -71,6 +71,43 @@ CREATE TABLE `role_permissions` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
+CREATE TABLE `login_attempts` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `key` VARCHAR(191) NOT NULL,
+    `count` INTEGER NOT NULL DEFAULT 0,
+    `firstAttemptAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+
+    UNIQUE INDEX `login_attempts_key_key`(`key`),
+    INDEX `login_attempts_firstAttemptAt_idx`(`firstAttemptAt`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `audit_logs` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `actorId` INTEGER NULL,
+    `action` VARCHAR(64) NOT NULL,
+    `resourceType` VARCHAR(64) NOT NULL,
+    `resourceId` VARCHAR(191) NULL,
+    `method` VARCHAR(12) NOT NULL,
+    `path` VARCHAR(191) NOT NULL,
+    `status` INTEGER NOT NULL,
+    `ip` VARCHAR(64) NULL,
+    `userAgent` VARCHAR(191) NULL,
+    `requestId` VARCHAR(64) NULL,
+    `traceId` VARCHAR(64) NULL,
+    `metadata` JSON NULL,
+
+    INDEX `audit_logs_actorId_createdAt_idx`(`actorId`, `createdAt`),
+    INDEX `audit_logs_resourceType_resourceId_idx`(`resourceType`, `resourceId`),
+    INDEX `audit_logs_createdAt_idx`(`createdAt`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
 CREATE TABLE `buckets` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `name` VARCHAR(191) NOT NULL,
@@ -103,6 +140,10 @@ CREATE TABLE `medias` (
     `mimetype` VARCHAR(191) NOT NULL,
     `extension` VARCHAR(191) NOT NULL,
     `size` INTEGER NOT NULL,
+    `scanStatus` ENUM('PENDING', 'CLEAN', 'MALICIOUS', 'FAILED') NOT NULL DEFAULT 'PENDING',
+    `scanMessage` VARCHAR(191) NULL,
+    `scanHash` VARCHAR(191) NULL,
+    `scannedAt` DATETIME(3) NULL,
     `title` VARCHAR(191) NULL,
     `altText` VARCHAR(191) NULL,
     `description` VARCHAR(191) NULL,
@@ -116,6 +157,25 @@ CREATE TABLE `medias` (
     `updatedAt` DATETIME(3) NOT NULL,
 
     UNIQUE INDEX `medias_slug_key`(`slug`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `media_scan_jobs` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `mediaId` INTEGER NOT NULL,
+    `filename` VARCHAR(191) NOT NULL,
+    `storedPath` VARCHAR(1024) NOT NULL,
+    `status` ENUM('PENDING', 'PROCESSING', 'DONE', 'FAILED') NOT NULL DEFAULT 'PENDING',
+    `attempts` INTEGER NOT NULL DEFAULT 0,
+    `lastError` VARCHAR(191) NULL,
+    `lockedAt` DATETIME(3) NULL,
+    `runAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+
+    INDEX `media_scan_jobs_status_runAt_idx`(`status`, `runAt`),
+    INDEX `media_scan_jobs_lockedAt_idx`(`lockedAt`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -170,6 +230,9 @@ ALTER TABLE `role_permissions` ADD CONSTRAINT `role_permissions_roleId_fkey` FOR
 ALTER TABLE `role_permissions` ADD CONSTRAINT `role_permissions_moduleId_fkey` FOREIGN KEY (`moduleId`) REFERENCES `permissions`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE `audit_logs` ADD CONSTRAINT `audit_logs_actorId_fkey` FOREIGN KEY (`actorId`) REFERENCES `users`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE `buckets` ADD CONSTRAINT `buckets_createdById_fkey` FOREIGN KEY (`createdById`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -177,6 +240,9 @@ ALTER TABLE `medias` ADD CONSTRAINT `medias_bucketId_fkey` FOREIGN KEY (`bucketI
 
 -- AddForeignKey
 ALTER TABLE `medias` ADD CONSTRAINT `medias_uploadedById_fkey` FOREIGN KEY (`uploadedById`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `media_scan_jobs` ADD CONSTRAINT `media_scan_jobs_mediaId_fkey` FOREIGN KEY (`mediaId`) REFERENCES `medias`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `media_uploads` ADD CONSTRAINT `media_uploads_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;

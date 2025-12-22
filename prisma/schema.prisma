@@ -41,6 +41,13 @@ enum ScanStatus {
   FAILED
 }
 
+enum ScanJobStatus {
+  PENDING
+  PROCESSING
+  DONE
+  FAILED
+}
+
 enum Visibility {
   AVAILABLE
   PUBLIC
@@ -284,8 +291,35 @@ model Media {
 
   spaces       Space[]
   mediaDetails MediaUploadDetail[]
+  scanJobs     MediaScanJob[]
 
   @@map("medias")
+}
+
+/**
+ * ============================================================
+ * MEDIA SCAN JOBS
+ * ============================================================
+ */
+
+model MediaScanJob {
+  id         Int           @id @default(autoincrement())
+  mediaId    Int
+  filename   String
+  storedPath String        @db.VarChar(1024)
+  status     ScanJobStatus @default(PENDING)
+  attempts   Int           @default(0)
+  lastError  String?
+  lockedAt   DateTime?
+  runAt      DateTime      @default(now())
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  media Media @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@index([status, runAt])
+  @@index([lockedAt])
+  @@map("media_scan_jobs")
 }
 
 /**

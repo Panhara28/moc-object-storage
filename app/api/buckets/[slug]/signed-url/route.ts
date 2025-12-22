@@ -50,7 +50,22 @@ export async function POST(
   try {
     const auditInfo = getAuditRequestInfo(req);
     const { slug } = await params;
-    const body = (await req.json()) as Body;
+    let body: Body;
+    try {
+      body = (await req.json()) as Body;
+    } catch {
+      return NextResponse.json(
+        { status: "error", message: "Invalid JSON body." },
+        { status: 400 }
+      );
+    }
+
+    if (!body || typeof body !== "object" || !("action" in body)) {
+      return NextResponse.json(
+        { status: "error", message: "Missing action." },
+        { status: 400 }
+      );
+    }
 
     if (body.action === "download") {
       const auth = await authorize(req, "media-library", "read");
@@ -63,10 +78,10 @@ export async function POST(
 
       const bucket = await prisma.bucket.findUnique({
         where: { slug, isAvailable: "AVAILABLE" },
-        select: { id: true, name: true },
+        select: { id: true, name: true, createdById: true },
       });
 
-      if (!bucket) {
+      if (!bucket || bucket.createdById !== auth.user.id) {
         return NextResponse.json(
           { status: "error", message: "Bucket not found or unavailable." },
           { status: 404 }
@@ -154,10 +169,10 @@ export async function POST(
 
       const bucket = await prisma.bucket.findUnique({
         where: { slug, isAvailable: "AVAILABLE" },
-        select: { id: true, name: true },
+        select: { id: true, name: true, createdById: true },
       });
 
-      if (!bucket) {
+      if (!bucket || bucket.createdById !== user.id) {
         return NextResponse.json(
           { status: "error", message: "Bucket not found or unavailable." },
           { status: 404 }

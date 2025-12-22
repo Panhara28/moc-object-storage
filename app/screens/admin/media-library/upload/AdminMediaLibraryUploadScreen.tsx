@@ -129,10 +129,19 @@ export default function AdminMediaLibraryUploadScreen({
         ? `/api/buckets/${bucketSlug}/folder?parentSlug=${parentSlug}`
         : `/api/buckets/${bucketSlug}`;
 
-      const res = await fetch(url, { cache: "no-store" });
-      const json = await res.json();
-      setItems(json.folders);
-      setLoading(false);
+      try {
+        const res = await fetch(url, { cache: "no-store" });
+        if (!res.ok) {
+          setItems([]);
+          return;
+        }
+        const json = await res.json();
+        setItems(Array.isArray(json?.folders) ? json.folders : []);
+      } catch {
+        setItems([]);
+      } finally {
+        setLoading(false);
+      }
     },
     [bucketSlug]
   );
@@ -144,9 +153,17 @@ export default function AdminMediaLibraryUploadScreen({
         ? `/api/buckets/${bucketSlug}/folder?parentSlug=${parentSlug}`
         : `/api/buckets/${bucketSlug}`;
 
-      const res = await fetch(url, { cache: "no-store" });
-      const json = await res.json();
-      setMedias(json.media.items ?? []);
+      try {
+        const res = await fetch(url, { cache: "no-store" });
+        if (!res.ok) {
+          setMedias([]);
+          return;
+        }
+        const json = await res.json();
+        setMedias(Array.isArray(json?.media?.items) ? json.media.items : []);
+      } catch {
+        setMedias([]);
+      }
     },
     [bucketSlug]
   );
@@ -407,6 +424,22 @@ export default function AdminMediaLibraryUploadScreen({
       try {
         jsonResponse = xhr.responseText ? JSON.parse(xhr.responseText) : {};
       } catch {}
+
+      if (xhr.status === 401) {
+        router.replace("/auth/login");
+        event.target.value = "";
+        return;
+      }
+      if (xhr.status === 403) {
+        router.replace("/admin/unauthorized");
+        event.target.value = "";
+        return;
+      }
+      if (xhr.status === 404) {
+        router.replace("/admin/not-found");
+        event.target.value = "";
+        return;
+      }
 
       if (xhr.status >= 200 && xhr.status < 300) {
         setUploadProgress((prev) => ({

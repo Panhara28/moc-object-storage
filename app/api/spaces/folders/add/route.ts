@@ -48,9 +48,14 @@ export async function POST(req: Request) {
 
     const bucket = await prisma.bucket.findUnique({
       where: { id: numericBucketId },
+      select: { id: true, isAvailable: true, createdById: true },
     });
 
-    if (!bucket || bucket.isAvailable !== "AVAILABLE") {
+    if (
+      !bucket ||
+      bucket.isAvailable !== "AVAILABLE" ||
+      bucket.createdById !== user.id
+    ) {
       return NextResponse.json(
         { error: "Bucket not found or unavailable." },
         { status: 404 }

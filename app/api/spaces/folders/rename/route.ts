@@ -86,6 +86,10 @@ export async function POST(req: Request) {
         { status: auth.status }
       );
     }
+    const user = auth.user;
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const auditInfo = getAuditRequestInfo(req);
 
     const { folderId, name } = await req.json();
@@ -101,14 +105,18 @@ export async function POST(req: Request) {
 
     // Fetch folder
     const folder = await prisma.space.findFirst({
-      where: { id: numericFolderId, isAvailable: "AVAILABLE" },
+      where: {
+        id: numericFolderId,
+        isAvailable: "AVAILABLE",
+        bucket: { createdById: user.id },
+      },
       select: {
         id: true,
         name: true,
         parentId: true,
         bucketId: true,
         mediaId: true,
-        bucket: { select: { name: true } },
+        bucket: { select: { name: true, createdById: true } },
       },
     });
 

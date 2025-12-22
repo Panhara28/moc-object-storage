@@ -112,7 +112,7 @@ export async function POST(req: Request) {
         bucketId: true,
         mediaId: true,
         userId: true,
-        bucket: { select: { name: true } },
+        bucket: { select: { name: true, createdById: true } },
       },
     });
 
@@ -127,7 +127,7 @@ export async function POST(req: Request) {
       );
     }
 
-    if (folder.userId !== user.id) {
+    if (folder.userId !== user.id || folder.bucket.createdById !== user.id) {
       return NextResponse.json(
         { error: "Not authorized to delete this folder." },
         { status: 403 }

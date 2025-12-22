@@ -1,6 +1,7 @@
 import AdminUserEditScreen from "@/app/screens/admin/users/edit/AdminUserEditScreen";
 import Layout from "@/components/cmsfullform/layout";
 import { cookies } from "next/headers";
+import { notFound, redirect } from "next/navigation";
 
 async function getItem(slug: string) {
   const cookieStore = await cookies(); // ⬅️ your environment requires await
@@ -15,8 +16,10 @@ async function getItem(slug: string) {
     },
   });
 
-  if (!res.ok) return null;
-  return res.json();
+  if (!res.ok) {
+    return { status: res.status };
+  }
+  return { status: res.status, data: await res.json() };
 }
 
 export default async function AdminUserEditPage({
@@ -27,7 +30,22 @@ export default async function AdminUserEditPage({
   const { slug } = await params;
 
   const result = await getItem(slug);
-  const user = result?.data ?? null;
+  if (!result || result.status === 404) {
+    notFound();
+  }
+  if (result.status === 401) {
+    redirect("/auth/login");
+  }
+  if (result.status === 403) {
+    redirect("/admin/unauthorized");
+  }
+  if (result.status !== 200) {
+    notFound();
+  }
+  const user = result.data?.data ?? null;
+  if (!user) {
+    notFound();
+  }
 
   return (
     <Layout>

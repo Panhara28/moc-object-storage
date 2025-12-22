@@ -105,8 +105,8 @@ export async function POST(
     // ===============================================================
     // 3. GET BUCKET USING SLUG
     // ===============================================================
-    const bucket = await prisma.bucket.findUnique({
-      where: { slug, isAvailable: "AVAILABLE" },
+    const bucket = await prisma.bucket.findFirst({
+      where: { slug, isAvailable: "AVAILABLE", createdById: user.id },
     });
 
     if (!bucket) {

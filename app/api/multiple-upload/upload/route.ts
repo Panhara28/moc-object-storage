@@ -148,12 +148,20 @@ export async function POST(req: NextRequest) {
     // ===============================================================
     let bucket = await prisma.bucket.findUnique({
       where: { name: bucketName },
+      select: { id: true, name: true, isAvailable: true, createdById: true },
     });
 
     if (bucket && bucket.isAvailable !== "AVAILABLE") {
       return NextResponse.json(
         { status: "error", message: "Bucket is not available for uploads." },
         { status: 403 }
+      );
+    }
+
+    if (bucket && bucket.createdById !== user.id) {
+      return NextResponse.json(
+        { status: "error", message: "Bucket not found." },
+        { status: 404 }
       );
     }
 
@@ -194,7 +202,7 @@ export async function POST(req: NextRequest) {
     if (folderSlug) {
       space = await prisma.space.findUnique({
         where: { slug: folderSlug },
-        select: { id: true, name: true, bucketId: true },
+        select: { id: true, name: true, bucketId: true, userId: true },
       });
 
       if (!space) {
@@ -208,6 +216,13 @@ export async function POST(req: NextRequest) {
         return NextResponse.json(
           { status: "error", message: "Folder belongs to another bucket" },
           { status: 400 }
+        );
+      }
+
+      if (space.userId !== user.id) {
+        return NextResponse.json(
+          { status: "error", message: "Folder not found" },
+          { status: 404 }
         );
       }
 

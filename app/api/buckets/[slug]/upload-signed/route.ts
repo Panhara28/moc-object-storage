@@ -98,8 +98,12 @@ export async function POST(
     }
     const auditInfo = getAuditRequestInfo(req);
 
-    const bucket = await prisma.bucket.findUnique({
-      where: { slug, isAvailable: "AVAILABLE" },
+    const bucket = await prisma.bucket.findFirst({
+      where: {
+        slug,
+        isAvailable: "AVAILABLE",
+        createdById: payload.userId,
+      },
       select: { id: true, name: true },
     });
 

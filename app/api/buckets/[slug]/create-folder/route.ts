@@ -103,6 +103,12 @@ export async function POST(
       );
     }
     const user = auth.user;
+    if (!user) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
     const auditInfo = getAuditRequestInfo(req);
 
     const { slug } = await context.params;
@@ -137,8 +143,8 @@ export async function POST(
     const folderName = name.trim();
 
     // 1. Verify the bucket exists (by slug)
-    const bucket = await prisma.bucket.findUnique({
-      where: { slug, isAvailable: "AVAILABLE" },
+    const bucket = await prisma.bucket.findFirst({
+      where: { slug, isAvailable: "AVAILABLE", createdById: user.id },
     });
 
     if (!bucket) {
