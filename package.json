@@ -16,6 +16,7 @@
     "api:cases:gen": "node scripts/gen-api-cases.js",
     "api:missing": "node scripts/api-missing-tests.js",
     "db:seed": "DOTENV_CONFIG_PATH=.env.local tsx prisma/seed.ts",
+    "db:win:seed": "powershell -NoProfile -Command \"$env:DOTENV_CONFIG_PATH='.env.local'; npx tsx prisma/seed.ts\"",
     "db:migrate": "npx prisma migrate dev",
     "db:reset": "npx prisma migrate reset"
   },
