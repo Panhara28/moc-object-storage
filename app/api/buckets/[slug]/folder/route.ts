@@ -92,6 +92,7 @@ export async function GET(
         bucketId: bucket.id,
         isVisibility: { in: ["AVAILABLE", "DRAFTED"] },
         path: parentSpace.name,
+        scanStatus: { in: ["CLEAN", "PENDING"] },
       },
       skip,
       take: limit,
@@ -103,6 +104,7 @@ export async function GET(
         bucketId: bucket.id,
         isVisibility: { in: ["AVAILABLE", "DRAFTED"] },
         path: parentSpace.name,
+        scanStatus: { in: ["CLEAN", "PENDING"] },
       },
     });
 

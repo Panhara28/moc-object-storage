@@ -189,12 +189,16 @@ export default function AdminMediaLibraryUploadScreen({
         }
 
         if (status === "FAILED") {
+          const description =
+            body.media?.scanMessage ||
+            `Scan failed for ${name}. The file will stay hidden.`;
           toast({
             title: "Virus scan failed",
-            description: body.media?.scanMessage || `${name} is quarantined.`,
+            description,
             variant: "destructive",
             duration: 5000,
           });
+          await refreshData();
           return;
         }
 
@@ -396,8 +400,10 @@ export default function AdminMediaLibraryUploadScreen({
     };
 
     xhr.onload = async () => {
-      let jsonResponse: { uploads?: { slug?: string; filename?: string }[] } =
-        {};
+      let jsonResponse: {
+        uploads?: { slug?: string; filename?: string }[];
+        failures?: { filename?: string; reason?: string }[];
+      } = {};
       try {
         jsonResponse = xhr.responseText ? JSON.parse(xhr.responseText) : {};
       } catch {}
@@ -423,6 +429,41 @@ export default function AdminMediaLibraryUploadScreen({
             void pollScanStatus(upload.slug, upload.filename);
           }
         });
+
+        const failures = Array.isArray(jsonResponse.failures)
+          ? jsonResponse.failures
+          : [];
+        if (failures.length) {
+          const malicious = failures.filter((failure) =>
+            (failure.reason || "").toLowerCase().includes("malicious")
+          );
+          const allNames = failures
+            .map((failure) => failure.filename)
+            .filter(Boolean)
+            .join(", ");
+          const maliciousNames = malicious
+            .map((failure) => failure.filename)
+            .filter(Boolean)
+            .join(", ");
+          if (malicious.length) {
+            toast({
+              title: "Malicious file rejected",
+              description:
+                maliciousNames ||
+                "One or more files were rejected as malicious.",
+              variant: "destructive",
+              duration: 6000,
+            });
+          } else {
+            toast({
+              title: "Some files were rejected",
+              description:
+                allNames || "Some files could not be uploaded successfully.",
+              variant: "destructive",
+              duration: 6000,
+            });
+          }
+        }
 
         setTimeout(() => {
           setUploadProgress((prev) => ({

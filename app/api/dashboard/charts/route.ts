@@ -65,11 +65,11 @@ export async function GET(req: NextRequest) {
     }
 
     const [mediaRows, typeGroups, scanGroups] = await Promise.all([
-      prisma.media.findMany({
-        where: {
-          bucket: { createdById: user.id },
-          isVisibility: { not: "REMOVE" },
-          uploadedAt: { gte: startMonth },
+        prisma.media.findMany({
+          where: {
+            bucket: { createdById: user.id },
+            isVisibility: { not: "REMOVE" },
+            uploadedAt: { gte: startMonth },
         },
         select: { uploadedAt: true, size: true },
       }),

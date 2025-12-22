@@ -77,14 +77,14 @@ export default function BucketSettingsDialog({
     lastBucketSlug.current = bucket.slug;
   }, [bucket]);
 
-  if (!bucket) return null;
-
   useEffect(() => {
     if (!open) {
       setEditing(false);
       setRegeneratedKeys(null);
     }
   }, [open]);
+
+  if (!bucket) return null;
 
   /* -----------------------------------
       UPDATE PERMISSION

@@ -131,18 +131,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    for (const file of files) {
-      if (file.size > MAX_UPLOAD_BYTES) {
-        return NextResponse.json(
-          {
-            status: "error",
-            message: `File "${file.name}" exceeds size limit of ${MAX_UPLOAD_BYTES} bytes.`,
-          },
-          { status: 400 }
-        );
-      }
-    }
-
     if (!isSafeSegment(bucketName)) {
       return NextResponse.json(
         { status: "error", message: "Invalid bucket name." },
@@ -237,32 +225,6 @@ export async function POST(req: NextRequest) {
       await fs.mkdir(folderDir, { recursive: true });
     }
 
-    const validatedFiles = [];
-    for (const file of files) {
-      const buffer = Buffer.from(await file.arrayBuffer());
-      const validation = validateUploadFile({
-        file,
-        buffer,
-        allowedMimePrefixes: ALLOWED_MIME_PREFIXES,
-        allowedMimeTypes: ALLOWED_MIME_TYPES,
-      });
-      if (!validation.ok) {
-        return NextResponse.json(
-          {
-            status: "error",
-            message: `File "${file.name}" ${validation.reason}`,
-          },
-          { status: 400 }
-        );
-      }
-      validatedFiles.push({
-        file,
-        buffer,
-        mime: validation.mime,
-        ext: validation.ext,
-      });
-    }
-
     // ===============================================================
     // 6. CREATE UPLOAD SESSION
     // ===============================================================
@@ -271,13 +233,47 @@ export async function POST(req: NextRequest) {
     });
 
     const uploads = [];
+    const failures: { filename: string; reason: string }[] = [];
 
     // ===============================================================
     // 7. PROCESS EACH FILE
     // ===============================================================
-    for (const entry of validatedFiles) {
-      const { file, buffer, mime, ext } = entry;
-      const extension = ext.toLowerCase();
+    for (const file of files) {
+      if (file.size > MAX_UPLOAD_BYTES) {
+        failures.push({
+          filename: file.name,
+          reason: `File exceeds size limit of ${MAX_UPLOAD_BYTES} bytes.`,
+        });
+        continue;
+      }
+
+      let buffer: Buffer;
+      try {
+        buffer = Buffer.from(await file.arrayBuffer());
+      } catch (error) {
+        console.error("Failed to read upload buffer:", error);
+        failures.push({
+          filename: file.name,
+          reason: "Failed to read file data.",
+        });
+        continue;
+      }
+
+      const validation = validateUploadFile({
+        file,
+        buffer,
+        allowedMimePrefixes: ALLOWED_MIME_PREFIXES,
+        allowedMimeTypes: ALLOWED_MIME_TYPES,
+      });
+      if (!validation.ok) {
+        failures.push({
+          filename: file.name,
+          reason: validation.reason,
+        });
+        continue;
+      }
+
+      const extension = validation.ext.toLowerCase();
       const storedFilename = `${randomUUID()}.${extension}`;
 
       // actual disk path
@@ -286,109 +282,119 @@ export async function POST(req: NextRequest) {
         : path.join(bucketDir, storedFilename);
       assertPathInsideBase(bucketDir, storedPath);
 
-      await fs.writeFile(storedPath, buffer);
+      try {
+        await fs.writeFile(storedPath, buffer);
 
-      // extract dimensions
-      let width: number | null = null;
-      let height: number | null = null;
+        // extract dimensions
+        let width: number | null = null;
+        let height: number | null = null;
 
-      if (mime.startsWith("image/")) {
-        try {
-          const meta = await sharp(buffer).metadata();
-          width = meta.width ?? null;
-          height = meta.height ?? null;
-        } catch {}
-      }
+        if (validation.mime.startsWith("image/")) {
+          try {
+            const meta = await sharp(buffer).metadata();
+            width = meta.width ?? null;
+            height = meta.height ?? null;
+          } catch {}
+        }
 
-      const type = detectMediaType(mime, extension);
+        const type = detectMediaType(validation.mime, extension);
 
-      // ===============================================================
-      // 8. CREATE MEDIA RECORD
-      // ===============================================================
-      const publicBase =
-        process.env.STORAGE_PUBLIC_BASE_URL ||
-        (process.env.NODE_ENV === "production"
-          ? "https://moc-drive.moc.gov.kh"
-          : "http://localhost:3000/storage");
+        // ===============================================================
+        // 8. CREATE MEDIA RECORD
+        // ===============================================================
+        const publicBase =
+          process.env.STORAGE_PUBLIC_BASE_URL ||
+          (process.env.NODE_ENV === "production"
+            ? "https://moc-drive.moc.gov.kh"
+            : "http://localhost:3000/storage");
 
-      const trimmedBase = publicBase.endsWith("/")
-        ? publicBase.slice(0, -1)
-        : publicBase;
+        const trimmedBase = publicBase.endsWith("/")
+          ? publicBase.slice(0, -1)
+          : publicBase;
 
-      const publicUrl = folderPath
-        ? `${trimmedBase}/${bucket.name}/${folderPath}/${storedFilename}`
-        : `${trimmedBase}/${bucket.name}/${storedFilename}`;
+        const publicUrl = folderPath
+          ? `${trimmedBase}/${bucket.name}/${folderPath}/${storedFilename}`
+          : `${trimmedBase}/${bucket.name}/${storedFilename}`;
 
-      const media = await prisma.media.create({
-        data: {
-          filename: file.name,
-          storedFilename,
-          url: publicUrl,
-          fileType: type,
-          mimetype: mime,
-          extension: extension.toLowerCase(),
-          size: file.size,
-          width,
-          height,
-          uploadedById: user.id,
-
-          // ⭐ NEW SCHEMA FIELDS
-          bucketId: bucket.id,
-          path: folderPath,
-          isVisibility: "DRAFTED",
-          isAccessible: "RESTRICTED",
-          scanStatus: "PENDING",
-        },
-      });
-
-      // ===============================================================
-      // 9. RECORD MEDIA UPLOAD DETAIL
-      // ===============================================================
-      if (space) {
-        await prisma.mediaUploadDetail.create({
+        const media = await prisma.media.create({
           data: {
-            mediaUploadId: uploadSession.id,
-            mediaId: media.id,
-            spaceId: space.id,
+            filename: file.name,
+            storedFilename,
+            url: publicUrl,
+            fileType: type,
+            mimetype: validation.mime,
+            extension: extension.toLowerCase(),
+            size: file.size,
+            width,
+            height,
+            uploadedById: user.id,
+
+            // NEW SCHEMA FIELDS
+            bucketId: bucket.id,
+            path: folderPath,
+            isVisibility: "DRAFTED",
+            isAccessible: "RESTRICTED",
+            scanStatus: "PENDING",
           },
         });
-      }
 
-      uploads.push({
-        id: media.slug,
-        slug: media.slug,
-        bucketSlug: bucket.slug,
-        bucketName: bucket.name,
-        url: media.url,
-        filename: media.filename,
-        storedFilename: media.storedFilename,
-        type: media.fileType,
-        width: media.width,
-        height: media.height,
-        scanStatus: media.scanStatus,
-      });
+        // ===============================================================
+        // 9. RECORD MEDIA UPLOAD DETAIL
+        // ===============================================================
+        if (space) {
+          await prisma.mediaUploadDetail.create({
+            data: {
+              mediaUploadId: uploadSession.id,
+              mediaId: media.id,
+              spaceId: space.id,
+            },
+          });
+        }
 
-      await logAudit({
-        ...auditInfo,
-        actorId: user.id,
-        action: "media.upload",
-        resourceType: "Media",
-        resourceId: media.id,
-        status: 201,
-        metadata: {
-          bucketId: bucket.id,
+        uploads.push({
+          id: media.slug,
+          slug: media.slug,
           bucketSlug: bucket.slug,
-          filename: file.name,
-          path: folderPath || null,
-        },
-      });
+          bucketName: bucket.name,
+          url: media.url,
+          filename: media.filename,
+          storedFilename: media.storedFilename,
+          type: media.fileType,
+          width: media.width,
+          height: media.height,
+          scanStatus: media.scanStatus,
+        });
 
-      queueVirusTotalScanForMedia({
-        mediaId: media.id,
-        filename: file.name,
-        buffer,
-        storedPath,
-      });
+        await logAudit({
+          ...auditInfo,
+          actorId: user.id,
+          action: "media.upload",
+          resourceType: "Media",
+          resourceId: media.id,
+          status: 201,
+          metadata: {
+            bucketId: bucket.id,
+            bucketSlug: bucket.slug,
+            filename: file.name,
+            path: folderPath || null,
+          },
+        });
+
+        queueVirusTotalScanForMedia({
+          mediaId: media.id,
+          filename: file.name,
+          buffer,
+          storedPath,
+        });
+
+      } catch (error) {
+        console.error("Upload failed for file:", file.name, error);
+        await fs.rm(storedPath, { force: true }).catch(() => {});
+        failures.push({
+          filename: file.name,
+          reason: "Upload failed. Please try again."
+        });
+      }
     }
 
     // ===============================================================
@@ -402,6 +408,7 @@ export async function POST(req: NextRequest) {
         folder: folderPath || null,
         uploadSessionId: uploadSession.id,
         uploads,
+        failures,
       },
       { status: 201 }
     );
