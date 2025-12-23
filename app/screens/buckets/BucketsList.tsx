@@ -23,7 +23,7 @@ import RenameBucketDialog from "./RenameBucketDialog";
 import DeleteBucketDialog from "./DeleteBucketDialog";
 
 /* Props Types */
-interface BucketListItem {
+export interface BucketListItem {
   id: number;
   name: string;
   slug: string;

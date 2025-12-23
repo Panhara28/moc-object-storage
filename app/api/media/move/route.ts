@@ -225,7 +225,7 @@ export async function POST(req: NextRequest) {
 
     await logAudit({
       ...auditInfo,
-      actorId: auth.user.id,
+      actorId: auth!.user!.id,
       action: "media.move",
       resourceType: "Media",
       resourceId: updated.id,

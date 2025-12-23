@@ -97,7 +97,7 @@ export async function POST(
         { status: 401 }
       );
     }
-    const bucket = await resolveBucket(slug, user.id);
+    const bucket = await resolveBucket(slug);
     if (!bucket) {
       return NextResponse.json(
         { status: "error", message: "Bucket not found" },

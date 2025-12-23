@@ -68,7 +68,7 @@ export async function POST(req: Request) {
 
     await logAudit({
       ...auditInfo,
-      actorId: auth.user.id,
+      actorId: auth!.user!.id,
       action: "user.create",
       resourceType: "User",
       resourceId: newUser.id,

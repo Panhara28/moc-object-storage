@@ -30,6 +30,14 @@ export async function POST(
         { status: auth.status }
       );
     }
+    const user = auth.user;
+    if (!user) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
     const auditInfo = getAuditRequestInfo(req);
 
     /* -------------------------------------------
@@ -111,7 +119,7 @@ export async function POST(
 
     await logAudit({
       ...auditInfo,
-      actorId: auth.user.id,
+      actorId: user.id,
       action: "role.permissions.clone",
       resourceType: "Role",
       resourceId: targetRoleId,

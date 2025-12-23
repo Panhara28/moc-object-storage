@@ -132,7 +132,7 @@ export async function POST(
 
     await logAudit({
       ...auditInfo,
-      actorId: auth.user.id,
+      actorId: auth!.user!.id,
       action: "bucket.cleanup",
       resourceType: "Bucket",
       resourceId: bucket.id,

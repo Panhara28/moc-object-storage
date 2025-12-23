@@ -5,10 +5,12 @@ import { authorize, getAuthUser } from "@/lib/authorized";
 import { validateUploadFile } from "@/lib/upload-validation";
 import { queueVirusTotalScanForMedia } from "@/lib/virustotal";
 import { getAuditRequestInfo, logAudit } from "@/lib/audit";
+import { encryptSecret } from "@/lib/secret-encryption";
 import { randomUUID, randomBytes } from "crypto";
 import * as fs from "fs/promises";
 import path from "path";
 import sharp from "sharp";
+import { Visibility } from "@/app/generated/prisma/client";
 
 const MAX_UPLOAD_BYTES =
   Number(process.env.MAX_UPLOAD_BYTES) || 50 * 1024 * 1024; // 50MB default
@@ -146,9 +148,23 @@ export async function POST(req: NextRequest) {
     // ===============================================================
     // 4. RESOLVE OR CREATE BUCKET
     // ===============================================================
-    let bucket = await prisma.bucket.findUnique({
+    type BucketContext = {
+      id: number;
+      name: string;
+      isAvailable: Visibility;
+      createdById: number;
+      slug: string;
+    };
+
+    let bucket: BucketContext | null = await prisma.bucket.findUnique({
       where: { name: bucketName },
-      select: { id: true, name: true, isAvailable: true, createdById: true },
+      select: {
+        id: true,
+        name: true,
+        isAvailable: true,
+        createdById: true,
+        slug: true,
+      },
     });
 
     if (bucket && bucket.isAvailable !== "AVAILABLE") {
@@ -166,17 +182,26 @@ export async function POST(req: NextRequest) {
     }
 
     if (!bucket) {
-      const accessKeyName = `${bucketName}-key`;
-      const accessKeyId = generateAccessKeyId();
-      const secretAccessKey = generateSecretAccessKey();
-
       bucket = await prisma.bucket.create({
         data: {
           name: bucketName,
-          accessKeyName,
-          accessKeyId,
-          secretAccessKey,
           permission: "FULL_ACCESS",
+          createdById: user.id,
+        },
+      });
+
+      const bucketKey = {
+        name: `${bucket.name}-default`,
+        accessKeyId: generateAccessKeyId(),
+        secretAccessKey: encryptSecret(generateSecretAccessKey()),
+      };
+
+      await prisma.bucketApiKey.create({
+        data: {
+          bucketId: bucket.id,
+          name: bucketKey.name,
+          accessKeyId: bucketKey.accessKeyId,
+          secretAccessKey: bucketKey.secretAccessKey,
           createdById: user.id,
         },
       });
@@ -401,13 +426,12 @@ export async function POST(req: NextRequest) {
           buffer,
           storedPath,
         });
-
       } catch (error) {
         console.error("Upload failed for file:", file.name, error);
         await fs.rm(storedPath, { force: true }).catch(() => {});
         failures.push({
           filename: file.name,
-          reason: "Upload failed. Please try again."
+          reason: "Upload failed. Please try again.",
         });
       }
     }

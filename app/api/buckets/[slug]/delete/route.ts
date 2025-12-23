@@ -119,7 +119,7 @@ export async function PATCH(
 
     await logAudit({
       ...auditInfo,
-      actorId: auth.user.id,
+      actorId: auth!.user!.id,
       action: "bucket.delete",
       resourceType: "Bucket",
       resourceId: updatedBucket.id,

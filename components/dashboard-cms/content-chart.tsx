@@ -9,6 +9,10 @@ import {
   Tooltip,
   Legend,
   BarElement,
+  ChartOptions,
+  LegendOptions,
+  TooltipOptions,
+  TooltipItem,
 } from "chart.js";
 import { Line, Bar } from "react-chartjs-2";
 import { useEffect, useMemo, useState } from "react";
@@ -103,38 +107,44 @@ export default function ContentChart() {
     };
   }, [range]);
 
-  const chartOptions = useMemo(
-    () => ({
+  const chartOptions = useMemo<ChartOptions<"line">>(() => {
+    const fontSize = isMobile ? 9 : 11;
+
+    const legendConfig = {
+      position: "top" as const,
+      labels: {
+        usePointStyle: true,
+        padding: isMobile ? 10 : 20,
+        font: {
+          size: isMobile ? 10 : 12,
+        },
+      },
+    } as LegendOptions<"line">;
+
+    const tooltipConfig = {
+      mode: "index" as const,
+      intersect: false,
+      callbacks: {
+        label: (context: TooltipItem<"line">) => {
+          const label = context.dataset.label || "";
+          const value = context.parsed?.y ?? 0;
+          if (label.toLowerCase().includes("storage")) {
+            return `${label}: ${formatBytes(value)}`;
+          }
+          return `${label}: ${value}`;
+        },
+      },
+    } as TooltipOptions<"line">;
+
+    return {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: {
-          position: "top" as const,
-          labels: {
-            usePointStyle: true,
-            padding: isMobile ? 10 : 20,
-            font: {
-              size: isMobile ? 10 : 12,
-            },
-          },
-        },
+        legend: legendConfig,
         title: {
           display: false,
         },
-        tooltip: {
-          mode: "index" as const,
-          intersect: false,
-          callbacks: {
-            label: (context: any) => {
-              const label = context.dataset.label || "";
-              const value = context.parsed?.y ?? 0;
-              if (label.toLowerCase().includes("storage")) {
-                return `${label}: ${formatBytes(value)}`;
-              }
-              return `${label}: ${value}`;
-            },
-          },
-        },
+        tooltip: tooltipConfig,
       },
       scales: {
         y: {
@@ -144,7 +154,7 @@ export default function ContentChart() {
           },
           ticks: {
             font: {
-              size: isMobile ? 9 : 11,
+              size: fontSize,
             },
             maxTicksLimit: isMobile ? 6 : undefined,
           },
@@ -157,10 +167,9 @@ export default function ContentChart() {
           },
           ticks: {
             font: {
-              size: isMobile ? 9 : 11,
+              size: fontSize,
             },
-            callback: (value: number | string) =>
-              typeof value === "number" ? formatBytes(value) : value,
+            callback: (value) => (typeof value === "number" ? formatBytes(value) : value),
           },
         },
         x: {
@@ -169,10 +178,10 @@ export default function ContentChart() {
           },
           ticks: {
             font: {
-              size: isMobile ? 9 : 11,
+              size: fontSize,
             },
             maxRotation: isMobile ? 45 : 0,
-            minRotation: isMobile ? 0 : 0,
+            minRotation: 0,
           },
         },
       },
@@ -181,21 +190,55 @@ export default function ContentChart() {
         axis: "x" as const,
         intersect: false,
       },
-    }),
-    [isMobile]
-  );
+    };
+  }, [isMobile]);
 
-  const barOptions = useMemo(
-    () => {
-      const scales = { ...chartOptions.scales } as Record<string, unknown>;
-      delete scales.y1;
-      return {
-        ...chartOptions,
-        scales,
-      };
-    },
-    [chartOptions]
-  );
+  const barOptions = useMemo<ChartOptions<"bar">>(() => {
+    const fontSize = isMobile ? 9 : 11;
+
+    const legendConfig = {
+      position: "top" as const,
+      labels: {
+        usePointStyle: true,
+        padding: isMobile ? 10 : 20,
+        font: {
+          size: isMobile ? 10 : 12,
+        },
+      },
+    } as LegendOptions<"bar">;
+
+    const tooltipConfig = {
+      mode: "index" as const,
+      intersect: false,
+      callbacks: {
+        label: (context: TooltipItem<"bar">) => {
+          const label = context.dataset.label || "";
+          const value = context.parsed?.y ?? 0;
+          if (label.toLowerCase().includes("storage")) {
+            return `${label}: ${formatBytes(value)}`;
+          }
+          return `${label}: ${value}`;
+        },
+      },
+    } as TooltipOptions<"bar">;
+
+    return {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: legendConfig,
+        title: {
+          display: false,
+        },
+        tooltip: tooltipConfig,
+      },
+      interaction: chartOptions.interaction,
+      scales: {
+        y: chartOptions.scales?.y,
+        x: chartOptions.scales?.x,
+      },
+    };
+  }, [chartOptions, isMobile]);
 
   const timelineData = useMemo(() => {
     return {

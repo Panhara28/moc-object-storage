@@ -23,7 +23,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { Plus } from "lucide-react";
 
-interface BucketOption {
+export interface BucketOption {
   slug: string;
   name: string;
 }
@@ -164,13 +164,12 @@ export function GenerateKeyDialog({
         </DialogHeader>
         <div className="grid gap-6 py-4">
           <div className="grid gap-2">
-            <Label htmlFor="bucket-select">Bucket</Label>
+            <Label htmlFor="bucket-select-trigger">Bucket</Label>
             <Select
-              id="bucket-select"
               value={bucketSlug}
               onValueChange={(value) => setBucketSlug(value)}
             >
-              <SelectTrigger>
+              <SelectTrigger id="bucket-select-trigger">
                 <SelectValue placeholder="Select bucket" />
               </SelectTrigger>
               <SelectContent>

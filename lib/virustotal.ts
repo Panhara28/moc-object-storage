@@ -316,9 +316,21 @@ async function getFileReport(hash: string, apiKey: string) {
   return { status: "found" as const, stats };
 }
 
-async function submitFile(buffer: Buffer, filename: string, apiKey: string) {
+type UploadPayloadBuffer = Buffer | ArrayBuffer | ArrayBufferView;
+
+async function submitFile(buffer: UploadPayloadBuffer, filename: string, apiKey: string) {
   const form = new FormData();
-  const blob = new Blob([buffer], { type: "application/octet-stream" });
+  let bytes: Uint8Array;
+  if (Buffer.isBuffer(buffer)) {
+    bytes = new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+  } else if (ArrayBuffer.isView(buffer)) {
+    const view = buffer as ArrayBufferView;
+    bytes = new Uint8Array(view.buffer, view.byteOffset, view.byteLength);
+  } else {
+    bytes = new Uint8Array(buffer);
+  }
+  const normalized = new Uint8Array(bytes);
+  const blob = new Blob([normalized.buffer], { type: "application/octet-stream" });
   form.append("file", blob, filename || "upload.bin");
 
   const { res, json } = await fetchJson(

@@ -173,7 +173,7 @@ export async function PATCH(
 
     await logAudit({
       ...auditInfo,
-      actorId: auth.user.id,
+      actorId: auth!.user!.id,
       action: "user.update",
       resourceType: "User",
       resourceId: updated.id,

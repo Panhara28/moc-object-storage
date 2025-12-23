@@ -18,6 +18,13 @@ export async function PATCH(
       );
     }
     const auditInfo = getAuditRequestInfo(req);
+    const user = auth.user;
+    if (!user) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
 
     const { slug } = await context.params;
     const { users: selectedUserIds } = await req.json();
@@ -76,7 +83,7 @@ export async function PATCH(
 
     await logAudit({
       ...auditInfo,
-      actorId: auth.user.id,
+      actorId: user.id,
       action: "role.assign",
       resourceType: "Role",
       resourceId: role.id,

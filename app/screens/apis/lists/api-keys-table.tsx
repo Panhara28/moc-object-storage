@@ -257,7 +257,8 @@ export function ApiKeysTable({
                         <TooltipTrigger asChild>
                           <Button
                             variant="ghost"
-                            size="icon-sm"
+                            size="icon"
+                            className="p-0"
                             onClick={() => copyToClipboard(apiKey.accessKeyId, "Access key")}
                           >
                             <Copy className="size-3" />

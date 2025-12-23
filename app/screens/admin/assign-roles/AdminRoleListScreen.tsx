@@ -191,7 +191,7 @@ export default function AdminRoleListScreen() {
                   {
                     icon: <Users className="w-4 h-4" />,
                     label: "Assign Users",
-                    dialog: (row) => (
+                    dialog: (row: RoleRow) => (
                       <AdminAssignRoleDialog
                         row={row}
                         onSuccess={() => loadRoles()}
@@ -205,7 +205,7 @@ export default function AdminRoleListScreen() {
                   {
                     icon: <Fingerprint className="w-4 h-4" />,
                     label: "Permission",
-                    dialog: (row) => (
+                    dialog: (row: RoleRow) => (
                       <AdminAssignPermissionDialog
                         row={row}
                         onSuccess={() => loadRoles()}

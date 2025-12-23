@@ -58,7 +58,7 @@ export async function PATCH(
 
     await logAudit({
       ...auditInfo,
-      actorId: auth.user.id,
+      actorId: auth!.user!.id,
       action: "role.update",
       resourceType: "Role",
       resourceId: updated.id,

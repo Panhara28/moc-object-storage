@@ -1,4 +1,5 @@
 import prisma from "@/lib/prisma";
+import type { InputJsonValue } from "../app/generated/prisma/internal/prismaNamespace";
 
 export type AuditLogInput = {
   actorId?: number | null;
@@ -12,7 +13,7 @@ export type AuditLogInput = {
   userAgent?: string | null;
   requestId?: string | null;
   traceId?: string | null;
-  metadata?: Record<string, unknown> | null;
+  metadata?: InputJsonValue | null;
 };
 
 export function getAuditRequestInfo(req?: Request | null) {

@@ -4,23 +4,19 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Plus } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import BucketsList from "./BucketsList";
+import BucketsList, { BucketListItem } from "./BucketsList";
 import CreateBucketDialog from "./CreateBucketDialog";
 import BucketSettingsDialog from "./BucketSettingsDialog";
 
 /* -------------------------------
    FULL BUCKET DETAIL TYPE
 -------------------------------- */
-export interface BucketDetail {
-  id: number;
-  name: string;
-  slug: string;
-  permission: string;
-  createdAt: string;
-  updatedAt: string;
-  sizeBytes?: number;
-  sizeLabel?: string;
-  keyCount?: number;
+export interface BucketDetail extends BucketListItem {
+  accessKeyId: string;
+  accessKeyName: string;
+  storageProvider: string;
+  storageRegion?: string | null;
+  storageEndpoint?: string | null;
   apiKeys?: Array<{
     name: string;
     accessKeyId: string;
@@ -31,7 +27,7 @@ export interface BucketDetail {
 }
 
 export default function BucketListsScreen() {
-  const [buckets, setBuckets] = useState<BucketDetail[]>([]);
+  const [buckets, setBuckets] = useState<BucketListItem[]>([]);
   const [open, setOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [canCreate, setCanCreate] = useState(false);

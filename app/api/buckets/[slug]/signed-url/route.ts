@@ -75,13 +75,20 @@ export async function POST(
           { status: auth.status }
         );
       }
+      const authUser = auth.user;
+      if (!authUser) {
+        return NextResponse.json(
+          { status: "error", message: "Unauthorized." },
+          { status: 401 }
+        );
+      }
 
       const bucket = await prisma.bucket.findUnique({
         where: { slug, isAvailable: "AVAILABLE" },
         select: { id: true, name: true, createdById: true },
       });
 
-      if (!bucket || bucket.createdById !== auth.user.id) {
+      if (!bucket || bucket.createdById !== authUser.id) {
         return NextResponse.json(
           { status: "error", message: "Bucket not found or unavailable." },
           { status: 404 }
@@ -132,7 +139,7 @@ export async function POST(
       const token = signPayload(payload);
       await logAudit({
         ...auditInfo,
-        actorId: auth.user.id,
+        actorId: authUser.id,
         action: "media.signed-url.download",
         resourceType: "Media",
         resourceId: media.slug,
