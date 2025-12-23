@@ -58,9 +58,12 @@ export function getAuditRequestInfo(req?: Request | null) {
   };
 }
 
-export async function logAudit(input: AuditLogInput) {
+export async function logAudit(
+  input: AuditLogInput,
+  prismaClient = prisma
+) {
   try {
-    await prisma.auditLog.create({
+    await prismaClient.auditLog.create({
       data: {
         actorId: input.actorId ?? null,
         action: input.action,

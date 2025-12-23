@@ -54,6 +54,21 @@ export async function POST(
     }
 
     /* -------------------------------------------
+       3. TARGET ROLE CHECK
+    ------------------------------------------- */
+    const targetRole = await prisma.role.findUnique({
+      where: { id: targetRoleId },
+      select: { id: true, slug: true },
+    });
+
+    if (!targetRole) {
+      return NextResponse.json(
+        { error: "Target role not found." },
+        { status: 404 }
+      );
+    }
+
+    /* -------------------------------------------
        3. BODY VALIDATION
     ------------------------------------------- */
     const body: ClonePermissionPayload = await req.json();
@@ -98,37 +113,50 @@ export async function POST(
     /* -------------------------------------------
        5. CLONE PERMISSIONS
     ------------------------------------------- */
-    const updateOperations = sourcePermissions.map((perm) =>
-      prisma.rolePermission.update({
-        where: {
-          roleId_moduleId: {
+    await prisma.$transaction(async (tx) => {
+      const upsertOps = sourcePermissions.map((perm) =>
+        tx.rolePermission.upsert({
+          where: {
+            roleId_moduleId: {
+              roleId: targetRoleId,
+              moduleId: perm.moduleId,
+            },
+          },
+          create: {
             roleId: targetRoleId,
             moduleId: perm.moduleId,
+            create: perm.create,
+            read: perm.read,
+            update: perm.update,
+            delete: perm.delete,
+          },
+          update: {
+            create: perm.create,
+            read: perm.read,
+            update: perm.update,
+            delete: perm.delete,
+          },
+        })
+      );
+
+      await Promise.all(upsertOps);
+
+      await logAudit(
+        {
+          ...auditInfo,
+          actorId: user.id,
+          action: "role.permissions.clone",
+          resourceType: "Role",
+          resourceId: targetRoleId,
+          status: 200,
+          metadata: {
+            fromRoleId,
+            toRoleId: targetRoleId,
+            permissionCount: sourcePermissions.length,
           },
         },
-        data: {
-          create: perm.create,
-          read: perm.read,
-          update: perm.update,
-          delete: perm.delete,
-        },
-      })
-    );
-
-    await Promise.all(updateOperations);
-
-    await logAudit({
-      ...auditInfo,
-      actorId: user.id,
-      action: "role.permissions.clone",
-      resourceType: "Role",
-      resourceId: targetRoleId,
-      status: 200,
-      metadata: {
-        fromRoleId,
-        toRoleId: targetRoleId,
-        permissionCount: sourcePermissions.length,
-      },
+        tx
+      );
     });
 
     /* -------------------------------------------
