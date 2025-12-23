@@ -111,7 +111,7 @@ const menuData: MenuSection[] = [
             label: "Generate Key",
             href: "/admin/apis/lists",
             icon: ShieldUser,
-            // permission: { module: "api", action: "read" },
+            permission: { module: "api", action: "read" },
           },
         ],
       },

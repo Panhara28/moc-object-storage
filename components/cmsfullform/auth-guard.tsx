@@ -30,6 +30,7 @@ const routeRules: RouteRule[] = [
   },
   { pattern: /^\/admin\/buckets\/[^/]+$/, module: "media-library", action: "read" },
   { pattern: /^\/admin\/dashboard$/, module: "media-library", action: "read" },
+  { pattern: /^\/admin\/apis\/lists$/, module: "api", action: "read" },
   { pattern: /^\/admin\/v1\/api\/docs$/ },
   { pattern: /^\/admin\/auth\/profile$/ },
 ];
@@ -82,7 +83,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const accessCheck = useMemo(() => {
     const rule = getRouteRule(pathname);
     if (!rule || !rule.module || !rule.action) {
-      return { allowed: true };
+      return { allowed: true, module: rule?.module, action: rule?.action };
     }
     const modulePerms = permissions?.[rule.module];
     const allowed = Boolean(modulePerms && modulePerms[rule.action]);
@@ -93,6 +94,12 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     };
   }, [pathname, permissions]);
 
+  useEffect(() => {
+    if (!isLoading && accessCheck.allowed === false) {
+      router.replace("/admin/unauthorized");
+    }
+  }, [accessCheck.allowed, isLoading, router]);
+
   if (isLoading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center text-sm text-muted-foreground">
@@ -102,7 +109,6 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   }
 
   if (!accessCheck.allowed) {
-    router.replace("/admin/unauthorized");
     return null;
   }
 

@@ -48,6 +48,7 @@ export async function main() {
     { name: "media-library", label: "Media Library" },
     { name: "spaces", label: "Spaces" },
     { name: "buckets", label: "Buckets" },
+    { name: "api", label: "API" },
   ];
 
   const seededModules = await Promise.all(
@@ -127,6 +128,13 @@ export async function main() {
       permissions: {
         roles: { read: true, update: true },
         permissions: { read: true, update: true },
+      },
+    },
+    {
+      name: "API Manager",
+      description: "Manage API keys for buckets",
+      permissions: {
+        api: { create: true, read: true, update: true, delete: true },
       },
     },
   ];

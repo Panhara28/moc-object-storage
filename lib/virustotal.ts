@@ -562,6 +562,18 @@ async function runVirusTotalScanForMedia({
       });
     }
   } catch (error) {
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      (error as { code?: unknown }).code === "P2025"
+    ) {
+      console.warn("Media record deleted before scan could complete", {
+        mediaId,
+      });
+      return;
+    }
+
     const reason =
       error instanceof Error ? error.message : "Unknown virus scan error.";
     const scannedAt = new Date();
@@ -576,7 +588,18 @@ async function runVirusTotalScanForMedia({
         },
       });
     } catch (updateError) {
-      console.error("Failed to mark scan failure:", updateError);
+      if (
+        typeof updateError === "object" &&
+        updateError !== null &&
+        "code" in updateError &&
+        (updateError as { code?: unknown }).code === "P2025"
+      ) {
+        console.warn("Cannot mark scan failure: media already removed", {
+          mediaId,
+        });
+      } else {
+        console.error("Failed to mark scan failure:", updateError);
+      }
     }
     console.error("Virus scan failed:", error);
   }
