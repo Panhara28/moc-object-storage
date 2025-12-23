@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { authenticateApiKeyRequest } from "@/lib/api-auth";
+import { getApiAuthentication } from "@/lib/api-auth";
 import { getAuditRequestInfo, logAudit } from "@/lib/audit";
 import { createReadStream } from "fs";
 import * as fs from "fs/promises";
@@ -42,7 +42,7 @@ function assertPathInsideBase(base: string, target: string) {
 
 export async function GET(req: NextRequest) {
   try {
-    const auth = await authenticateApiKeyRequest(req);
+    const auth = await getApiAuthentication(req);
     if (!auth.ok) {
       return NextResponse.json(
         { status: "error", message: auth.message },

@@ -137,3 +137,103 @@ export async function authenticateApiKeyRequest(
     },
   };
 }
+
+async function findActiveApiKey(accessKeyId: string) {
+  return prisma.bucketApiKey.findFirst({
+    where: { accessKeyId, status: "ACTIVE" },
+    include: { bucket: true },
+  });
+}
+
+async function updateKeyUsage(keyId: number) {
+  await prisma.bucketApiKey.update({
+    where: { id: keyId },
+    data: { lastUsedAt: new Date() },
+  });
+}
+
+function recordSimpleFailure(
+  req: NextRequest,
+  message: string,
+  status: number,
+  metadata?: Record<string, unknown>
+) {
+  return recordFailure(req, message, status, metadata);
+}
+export async function authenticateSimpleApiKey(
+  req: NextRequest,
+  accessKeyId: string,
+  secret: string,
+  bucketSlug?: string
+): Promise<ApiAuthResult> {
+  const key = await findActiveApiKey(accessKeyId);
+  if (!key) {
+    await recordSimpleFailure(req, "API key not found or inactive", 401, {
+      accessKeyId,
+    });
+    return { ok: false, status: 401, message: "Invalid API credentials." };
+  }
+
+  if (bucketSlug && bucketSlug !== key.bucket.slug) {
+    await recordSimpleFailure(req, "Bucket slug mismatch", 403, {
+      accessKeyId,
+      bucketSlug,
+      expectedSlug: key.bucket.slug,
+    });
+    return {
+      ok: false,
+      status: 403,
+      message: "Bucket slug does not match API key.",
+    };
+  }
+
+  let decrypted: string;
+  try {
+    decrypted = decryptSecret(key.secretAccessKey);
+  } catch (error) {
+    console.error("Failed to decrypt API key secret:", error);
+    return { ok: false, status: 500, message: "Failed to read API key secret." };
+  }
+
+  const provided = Buffer.from(secret, "utf8");
+  const expected = Buffer.from(decrypted, "utf8");
+  if (provided.length !== expected.length || !crypto.timingSafeEqual(provided, expected)) {
+    await recordSimpleFailure(req, "Invalid secret key", 401, { accessKeyId });
+    return { ok: false, status: 401, message: "Invalid API credentials." };
+  }
+
+  await updateKeyUsage(key.id);
+
+  return {
+    ok: true,
+    key: {
+      id: key.id,
+      bucketId: key.bucketId,
+      bucket: { id: key.bucket.id, slug: key.bucket.slug },
+      accessKeyId: key.accessKeyId,
+      secretAccessKey: key.secretAccessKey,
+    },
+  };
+}
+
+export async function getApiAuthentication(req: NextRequest) {
+  const hasSignature =
+    Boolean(req.headers.get("x-api-key")) &&
+    Boolean(req.headers.get("x-api-signature")) &&
+    Boolean(req.headers.get("x-api-timestamp"));
+  if (hasSignature) {
+    return authenticateApiKeyRequest(req);
+  }
+  const accessKey = req.headers.get("x-access-key");
+  const secret = req.headers.get("x-secret-key");
+  if (accessKey && secret) {
+    const bucketSlug = req.headers.get("x-bucket-slug") ?? undefined;
+    return authenticateSimpleApiKey(req, accessKey, secret, bucketSlug);
+  }
+  await recordFailure(req, "Missing API authentication headers", 401);
+  return {
+    ok: false,
+    status: 401,
+    message: "Missing API authentication headers.",
+  };
+}

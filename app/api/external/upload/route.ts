@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { authenticateApiKeyRequest } from "@/lib/api-auth";
+import { getApiAuthentication } from "@/lib/api-auth";
 import { validateUploadFile } from "@/lib/upload-validation";
 import { queueVirusTotalScanForMedia } from "@/lib/virustotal";
 import { getAuditRequestInfo, logAudit } from "@/lib/audit";
@@ -63,7 +63,7 @@ function detectMediaType(mime: string, extension: string) {
 
 export async function POST(req: NextRequest) {
   try {
-    const auth = await authenticateApiKeyRequest(req);
+    const auth = await getApiAuthentication(req);
     if (!auth.ok) {
       return NextResponse.json(
         { status: "error", message: auth.message },

@@ -126,6 +126,7 @@ Optional:
 ## API Key Management Guard
 
 - `/admin/apis/lists` is gated by the `api` module’s `read` permission in the client guard, and the `/api/buckets/keys` handler still enforces `authorize(req, "buckets", "read")` so only valid sessions can list keys.
+- External upload/folder APIs (`/api/external/upload`, `/api/external/create-folder`) validate either the signature headers (`x-api-key`, `x-api-signature`, `x-api-timestamp`, `x-api-body-hash`) or the simple credential headers (`x-access-key`, `x-secret-key`, `x-bucket-slug`) via `getApiAuthentication`, so third parties can manage bucket files without a session cookie.
 
 ## Checklist for New Endpoints
 

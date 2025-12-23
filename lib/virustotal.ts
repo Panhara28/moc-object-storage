@@ -419,12 +419,12 @@ export async function scanBufferWithVirusTotal(
   }
 
   const analysis = await pollAnalysis(submission.id, apiKey);
-  if (analysis.status === "error") {
-    return { status: "unknown", hash, reason: analysis.reason };
-  }
-  if (analysis.status !== "completed") {
-    return { status: "unknown", hash, reason: "Virus scan timed out." };
-  }
+    if (analysis.status === "error") {
+      return { status: "unknown", hash, reason: analysis.reason };
+    }
+    if (analysis.status !== "completed") {
+      return { status: "timeout", hash, reason: "Virus scan timed out." };
+    }
 
   if (isMalicious(analysis.stats)) {
     return { status: "malicious", hash, stats: analysis.stats };
@@ -560,6 +560,45 @@ async function runVirusTotalScanForMedia({
         mediaId,
         reason: result.reason,
       });
+      return;
+    }
+
+    if (result.status === "timeout") {
+      if (!storedPath) {
+        console.error("Timed out virus scan cannot be requeued (missing storedPath)", {
+          mediaId,
+        });
+        await prisma.media.update({
+          where: { id: mediaId },
+          data: {
+            scanStatus: "FAILED",
+            scanMessage: "Virus scan timed out and could not be retried.",
+            scanHash: finalHash,
+            scannedAt,
+          },
+        });
+        return;
+      }
+
+      const retryDelay = getJobRetryDelayMs();
+      const retryAt = new Date(Date.now() + retryDelay);
+      await enqueueScanJob({
+        mediaId,
+        filename: filename || "upload.bin",
+        storedPath,
+        runAt: retryAt,
+      });
+      await prisma.media.update({
+        where: { id: mediaId },
+        data: {
+          scanStatus: "PENDING",
+          scanMessage: "Virus scan timed out; retry scheduled.",
+          scanHash: finalHash,
+          scannedAt,
+        },
+      });
+      console.info("Requeued timed out virus scan job", { mediaId, retryAt });
+      return;
     }
   } catch (error) {
     if (

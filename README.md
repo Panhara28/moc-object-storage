@@ -35,6 +35,10 @@ details live in `README-SECURITY.md`.
 - `/admin/apis/lists` exposes the Spaces API key manager (Generate Key → view bucket API keys) and is visible only when the signed-in role has the `api` module `read` permission.
 - The page loads `/api/buckets/keys` and renders the current user’s keys with pagination; only UI requests from within the admin shell are accepted.
 - Client-side access checks protect `/admin/apis/lists` (see `components/cmsfullform/auth-guard.tsx`), and `authorize(req, "buckets", "read")` gates the backend API.
+- External clients that upload files or create folders call `/api/external/upload` or `/api/external/create-folder`. Each request must include one of:
+  - `x-api-key`, `x-api-signature`, `x-api-timestamp`, and `x-api-body-hash` (HMAC + canonical payload) for the HMAC-based flow.
+  - `x-access-key`, `x-secret-key`, and `x-bucket-slug` for the simple credential flow (better suited to clients that only store the raw key/secret). The server validates the access key, decrypts the stored secret, and ensures the bucket slug matches before performing the action.
+- Timeouts from VirusTotal automatically requeue the scan job (instead of failing) so the upload eventually completes once the service finishes analyzing the file.
 
 ## Client-Side Access Guard
 
