@@ -32,7 +32,7 @@ export async function GET(
   }
 
   const data = await prisma.role.findFirst({
-    where: { slug, id: user.roleId ?? -1 },
+    where: { slug },
     include: {
       users: {
         // <-- relation Role -> Users

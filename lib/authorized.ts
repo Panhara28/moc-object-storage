@@ -28,8 +28,19 @@ export async function authorize(
 
   // ⭐ Safe: role exists here
   const moduleKey = module.toLowerCase();
-  const aliases =
-    moduleKey === "buckets" ? new Set(["buckets", "bucket"]) : null;
+  const moduleAliases: Record<string, Set<string>> = {
+    buckets: new Set(["buckets", "bucket", "media-library", "spaces"]),
+    "media-library": new Set([
+      "media-library",
+      "buckets",
+      "bucket",
+      "spaces",
+    ]),
+    spaces: new Set(["spaces", "media-library", "buckets"]),
+    roles: new Set(["roles", "role", "users"]),
+    users: new Set(["users", "user", "roles"]),
+  };
+  const aliases = moduleAliases[moduleKey] ?? null;
   const rolePermissions = user.role.permissions ?? [];
 
   if (aliases) {
