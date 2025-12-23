@@ -12,12 +12,30 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+async function connectWithRetry(prisma: { $connect: () => Promise<void> }) {
+  while (!shuttingDown) {
+    try {
+      await prisma.$connect();
+      return;
+    } catch (error) {
+      console.error("Database connection failed, retrying...", error);
+      await sleep(POLL_INTERVAL_MS);
+    }
+  }
+}
+
 async function run() {
   const prisma = (await import("@/lib/prisma")).default;
   const { processNextVirusScanJob } = await import("@/lib/virustotal");
+  await connectWithRetry(prisma);
   while (!shuttingDown) {
-    const didWork = await processNextVirusScanJob();
-    if (!didWork) {
+    try {
+      const didWork = await processNextVirusScanJob();
+      if (!didWork) {
+        await sleep(POLL_INTERVAL_MS);
+      }
+    } catch (error) {
+      console.error("Virus scan worker failed:", error);
       await sleep(POLL_INTERVAL_MS);
     }
   }
