@@ -123,6 +123,10 @@ Optional:
 - IP-based rate limiting assumes traffic passes through Cloudflare.
 - Best practice: restrict origin to Cloudflare IP ranges so spoofed `x-forwarded-for` headers are not trusted.
 
+## API Key Management Guard
+
+- `/admin/apis/lists` is gated by the `api` module’s `read` permission in the client guard, and the `/api/buckets/keys` handler still enforces `authorize(req, "buckets", "read")` so only valid sessions can list keys.
+
 ## Checklist for New Endpoints
 
 - Require `authorize()` and check owner scope when returning user-owned data.
