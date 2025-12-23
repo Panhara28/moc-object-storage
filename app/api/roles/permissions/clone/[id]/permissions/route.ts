@@ -1,5 +1,6 @@
 import { authorize } from "@/lib/authorized";
 import prisma from "@/lib/prisma";
+import type { PrismaClient } from "@/app/generated/prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { getAuditRequestInfo, logAudit } from "@/lib/audit";
 
@@ -155,7 +156,7 @@ export async function POST(
             permissionCount: sourcePermissions.length,
           },
         },
-        tx
+        tx as PrismaClient
       );
     });
 

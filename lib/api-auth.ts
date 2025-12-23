@@ -237,3 +237,5 @@ export async function getApiAuthentication(req: NextRequest) {
     message: "Missing API authentication headers.",
   };
 }
+
+export type ApiAuthSuccess = Extract<ApiAuthResult, { ok: true }>;

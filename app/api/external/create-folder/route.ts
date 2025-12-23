@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import * as fs from "fs/promises";
 import path from "path";
 import prisma from "@/lib/prisma";
-import { getApiAuthentication } from "@/lib/api-auth";
+import { ApiAuthSuccess, getApiAuthentication } from "@/lib/api-auth";
 import { getAuditRequestInfo, logAudit } from "@/lib/audit";
 
 type SpaceNode = {
@@ -97,6 +97,7 @@ function getStorageRoot() {
   return "/mnt/storage";
 }
 
+
 export async function POST(req: NextRequest) {
   try {
     const auth = await getApiAuthentication(req);
@@ -107,7 +108,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const key = auth.key;
+    const successAuth = auth as ApiAuthSuccess;
+    const key = successAuth.key;
     const bucket = await prisma.bucket.findUnique({
       where: { id: key.bucketId, isAvailable: "AVAILABLE" },
       select: { id: true, name: true, slug: true, createdById: true },

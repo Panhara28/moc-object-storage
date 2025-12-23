@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { getApiAuthentication } from "@/lib/api-auth";
+import { ApiAuthSuccess, getApiAuthentication } from "@/lib/api-auth";
 import { validateUploadFile } from "@/lib/upload-validation";
 import { queueVirusTotalScanForMedia } from "@/lib/virustotal";
 import { getAuditRequestInfo, logAudit } from "@/lib/audit";
@@ -71,7 +71,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const key = auth.key;
+    const successAuth = auth as ApiAuthSuccess;
+    const key = successAuth.key;
     const bucket = await prisma.bucket.findUnique({
       where: { id: key.bucketId },
       select: { id: true, name: true, createdById: true, slug: true },

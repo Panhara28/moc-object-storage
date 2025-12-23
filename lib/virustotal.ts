@@ -15,7 +15,8 @@ export type VirusTotalScanResult =
   | { status: "clean"; hash: string; stats?: VirusTotalStats }
   | { status: "malicious"; hash: string; stats?: VirusTotalStats }
   | { status: "unknown"; hash: string; reason: string }
-  | { status: "skipped"; hash: string; reason: string };
+  | { status: "skipped"; hash: string; reason: string }
+  | { status: "timeout"; hash: string; reason: string };
 
 const VT_BASE_URL = "https://www.virustotal.com/api/v3";
 const DEFAULT_TIMEOUT_MS = 15_000;

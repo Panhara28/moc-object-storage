@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { getApiAuthentication } from "@/lib/api-auth";
+import { ApiAuthSuccess, getApiAuthentication } from "@/lib/api-auth";
 import { getAuditRequestInfo, logAudit } from "@/lib/audit";
 import { createReadStream } from "fs";
 import * as fs from "fs/promises";
@@ -50,6 +50,9 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    const successAuth = auth as ApiAuthSuccess;
+    const key = successAuth.key;
+
     const mediaSlug = req.nextUrl.searchParams.get("mediaSlug");
     if (!mediaSlug) {
       return NextResponse.json(
@@ -70,7 +73,7 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    if (!media || media.bucketId !== auth.key.bucketId) {
+    if (!media || media.bucketId !== key.bucketId) {
       return NextResponse.json(
         { status: "error", message: "Media not found in this bucket." },
         { status: 404 }
@@ -85,7 +88,7 @@ export async function GET(req: NextRequest) {
     }
 
     const bucket = await prisma.bucket.findUnique({
-      where: { id: auth.key.bucketId },
+      where: { id: key.bucketId },
       select: { name: true, slug: true },
     });
 
@@ -148,7 +151,7 @@ export async function GET(req: NextRequest) {
       status: 200,
       metadata: {
         bucketSlug: bucket.slug,
-        accessKeyId: auth.key.accessKeyId,
+        accessKeyId: key.accessKeyId,
       },
     });
 

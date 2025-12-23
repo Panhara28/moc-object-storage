@@ -2379,4 +2379,12 @@ export const apiCases: ApiCase[] = [
       },
     } satisfies ApiCase;
   })(),
+  (() => {
+    return {
+      name: "external create-folder (todo)",
+      method: "POST",
+      route: "/api/external/create-folder",
+      todo: true,
+    } satisfies ApiCase;
+  })(),
 ];
