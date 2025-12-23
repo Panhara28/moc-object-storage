@@ -13,6 +13,8 @@ import {
   Shield,
   PencilRuler,
   DatabaseIcon,
+  Rocket,
+  ShieldUser,
 } from "lucide-react";
 import { useMemo, useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
@@ -95,6 +97,21 @@ const menuData: MenuSection[] = [
             href: "/admin/buckets/lists",
             icon: PencilRuler,
             permission: { module: "buckets", action: "read" },
+          },
+        ],
+      },
+      // API
+      {
+        id: "api-space",
+        label: "API",
+        icon: Rocket,
+        children: [
+          {
+            id: "create-api",
+            label: "Generate Key",
+            href: "/admin/apis/lists",
+            icon: ShieldUser,
+            // permission: { module: "api", action: "read" },
           },
         ],
       },
