@@ -60,6 +60,7 @@ export async function GET(req: NextRequest) {
           select: {
             medias: true,
             spaces: true,
+            apiKeys: true,
           },
         },
       },
@@ -87,8 +88,7 @@ export async function GET(req: NextRequest) {
         id: b.id,
         name: b.name,
         slug: b.slug,
-        accessKeyName: b.accessKeyName,
-        accessKeyId: b.accessKeyId,
+        keyCount: b._count.apiKeys,
 
         permission: b.permission,
         createdAt: formatDate(b.createdAt),

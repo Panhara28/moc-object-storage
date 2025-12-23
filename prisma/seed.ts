@@ -2,6 +2,7 @@ import "dotenv/config";
 import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
+import { encryptSecret } from "@/lib/secret-encryption";
 
 /* ======================================================
    Key Generators
@@ -218,10 +219,18 @@ export async function main() {
   const defaultBucket = await prisma.bucket.create({
     data: {
       name: "uploads",
-      accessKeyName: "uploads-key",
-      accessKeyId: generateAccessKeyId(),
-      secretAccessKey: generateSecretAccessKey(),
       permission: "FULL_ACCESS",
+      createdById: superAdmin.id,
+    },
+  });
+
+  const seedSecret = generateSecretAccessKey();
+  await prisma.bucketApiKey.create({
+    data: {
+      bucketId: defaultBucket.id,
+      name: "uploads-service",
+      accessKeyId: generateAccessKeyId(),
+      secretAccessKey: encryptSecret(seedSecret),
       createdById: superAdmin.id,
     },
   });

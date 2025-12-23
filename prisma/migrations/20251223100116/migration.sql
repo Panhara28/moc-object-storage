@@ -113,9 +113,6 @@ CREATE TABLE `buckets` (
     `name` VARCHAR(191) NOT NULL,
     `slug` VARCHAR(191) NOT NULL,
     `createdById` INTEGER NOT NULL,
-    `accessKeyName` VARCHAR(191) NOT NULL,
-    `accessKeyId` VARCHAR(191) NOT NULL,
-    `secretAccessKey` VARCHAR(191) NOT NULL,
     `permission` ENUM('READ', 'READ_WRITE', 'FULL_ACCESS') NOT NULL DEFAULT 'FULL_ACCESS',
     `isAvailable` ENUM('AVAILABLE', 'PUBLIC', 'PRIVATE', 'RESTRICTED', 'REMOVE', 'RECOVERY', 'DRAFTED', 'PUBLISHED', 'UNPUBLISHED') NOT NULL DEFAULT 'AVAILABLE',
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
@@ -123,7 +120,25 @@ CREATE TABLE `buckets` (
 
     UNIQUE INDEX `buckets_name_key`(`name`),
     UNIQUE INDEX `buckets_slug_key`(`slug`),
-    UNIQUE INDEX `buckets_accessKeyId_key`(`accessKeyId`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `bucket_api_keys` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `bucketId` INTEGER NOT NULL,
+    `name` VARCHAR(191) NOT NULL,
+    `accessKeyId` VARCHAR(191) NOT NULL,
+    `secretAccessKey` VARCHAR(191) NOT NULL,
+    `status` ENUM('ACTIVE', 'INACTIVE') NOT NULL DEFAULT 'ACTIVE',
+    `createdById` INTEGER NULL,
+    `lastRotatedAt` DATETIME(3) NULL,
+    `lastUsedAt` DATETIME(3) NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+
+    UNIQUE INDEX `bucket_api_keys_accessKeyId_key`(`accessKeyId`),
+    UNIQUE INDEX `bucket_api_keys_bucketId_name_key`(`bucketId`, `name`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -234,6 +249,12 @@ ALTER TABLE `audit_logs` ADD CONSTRAINT `audit_logs_actorId_fkey` FOREIGN KEY (`
 
 -- AddForeignKey
 ALTER TABLE `buckets` ADD CONSTRAINT `buckets_createdById_fkey` FOREIGN KEY (`createdById`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `bucket_api_keys` ADD CONSTRAINT `bucket_api_keys_bucketId_fkey` FOREIGN KEY (`bucketId`) REFERENCES `buckets`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `bucket_api_keys` ADD CONSTRAINT `bucket_api_keys_createdById_fkey` FOREIGN KEY (`createdById`) REFERENCES `users`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `medias` ADD CONSTRAINT `medias_bucketId_fkey` FOREIGN KEY (`bucketId`) REFERENCES `buckets`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;

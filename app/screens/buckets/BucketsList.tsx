@@ -35,17 +35,11 @@ interface BucketListItem {
   size?: number | null;
   sizeBytes?: number;
   sizeLabel?: string;
-}
-
-interface NewBucketCredentials {
-  slug: string;
-  accessKeyId: string;
-  secretAccessKey: string;
+  keyCount?: number;
 }
 
 interface BucketsListProps {
   buckets: BucketListItem[];
-  newCredentials: NewBucketCredentials | null;
   onOpenSettings: (bucket: string) => void;
   canUpdate: boolean;
   canDelete: boolean;
@@ -53,12 +47,10 @@ interface BucketsListProps {
 
 export default function BucketsList({
   buckets,
-  newCredentials,
   onOpenSettings,
   canUpdate,
   canDelete,
 }: BucketsListProps) {
-  const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
   const [renameOpen, setRenameOpen] = useState(false);
   const [renameBucket, setRenameBucket] = useState<BucketListItem | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -99,7 +91,7 @@ export default function BucketsList({
                         {bucket.name}
                       </CardTitle>
                       <CardDescription className="text-xs mt-1">
-                        Region: Cambodia
+                        {bucket.keyCount ? `${bucket.keyCount} API keys` : "No API keys"}
                       </CardDescription>
                     </div>
                   </Link>
@@ -165,46 +157,6 @@ export default function BucketsList({
               </CardHeader>
 
               <CardContent className="space-y-3">
-                {/* SECRET KEY BLOCK */}
-                {newCredentials?.slug === bucket.slug && (
-                  <div className="p-3 bg-green-50 border border-green-300 rounded-lg space-y-2">
-                    <p className="text-sm font-semibold text-green-800">
-                      Secret Key (click to copy):
-                    </p>
-
-                    <div
-                      className="relative"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        navigator.clipboard.writeText(
-                          newCredentials.secretAccessKey
-                        );
-                        setCopiedSlug(bucket.slug);
-                        setTimeout(() => setCopiedSlug(null), 1200);
-                      }}
-                    >
-                      <div className="font-mono bg-white text-black p-2 rounded border text-sm break-all cursor-pointer hover:bg-green-100 transition">
-                        {newCredentials.secretAccessKey.length > 8
-                          ? `${newCredentials.secretAccessKey.slice(
-                              0,
-                              4
-                            )}•••••••••••••••••••••••••••••••••••••${newCredentials.secretAccessKey.slice(
-                              -4
-                            )}`
-                          : newCredentials.secretAccessKey}
-                      </div>
-
-                      {copiedSlug === bucket.slug && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-white/90 rounded border text-green-700 font-semibold text-sm animate-fadeOut">
-                          Copied!
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* METADATA */}
                 <Link href={`/admin/buckets/${bucket.slug}`}>
                   <div className="space-y-2">
                     <div className="text-sm text-muted-foreground">

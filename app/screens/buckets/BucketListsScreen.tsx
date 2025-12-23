@@ -20,19 +20,13 @@ export interface BucketDetail {
   updatedAt: string;
   sizeBytes?: number;
   sizeLabel?: string;
-
-  accessKeyId: string;
-  accessKeyName: string;
-
-  mediaCount: number; // FIXED
-  folderCount: number; // FIXED
-
-  accessKeys?: Array<{
-    id: number;
+  keyCount?: number;
+  apiKeys?: Array<{
     name: string;
     accessKeyId: string;
-    permission: string;
+    status: string;
     createdAt: string;
+    lastUsedAt: string | null;
   }>;
 }
 
@@ -49,12 +43,6 @@ export default function BucketListsScreen() {
     null
   );
 
-  const [newBucketCredentials, setNewBucketCredentials] = useState<{
-    slug: string;
-    accessKeyId: string;
-    secretAccessKey: string;
-  } | null>(null);
-
   const refreshBuckets = async () => {
     const res = await fetch("/api/buckets/lists", {
       cache: "no-store",
@@ -69,20 +57,30 @@ export default function BucketListsScreen() {
     setBuckets(data.buckets || []);
   };
 
-  const loadBucketDetails = (slug: string) => {
-    const bucket = buckets.find((item) => item.slug === slug) || null;
-    if (!bucket) {
+  const loadBucketDetails = async (slug: string) => {
+    try {
+      const res = await fetch(`/api/buckets/${slug}`, {
+        cache: "no-store",
+      });
+      if (!res.ok) {
+        console.error("Failed to load bucket detail", res.status);
+        setSelectedBucket(null);
+        return;
+      }
+      const data = await res.json();
+      setSelectedBucket(data.bucket || null);
+      setSettingsOpen(true);
+    } catch (error) {
+      console.error("Failed to load bucket detail:", error);
       setSelectedBucket(null);
-      return;
     }
-    setSelectedBucket(bucket);
-    setSettingsOpen(true);
   };
 
   useEffect(() => {
     const load = async () => {
       const res = await fetch("/api/buckets/lists", {
         cache: "no-store",
+        headers: { "x-ui-request": "true" },
       });
       if (!res.ok) {
         console.error("Failed to load buckets", res.status);
@@ -133,19 +131,10 @@ export default function BucketListsScreen() {
     return () => window.removeEventListener("refresh-buckets", handler);
   }, []);
 
-  useEffect(() => {
-    const handler = () => refreshBuckets();
-    window.addEventListener("refresh-buckets", handler);
-    return () => window.removeEventListener("refresh-buckets", handler);
-  }, []);
-
-  useEffect(() => {
-    if (!selectedBucket) return;
-    const updated = buckets.find((item) => item.slug === selectedBucket.slug);
-    if (updated && updated !== selectedBucket) {
-      setSelectedBucket(updated);
-    }
-  }, [buckets, selectedBucket]);
+  const handleOpenSettings = async (slug: string) => {
+    await refreshBuckets();
+    await loadBucketDetails(slug);
+  };
 
   return (
     <>
@@ -173,8 +162,7 @@ export default function BucketListsScreen() {
         <main className="px-6 py-8">
           <BucketsList
             buckets={buckets}
-            newCredentials={newBucketCredentials}
-            onOpenSettings={(slug) => loadBucketDetails(slug)}
+            onOpenSettings={handleOpenSettings}
             canUpdate={canUpdate}
             canDelete={canDelete}
           />
@@ -184,13 +172,8 @@ export default function BucketListsScreen() {
       <CreateBucketDialog
         open={open}
         onOpenChange={setOpen}
-        onSuccess={(data) => {
+        onSuccess={() => {
           refreshBuckets();
-          setNewBucketCredentials({
-            slug: data.bucket.slug!,
-            accessKeyId: data.bucket.accessKeyId!,
-            secretAccessKey: data.bucket.secretAccessKey!,
-          });
         }}
       />
 
@@ -201,7 +184,8 @@ export default function BucketListsScreen() {
           bucket={selectedBucket}
           onUpdate={async (type) => {
             await refreshBuckets();
-            if (type === "permission" && selectedBucket) {
+            if (selectedBucket) {
+              await loadBucketDetails(selectedBucket.slug);
               setSettingsOpen(true);
             }
           }}

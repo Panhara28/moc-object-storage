@@ -166,7 +166,6 @@ export async function PATCH(
           id: true,
           name: true,
           slug: true,
-          accessKeyId: true,
           permission: true,
           isAvailable: true,
           updatedAt: true,

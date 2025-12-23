@@ -27,7 +27,6 @@ import { PATCH as deleteBucket } from "@/app/api/buckets/[slug]/delete/route";
 import { GET as downloadBucketFile } from "@/app/api/buckets/[slug]/download/route";
 import { GET as listBucketFolder } from "@/app/api/buckets/[slug]/folder/route";
 import { GET as listBucketMedia } from "@/app/api/buckets/[slug]/media/route";
-import { PATCH as regenerateBucketKey } from "@/app/api/buckets/[slug]/regenerate-access-key/route";
 import { PATCH as renameBucket } from "@/app/api/buckets/[slug]/rename/route";
 import { PATCH as restoreBucket } from "@/app/api/buckets/[slug]/restore/route";
 import { POST as generateSignedUrl } from "@/app/api/buckets/[slug]/signed-url/route";
@@ -722,40 +721,6 @@ export const apiCases: ApiCase[] = [
           (m: { name: string }) => m.name
         );
         expect(names).toContain(mediaName);
-      },
-    } satisfies ApiCase;
-  })(),
-  (() => {
-    let bucketSlug = "";
-    let previousKey = "";
-
-    return {
-      name: "regenerate access key updates credentials",
-      method: "PATCH",
-      route: "/api/buckets/[slug]/regenerate-access-key",
-      handler: regenerateBucketKey,
-      build: async () => {
-        const { admin, token } = await seedRoleWithPermission("media-library");
-        const bucket = await createBucket(admin.id);
-        bucketSlug = bucket.slug;
-        previousKey = bucket.accessKeyId;
-
-        const req = new NextRequest(
-          `http://localhost/api/buckets/${bucket.slug}/regenerate-access-key`,
-          { method: "PATCH", headers: { cookie: `session=${token}` } }
-        );
-
-        return { req, params: { slug: bucket.slug } };
-      },
-      expectStatus: 200,
-      verify: async (res) => {
-        const body = await res.json();
-        expect(body.bucket?.accessKeyId).not.toBe(previousKey);
-        const refreshed = await prisma.bucket.findUnique({
-          where: { slug: bucketSlug },
-          select: { accessKeyId: true },
-        });
-        expect(refreshed?.accessKeyId).not.toBe(previousKey);
       },
     } satisfies ApiCase;
   })(),

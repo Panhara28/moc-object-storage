@@ -3,23 +3,10 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { authorize, getAuthUser } from "@/lib/authorized";
 import { getAuditRequestInfo, logAudit } from "@/lib/audit";
-import * as crypto from "crypto";
 import * as fs from "fs/promises";
 import path from "path";
-
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-/* -------------------------------------------------------
-   Helpers
-------------------------------------------------------- */
-function generateAccessKeyId() {
-  return "AKIA-" + crypto.randomBytes(8).toString("hex").toUpperCase();
-}
-
-function generateSecretAccessKey() {
-  return crypto.randomBytes(32).toString("base64");
-}
 
 /**
  * Get a valid storage root for macOS, Windows, Linux
@@ -128,18 +115,11 @@ export async function POST(req: NextRequest) {
     }
 
     // 🔑 Generate credentials
-    const accessKeyName = `${safeName}-key`;
-    const accessKeyId = generateAccessKeyId();
-    const secretAccessKey = generateSecretAccessKey();
-
     // 🗄  Save bucket
     const bucket = existingBucket
       ? await prisma.bucket.update({
           where: { id: existingBucket.id },
           data: {
-            accessKeyName,
-            accessKeyId,
-            secretAccessKey,
             permission,
             createdById: user.id,
             isAvailable: "AVAILABLE",
@@ -148,9 +128,6 @@ export async function POST(req: NextRequest) {
       : await prisma.bucket.create({
           data: {
             name: safeName,
-            accessKeyName,
-            accessKeyId,
-            secretAccessKey,
             permission,
             createdById: user.id,
           },
@@ -195,13 +172,7 @@ export async function POST(req: NextRequest) {
           id: bucket.id,
           name: bucket.name,
           slug: bucket.slug,
-          accessKeyId,
-          secretAccessKey, // Returned once only
           permission: bucket.permission,
-        },
-        credentials: {
-          accessKeyId,
-          secretAccessKey,
         },
       },
       { status: 201 }

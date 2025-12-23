@@ -58,6 +58,9 @@ export async function GET(
         spaces: {
           where: { isAvailable: "AVAILABLE" },
         },
+        apiKeys: {
+          orderBy: { createdAt: "desc" },
+        },
       },
     });
 
@@ -117,9 +120,15 @@ export async function GET(
         name: bucket.name,
         slug: bucket.slug,
         permission: bucket.permission,
-        accessKeyId: bucket.accessKeyId,
         createdAt: formatDate(bucket.createdAt),
         updatedAt: formatDate(bucket.updatedAt),
+        apiKeys: bucket.apiKeys.map((key) => ({
+          name: key.name,
+          accessKeyId: key.accessKeyId,
+          status: key.status,
+          createdAt: formatDate(key.createdAt),
+          lastUsedAt: key.lastUsedAt ? formatDate(key.lastUsedAt) : null,
+        })),
       },
 
       // 🟦 PARENT FOLDERS (spaces)
