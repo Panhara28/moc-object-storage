@@ -77,6 +77,9 @@ ENV VIRUSTOTAL_MAX_JOB_ATTEMPTS=${VIRUSTOTAL_MAX_JOB_ATTEMPTS}
 ENV VIRUSTOTAL_WORKER_POLL_MS=${VIRUSTOTAL_WORKER_POLL_MS}
 ENV NODE_ENV=${NODE_ENV}
 
+# Generate Prisma client after source is available
+RUN npx prisma generate
+
 # Building app
 RUN npm run build
 
