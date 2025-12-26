@@ -72,6 +72,9 @@ ENV VIRUSTOTAL_WORKER_POLL_MS=${VIRUSTOTAL_WORKER_POLL_MS}
 ENV NODE_ENV=${NODE_ENV}
 
 # Generate Prisma client after source is available
+
+RUN npx prisma migrate dev
+
 RUN npx prisma generate
 
 # Building app
