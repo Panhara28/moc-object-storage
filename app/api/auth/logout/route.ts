@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyTokenLite } from "@/lib/auth-lite";
 import { getAuditRequestInfo, logAudit } from "@/lib/audit";
 
-export async function POST(req?: NextRequest) {
+export async function POST(req: NextRequest) {
   const auditInfo = getAuditRequestInfo(req);
-  const token = req?.cookies.get("session")?.value;
+  const token = req.cookies.get("session")?.value;
   const decoded = token ? verifyTokenLite(token) : null;
   const actorId =
     decoded && typeof decoded === "object" && "id" in decoded
