@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { authorize, getAuthUser } from "@/lib/authorized";
 import { format as formatDateFns } from "date-fns";
+import { jsonError, uiContextForbidden } from "@/lib/api-errors";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -30,10 +31,7 @@ export async function GET(req: NextRequest) {
     const refererOrigin = referer ? new URL(referer).origin : null;
 
     if (uiHeader?.toLowerCase() !== "true" && refererOrigin !== requestOrigin) {
-      return NextResponse.json(
-        { status: "error", message: "Forbidden" },
-        { status: 403 }
-      );
+      return uiContextForbidden(req);
     }
 
     const auth = await authorize(req, "buckets", "read");
@@ -109,13 +107,11 @@ export async function GET(req: NextRequest) {
       { status: 200 }
     );
   } catch (error: unknown) {
-    console.error("Bucket List Error:", error);
-    return NextResponse.json(
-      {
-        status: "error",
-        message: "Failed to fetch bucket list",
-      },
-      { status: 500 }
-    );
+    return jsonError(req, {
+      status: 500,
+      code: "BUCKET_LIST_FAILED",
+      message: "Failed to fetch bucket list.",
+      error,
+    });
   }
 }

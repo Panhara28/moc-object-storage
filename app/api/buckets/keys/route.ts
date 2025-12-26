@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { authorize } from "@/lib/authorized";
+import { jsonError, uiContextForbidden } from "@/lib/api-errors";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,10 +14,7 @@ export async function GET(req: NextRequest) {
     const refererOrigin = referer ? new URL(referer).origin : null;
 
     if (uiHeader?.toLowerCase() !== "true" && refererOrigin !== requestOrigin) {
-      return NextResponse.json(
-        { status: "error", message: "Forbidden" },
-        { status: 403 }
-      );
+      return uiContextForbidden(req);
     }
 
     const auth = await authorize(req, "buckets", "read");
@@ -89,10 +87,11 @@ export async function GET(req: NextRequest) {
       { status: 200 }
     );
   } catch (error) {
-    console.error("List bucket API keys error:", error);
-    return NextResponse.json(
-      { status: "error", message: "Failed to list API keys" },
-      { status: 500 }
-    );
+    return jsonError(req, {
+      status: 500,
+      code: "BUCKET_KEYS_LIST_FAILED",
+      message: "Failed to list API keys.",
+      error,
+    });
   }
 }

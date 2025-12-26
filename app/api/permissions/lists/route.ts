@@ -1,6 +1,7 @@
 import prisma from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { authorize } from "@/lib/authorized";
+import { jsonError, uiContextForbidden } from "@/lib/api-errors";
 
 export async function GET(req: NextRequest) {
   try {
@@ -10,10 +11,7 @@ export async function GET(req: NextRequest) {
     const refererOrigin = referer ? new URL(referer).origin : null;
 
     if (uiHeader?.toLowerCase() !== "true" && refererOrigin !== requestOrigin) {
-      return NextResponse.json(
-        { status: "error", message: "Forbidden" },
-        { status: 403 }
-      );
+      return uiContextForbidden(req);
     }
 
     /* --------------------------------------------------------------------------
@@ -41,12 +39,11 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ modules });
   } catch (error: unknown) {
-    return NextResponse.json(
-      {
-        error:
-          "An unexpected error occurred while fetching permission modules.",
-      },
-      { status: 500 }
-    );
+    return jsonError(req, {
+      status: 500,
+      code: "PERMISSIONS_LIST_FAILED",
+      message: "Failed to load permission modules.",
+      error,
+    });
   }
 }

@@ -2,6 +2,7 @@ import prisma from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { authorize } from "@/lib/authorized";
 import { Prisma } from "@/app/generated/prisma/client";
+import { jsonError, uiContextForbidden } from "@/lib/api-errors";
 
 export async function GET(req: NextRequest) {
   try {
@@ -11,10 +12,7 @@ export async function GET(req: NextRequest) {
     const refererOrigin = referer ? new URL(referer).origin : null;
 
     if (uiHeader?.toLowerCase() !== "true" && refererOrigin !== requestOrigin) {
-      return NextResponse.json(
-        { status: "error", message: "Forbidden" },
-        { status: 403 }
-      );
+      return uiContextForbidden(req);
     }
 
     const auth = await authorize(req, "users", "read");
@@ -96,13 +94,11 @@ export async function GET(req: NextRequest) {
       })),
     });
   } catch (error: unknown) {
-    console.error("❌ Failed to fetch users:", error);
-    return NextResponse.json(
-      {
-        status: "error",
-        message: "Failed to fetch users",
-      },
-      { status: 500 }
-    );
+    return jsonError(req, {
+      status: 500,
+      code: "USER_LIST_FAILED",
+      message: "Failed to fetch users.",
+      error,
+    });
   }
 }

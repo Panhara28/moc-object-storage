@@ -4,6 +4,7 @@ import { authorize } from "@/lib/authorized";
 import { NextRequest, NextResponse } from "next/server";
 import { format as formatDateFns } from "date-fns";
 import { MediaType, Prisma } from "@/app/generated/prisma/client";
+import { jsonError, uiContextForbidden } from "@/lib/api-errors";
 
 function formatDate(input: Date | string | null | undefined) {
   if (!input) return "N/A";
@@ -20,10 +21,7 @@ export async function GET(req: NextRequest) {
     const refererOrigin = referer ? new URL(referer).origin : null;
 
     if (uiHeader?.toLowerCase() !== "true" && refererOrigin !== requestOrigin) {
-      return NextResponse.json(
-        { status: "error", message: "Forbidden" },
-        { status: 403 }
-      );
+      return uiContextForbidden(req);
     }
 
     // ------------------------------------------------------------
@@ -143,14 +141,11 @@ export async function GET(req: NextRequest) {
       })),
     });
   } catch (e: unknown) {
-    console.error("❌ Failed to fetch media:", e);
-
-    return NextResponse.json(
-      {
-        status: "error",
-        message: "Failed to fetch media items",
-      },
-      { status: 500 }
-    );
+    return jsonError(req, {
+      status: 500,
+      code: "MEDIA_LIST_FAILED",
+      message: "Failed to fetch media items.",
+      error: e,
+    });
   }
 }

@@ -3,6 +3,7 @@
 import { authorize } from "@/lib/authorized";
 import prisma from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
+import { uiContextForbidden } from "@/lib/api-errors";
 
 export async function GET(
   req: NextRequest,
@@ -16,10 +17,7 @@ export async function GET(
   const refererOrigin = referer ? new URL(referer).origin : null;
 
   if (uiHeader?.toLowerCase() !== "true" && refererOrigin !== requestOrigin) {
-    return NextResponse.json(
-      { status: "error", message: "Forbidden" },
-      { status: 403 }
-    );
+    return uiContextForbidden(req);
   }
 
   const auth = await authorize(req, "roles", "read");

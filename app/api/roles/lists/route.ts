@@ -2,6 +2,7 @@ import { Prisma } from "@/app/generated/prisma/client";
 import { authorize } from "@/lib/authorized";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { jsonError, uiContextForbidden } from "@/lib/api-errors";
 
 export async function GET(req: Request) {
   try {
@@ -11,10 +12,7 @@ export async function GET(req: Request) {
     const refererOrigin = referer ? new URL(referer).origin : null;
 
     if (uiHeader?.toLowerCase() !== "true" && refererOrigin !== requestOrigin) {
-      return NextResponse.json(
-        { status: "error", message: "Forbidden" },
-        { status: 403 }
-      );
+      return uiContextForbidden(req);
     }
 
     // --------------------------------------------------------------------------
@@ -133,14 +131,11 @@ export async function GET(req: Request) {
       })),
     });
   } catch (error: unknown) {
-    console.error("❌ Failed to fetch roles:", error);
-
-    return NextResponse.json(
-      {
-        status: "error",
-        message: "Failed to fetch roles",
-      },
-      { status: 500 }
-    );
+    return jsonError(req, {
+      status: 500,
+      code: "ROLE_LIST_FAILED",
+      message: "Failed to fetch roles.",
+      error,
+    });
   }
 }
