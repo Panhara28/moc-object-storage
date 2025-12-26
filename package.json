@@ -19,7 +19,8 @@
     "virus:worker": "tsx scripts/virus-scan-worker.ts",
     "db:seed": "DOTENV_CONFIG_PATH=.env.local tsx prisma/seed.ts",
     "db:win:seed": "powershell -NoProfile -Command \"$env:DOTENV_CONFIG_PATH='.env.local'; npx tsx prisma/seed.ts\"",
-    "db:migrate": "npx prisma migrate dev",
+    "db:migrate": "npx prisma migrate deploy",
+    "db:migrate:dev": "npx prisma migrate dev",
     "db:reset": "npx prisma migrate reset"
   },
   "dependencies": {
