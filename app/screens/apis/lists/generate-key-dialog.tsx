@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -31,7 +31,10 @@ export interface BucketOption {
 interface GenerateKeyDialogProps {
   buckets: BucketOption[];
   loading: boolean;
-  onKeyCreated?: () => void;
+  onKeyCreated?: (payload: {
+    accessKeyId: string;
+    secretAccessKey: string;
+  }) => void;
 }
 
 export function GenerateKeyDialog({
@@ -123,17 +126,42 @@ export function GenerateKeyDialog({
         return;
       }
 
-      setSecretPreview({
-        accessKeyId: data.key.accessKeyId,
-        secretAccessKey: data.credentials.secretAccessKey,
-      });
-      toast({
-        title: "API Key Created",
-        description: "Copy and store the secret before closing this dialog.",
-        variant: "success",
-      });
+      const accessKeyId = data.key.accessKeyId;
+      const secretAccessKey = data.credentials.secretAccessKey;
+      let copied = false;
+
+      if (navigator?.clipboard?.writeText) {
+        try {
+          await navigator.clipboard.writeText(secretAccessKey);
+          copied = true;
+        } catch (error) {
+          console.warn("Failed to copy API secret to clipboard:", error);
+        }
+      }
+
+      if (copied) {
+        toast({
+          title: "API Key Created",
+          description: "Secret copied to clipboard.",
+          variant: "success",
+        });
+      } else {
+        toast({
+          title: "API Key Created",
+          description: "Secret is available in the list below.",
+          variant: "success",
+        });
+      }
+
+      if (onKeyCreated) {
+        onKeyCreated({ accessKeyId, secretAccessKey });
+        setKeyName("");
+        setOpen(false);
+        return;
+      }
+
+      setSecretPreview({ accessKeyId, secretAccessKey });
       setKeyName("");
-      onKeyCreated?.();
     } catch (error) {
       console.error("Create API key error:", error);
       toast({
@@ -175,7 +203,7 @@ export function GenerateKeyDialog({
               <SelectContent>
                 {buckets.map((bucket) => (
                   <SelectItem key={bucket.slug} value={bucket.slug}>
-                    <div className="flex flex-col">
+                    <div className="flex flex-col items-start">
                       <span>{bucket.name}</span>
                       <span className="text-xs text-muted-foreground">
                         {bucket.slug}

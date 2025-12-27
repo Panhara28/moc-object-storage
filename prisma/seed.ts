@@ -8,7 +8,7 @@ import { encryptSecret } from "@/lib/secret-encryption";
    Key Generators
 ====================================================== */
 function generateAccessKeyId() {
-  return "AKIA-" + crypto.randomBytes(8).toString("hex").toUpperCase();
+  return "MOS-" + crypto.randomBytes(8).toString("hex").toUpperCase();
 }
 
 function generateSecretAccessKey() {

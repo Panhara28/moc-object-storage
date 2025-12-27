@@ -151,8 +151,15 @@ export function AddRoleDialog({
             />
           </div>
 
-          {/* SUBMIT */}
-          <div className="flex justify-end pt-2">
+          {/* ACTIONS */}
+          <div className="flex justify-end gap-2 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setOpen(false)}
+            >
+              Cancel
+            </Button>
             <Button type="submit" disabled={isLoading} className="w-32">
               {isLoading ? (
                 <Loader2 className="w-4 h-4 animate-spin" />

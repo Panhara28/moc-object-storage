@@ -42,9 +42,23 @@ export interface ButtonProps
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, asChild = false, ...props }, ref) => {
     const Comp = asChild ? Slot : 'button'
+    const dataMutation = (props as Record<string, unknown>)['data-mutation']
+    const isMutation =
+      variant === 'default' ||
+      variant === 'destructive' ||
+      props.type === 'submit' ||
+      dataMutation === true ||
+      dataMutation === 'true'
+    const mutationClasses = isMutation
+      ? 'bg-black text-white hover:bg-black/90 hover:text-white'
+      : ''
     return (
       <Comp
-        className={cn(buttonVariants({ variant, size, className }))}
+        className={cn(
+          buttonVariants({ variant, size }),
+          mutationClasses,
+          className,
+        )}
         ref={ref}
         {...props}
       />

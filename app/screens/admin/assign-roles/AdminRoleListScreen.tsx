@@ -21,7 +21,12 @@ interface RoleRow extends Record<string, unknown> {
   slug: string;
   name: string;
   description: string | null;
-  users?: { id?: number; fullNameEn?: string | null; profilePicture?: string | null; slug?: string }[];
+  users?: {
+    id?: number;
+    fullNameEn?: string | null;
+    profilePicture?: string | null;
+    slug?: string;
+  }[];
 }
 
 interface RolesAPIResponse {
@@ -183,7 +188,6 @@ export default function AdminRoleListScreen() {
           }
           onDelete={canDeleteRole ? handleDelete : undefined}
           onDeleteComplete={loadRoles}
-          onView={canViewRole ? onView : undefined}
           onEdit={canEditRole ? onEdit : undefined}
           customActions={[
             ...(canAssignRole

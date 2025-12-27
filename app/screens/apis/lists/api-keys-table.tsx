@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import {
   Table,
   TableBody,
@@ -44,6 +44,8 @@ interface ApiKeysTableProps {
   loading: boolean;
   error?: string | null;
   onRefresh: () => Promise<void>;
+  newSecrets?: Record<string, string>;
+  onDismissNewSecret?: (accessKeyId: string) => void;
   page: number;
   limit: number;
   total: number;
@@ -62,6 +64,8 @@ export function ApiKeysTable({
   loading,
   error,
   onRefresh,
+  newSecrets,
+  onDismissNewSecret,
   page,
   limit,
   total,
@@ -154,28 +158,6 @@ export function ApiKeysTable({
     }
   };
 
-  const latestSecretEntry = Object.entries(secretCache)[0];
-  const secretPreviewBlock = latestSecretEntry ? (
-    <div className="border-b px-4 py-4">
-      <p className="text-sm font-semibold text-foreground">
-        Secret for {latestSecretEntry[0]} (copy now, shown once)
-      </p>
-      <div className="flex flex-col gap-2 md:flex-row md:items-center">
-        <code className="font-mono text-xs text-muted-foreground">
-          {latestSecretEntry[1]}
-        </code>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => copyToClipboard(latestSecretEntry[1], "Secret")}
-        >
-          <Copy className="size-3" />
-          Copy secret
-        </Button>
-      </div>
-    </div>
-  ) : null;
-
   const totalPages = Math.max(1, Math.ceil(total / limit));
 
   const pagingControls = (
@@ -208,7 +190,6 @@ export function ApiKeysTable({
     <div className="rounded-lg border bg-card shadow-sm">
       <TooltipProvider>
         {pagingControls}
-        {secretPreviewBlock}
         {error && (
           <div className="px-4 py-3 text-sm text-destructive">
             {error}
@@ -236,92 +217,145 @@ export function ApiKeysTable({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {keys.map((apiKey) => (
-                <TableRow key={apiKey.id}>
-                  <TableCell>
-                    <div className="flex flex-col gap-1">
-                      <span className="text-sm font-medium text-foreground">
-                        {apiKey.name}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {apiKey.accessKeyId.slice(0, 6)}…{apiKey.accessKeyId.slice(-4)}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <code className="font-mono text-xs text-muted-foreground">
-                        {apiKey.accessKeyId}
-                      </code>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="p-0"
-                            onClick={() => copyToClipboard(apiKey.accessKeyId, "Access key")}
-                          >
-                            <Copy className="size-3" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Copy key</TooltipContent>
-                      </Tooltip>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-col text-sm text-muted-foreground">
-                      <span className="font-medium text-foreground">
-                        {apiKey.bucketName}
-                      </span>
-                      <span className="text-xs">{apiKey.bucketSlug}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={apiKey.status === "ACTIVE" ? "default" : "outline"}>
-                      {apiKey.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <span className="text-xs text-muted-foreground">
-                      {formatDateTime(apiKey.createdAt)}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <span className="text-xs text-muted-foreground">
-                      {formatDateTime(apiKey.lastUsedAt)}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="sm">
-                          Actions
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={() => rotateKey(apiKey)}
-                          disabled={busyKeyId === apiKey.accessKeyId}
-                        >
-                          <RotateCw className="mr-2 size-3" />
-                          Regenerate secret
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          onClick={() => deactivateKey(apiKey)}
-                          disabled={
-                            busyKeyId === apiKey.accessKeyId ||
-                            apiKey.status !== "ACTIVE"
-                          }
-                        >
-                          <ShieldOff className="mr-2 size-3" />
-                          {apiKey.status === "ACTIVE" ? "Revoke key" : "Revoke key (inactive)"}
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {keys.map((apiKey) => {
+                const cachedSecret = secretCache[apiKey.accessKeyId];
+                const newSecret = newSecrets?.[apiKey.accessKeyId];
+                const secret = cachedSecret ?? newSecret;
+                return (
+                  <Fragment key={apiKey.id}>
+                    <TableRow>
+                      <TableCell>
+                        <div className="flex flex-col gap-1">
+                          <span className="text-sm font-medium text-foreground">
+                            {apiKey.name}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {apiKey.accessKeyId.slice(0, 6)}…{apiKey.accessKeyId.slice(-4)}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <code className="font-mono text-xs text-muted-foreground">
+                            {apiKey.accessKeyId}
+                          </code>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="p-0"
+                                onClick={() => copyToClipboard(apiKey.accessKeyId, "Access key")}
+                              >
+                                <Copy className="size-3" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Copy key</TooltipContent>
+                          </Tooltip>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-col text-sm text-muted-foreground">
+                          <span className="font-medium text-foreground">
+                            {apiKey.bucketName}
+                          </span>
+                          <span className="text-xs">{apiKey.bucketSlug}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={apiKey.status === "ACTIVE" ? "default" : "outline"}>
+                          {apiKey.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-xs text-muted-foreground">
+                          {formatDateTime(apiKey.createdAt)}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-xs text-muted-foreground">
+                          {formatDateTime(apiKey.lastUsedAt)}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="sm">
+                              Actions
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={() => rotateKey(apiKey)}
+                              disabled={busyKeyId === apiKey.accessKeyId}
+                            >
+                              <RotateCw className="mr-2 size-3" />
+                              Regenerate secret
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={() => deactivateKey(apiKey)}
+                              disabled={
+                                busyKeyId === apiKey.accessKeyId ||
+                                apiKey.status !== "ACTIVE"
+                              }
+                            >
+                              <ShieldOff className="mr-2 size-3" />
+                              {apiKey.status === "ACTIVE"
+                                ? "Revoke key"
+                                : "Revoke key (inactive)"}
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                    {secret && (
+                      <TableRow>
+                        <TableCell colSpan={7} className="bg-muted/30">
+                          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                            <div className="flex flex-col gap-1">
+                              <p className="text-xs font-semibold text-foreground">
+                                Secret (shown once)
+                              </p>
+                              <code className="font-mono text-xs text-muted-foreground">
+                                {secret}
+                              </code>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => copyToClipboard(secret, "Secret")}
+                              >
+                                <Copy className="size-3" />
+                                Copy secret
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => {
+                                  if (cachedSecret) {
+                                    setSecretCache((prev) => {
+                                      if (!prev[apiKey.accessKeyId]) return prev;
+                                      const next = { ...prev };
+                                      delete next[apiKey.accessKeyId];
+                                      return next;
+                                    });
+                                  } else if (newSecret && onDismissNewSecret) {
+                                    onDismissNewSecret(apiKey.accessKeyId);
+                                  }
+                                }}
+                              >
+                                Hide
+                              </Button>
+                            </div>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </Fragment>
+                );
+              })}
             </TableBody>
           </Table>
         )}

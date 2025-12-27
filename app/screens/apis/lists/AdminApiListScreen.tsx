@@ -13,6 +13,7 @@ export default function AdminApiListScreen() {
   const [loadingBuckets, setLoadingBuckets] = useState(false);
   const [keysError, setKeysError] = useState<string | null>(null);
   const [bucketsError, setBucketsError] = useState<string | null>(null);
+  const [newSecrets, setNewSecrets] = useState<Record<string, string>>({});
 
   const loadKeys = useCallback(
     async (pageToLoad = 1) => {
@@ -104,7 +105,13 @@ export default function AdminApiListScreen() {
             <GenerateKeyDialog
               buckets={buckets}
               loading={loadingBuckets}
-              onKeyCreated={() => loadKeys()}
+              onKeyCreated={({ accessKeyId, secretAccessKey }) => {
+                setNewSecrets((prev) => ({
+                  ...prev,
+                  [accessKeyId]: secretAccessKey,
+                }));
+                loadKeys();
+              }}
             />
           </div>
           <ApiKeysTable
@@ -112,6 +119,15 @@ export default function AdminApiListScreen() {
             loading={loadingKeys}
             error={keysError}
             onRefresh={() => loadKeys(page)}
+            newSecrets={newSecrets}
+            onDismissNewSecret={(accessKeyId) => {
+              setNewSecrets((prev) => {
+                if (!prev[accessKeyId]) return prev;
+                const next = { ...prev };
+                delete next[accessKeyId];
+                return next;
+              });
+            }}
             page={page}
             limit={20}
             total={totalKeys}

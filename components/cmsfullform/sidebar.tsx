@@ -620,7 +620,7 @@ export default function Sidebar() {
                   alt="MOC Object Storage"
                   width={522}
                   height={142}
-                  className="flex-shrink-0 hidden dark:block h-10 w-auto"
+                  className="flex-shrink-0 hidden dark:block w-14 h-auto object-contain"
                   priority
                 />
                 <Image
@@ -628,7 +628,7 @@ export default function Sidebar() {
                   alt="MOC Object Storage"
                   width={522}
                   height={142}
-                  className="flex-shrink-0 block dark:hidden h-10 w-auto"
+                  className="flex-shrink-0 block dark:hidden w-14 h-auto object-contain"
                   priority
                 />
               </div>
@@ -666,7 +666,9 @@ export default function Sidebar() {
 
           <div className="px-2 py-4 border-t border-border">
             <div className="space-y-1  text-center">
-              <span className="text-xs">© 2025 Ministry of Commerce.</span>
+              {showText && (
+                <span className="text-xs">© 2025 Ministry of Commerce.</span>
+              )}
               {/* <NavItem
                 item={{
                   id: "settings",

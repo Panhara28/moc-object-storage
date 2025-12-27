@@ -32,7 +32,7 @@ export const dynamic = "force-dynamic";
 // Helpers
 // ---------------------------------------------------------------
 function generateAccessKeyId() {
-  return "AKIA-" + randomBytes(8).toString("hex").toUpperCase();
+  return "MOS-" + randomBytes(8).toString("hex").toUpperCase();
 }
 
 function generateSecretAccessKey() {
