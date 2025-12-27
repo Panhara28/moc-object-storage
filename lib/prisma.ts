@@ -20,7 +20,7 @@ const adapter = new PrismaMariaDb(
   },
   {
     onConnectionError: (error) => {
-      console.error("Prisma MariaDB connection error:", error);
+      console.error("Prisma MariaDB connection is error:", error);
     },
   }
 );
