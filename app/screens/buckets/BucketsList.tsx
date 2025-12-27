@@ -81,7 +81,7 @@ export default function BucketsList({
           {buckets.map((bucket) => (
             <Card
               key={bucket.slug}
-              className="h-full border border-blue-700/80 hover:border-blue-600 hover:shadow-[0_0_12px_rgba(59,130,246,0.4)] transition-all cursor-pointer group"
+              className="h-full border-1 border-blue-700/80 hover:border-blue-600 hover:shadow-[0_0_12px_rgba(59,130,246,0.4)] transition-all cursor-pointer group"
             >
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
