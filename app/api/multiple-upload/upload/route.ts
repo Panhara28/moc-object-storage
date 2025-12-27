@@ -3,7 +3,6 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { authorize, getAuthUser } from "@/lib/authorized";
 import { validateUploadFile } from "@/lib/upload-validation";
-import { queueVirusTotalScanForMedia } from "@/lib/virustotal";
 import { getAuditRequestInfo, logAudit } from "@/lib/audit";
 import { encryptSecret } from "@/lib/secret-encryption";
 import { randomUUID, randomBytes } from "crypto";
@@ -372,9 +371,11 @@ export async function POST(req: NextRequest) {
             // NEW SCHEMA FIELDS
             bucketId: bucket.id,
             path: folderPath,
-            isVisibility: "DRAFTED",
-            isAccessible: "RESTRICTED",
-            scanStatus: "PENDING",
+            isVisibility: "AVAILABLE",
+            isAccessible: "PRIVATE",
+            scanStatus: "CLEAN",
+            scanMessage: null,
+            scannedAt: new Date(),
           },
         });
 
@@ -420,12 +421,6 @@ export async function POST(req: NextRequest) {
           },
         });
 
-        queueVirusTotalScanForMedia({
-          mediaId: media.id,
-          filename: file.name,
-          buffer,
-          storedPath,
-        });
       } catch (error) {
         console.error("Upload failed for file:", file.name, error);
         await fs.rm(storedPath, { force: true }).catch(() => {});

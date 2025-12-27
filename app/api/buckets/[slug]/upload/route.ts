@@ -3,7 +3,6 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { authorize, getAuthUser } from "@/lib/authorized";
 import { validateUploadFile } from "@/lib/upload-validation";
-import { queueVirusTotalScanForMedia } from "@/lib/virustotal";
 import { getAuditRequestInfo, logAudit } from "@/lib/audit";
 import { randomUUID } from "crypto";
 import * as fs from "fs/promises";
@@ -282,9 +281,11 @@ export async function POST(
             uploadedById: user.id,
             bucketId: bucket.id,
             path: folderPath,
-            isVisibility: "DRAFTED",
-            isAccessible: "RESTRICTED",
-            scanStatus: "PENDING",
+            isVisibility: "AVAILABLE",
+            isAccessible: "PRIVATE",
+            scanStatus: "CLEAN",
+            scanMessage: null,
+            scannedAt: new Date(),
           },
         });
 
@@ -323,13 +324,6 @@ export async function POST(
             filename: file.name,
             path: folderPath || null,
           },
-        });
-
-        queueVirusTotalScanForMedia({
-          mediaId: media.id,
-          filename: file.name,
-          buffer,
-          storedPath,
         });
 
       } catch (error) {

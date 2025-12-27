@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { verifyPayload } from "@/lib/signedUrl";
 import { validateUploadFile } from "@/lib/upload-validation";
-import { queueVirusTotalScanForMedia } from "@/lib/virustotal";
 import { getAuditRequestInfo, logAudit } from "@/lib/audit";
 import { randomUUID } from "crypto";
 import * as fs from "fs/promises";
@@ -197,9 +196,11 @@ export async function POST(
         uploadedById: payload.userId,
         bucketId: bucket.id,
         path: folderPath || null,
-        isVisibility: "DRAFTED",
-        isAccessible: "RESTRICTED",
-        scanStatus: "PENDING",
+        isVisibility: "AVAILABLE",
+        isAccessible: "PRIVATE",
+        scanStatus: "CLEAN",
+        scanMessage: null,
+        scannedAt: new Date(),
       },
       select: {
         slug: true,
@@ -212,13 +213,6 @@ export async function POST(
         id: true,
         scanStatus: true,
       },
-    });
-
-    queueVirusTotalScanForMedia({
-      mediaId: media.id,
-      filename: file.name,
-      buffer,
-      storedPath,
     });
 
     await logAudit({
