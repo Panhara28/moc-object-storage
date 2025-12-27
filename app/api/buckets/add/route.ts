@@ -2,23 +2,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { authorize, getAuthUser } from "@/lib/authorized";
-import * as crypto from "crypto";
+import { getAuditRequestInfo, logAudit } from "@/lib/audit";
 import * as fs from "fs/promises";
 import path from "path";
-
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-/* -------------------------------------------------------
-   Helpers
-------------------------------------------------------- */
-function generateAccessKeyId() {
-  return "AKIA-" + crypto.randomBytes(8).toString("hex").toUpperCase();
-}
-
-function generateSecretAccessKey() {
-  return crypto.randomBytes(32).toString("base64");
-}
 
 /**
  * Get a valid storage root for macOS, Windows, Linux
@@ -73,7 +61,7 @@ function assertPathInsideBase(base: string, target: string) {
 export async function POST(req: NextRequest) {
   try {
     // 🛡 Authorization
-    const auth = await authorize(req, "media-library", "create");
+    const auth = await authorize(req, "buckets", "create");
     if (!auth.ok) {
       return NextResponse.json(
         { status: "error", message: auth.message },
@@ -88,6 +76,7 @@ export async function POST(req: NextRequest) {
         { status: 401 }
       );
     }
+    const auditInfo = getAuditRequestInfo(req);
 
     // 📥 Payload
     const body = await req.json();
@@ -126,18 +115,11 @@ export async function POST(req: NextRequest) {
     }
 
     // 🔑 Generate credentials
-    const accessKeyName = `${safeName}-key`;
-    const accessKeyId = generateAccessKeyId();
-    const secretAccessKey = generateSecretAccessKey();
-
     // 🗄  Save bucket
     const bucket = existingBucket
       ? await prisma.bucket.update({
           where: { id: existingBucket.id },
           data: {
-            accessKeyName,
-            accessKeyId,
-            secretAccessKey,
             permission,
             createdById: user.id,
             isAvailable: "AVAILABLE",
@@ -146,9 +128,6 @@ export async function POST(req: NextRequest) {
       : await prisma.bucket.create({
           data: {
             name: safeName,
-            accessKeyName,
-            accessKeyId,
-            secretAccessKey,
             permission,
             createdById: user.id,
           },
@@ -167,6 +146,21 @@ export async function POST(req: NextRequest) {
     // Ensure bucket folder exists
     await fs.mkdir(bucketDir, { recursive: true });
 
+    await logAudit({
+      ...auditInfo,
+      actorId: user.id,
+      action: "bucket.create",
+      resourceType: "Bucket",
+      resourceId: bucket.id,
+      status: 201,
+      metadata: {
+        bucketSlug: bucket.slug,
+        bucketName: bucket.name,
+        restored: Boolean(existingBucket && existingBucket.isAvailable === "REMOVE"),
+        permission: bucket.permission,
+      },
+    });
+
     /* -------------------------------------------------------
        RESPONSE
     ------------------------------------------------------- */
@@ -178,13 +172,7 @@ export async function POST(req: NextRequest) {
           id: bucket.id,
           name: bucket.name,
           slug: bucket.slug,
-          accessKeyId,
-          secretAccessKey, // Returned once only
           permission: bucket.permission,
-        },
-        credentials: {
-          accessKeyId,
-          secretAccessKey,
         },
       },
       { status: 201 }

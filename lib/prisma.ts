@@ -5,14 +5,25 @@ const globalForPrisma = global as unknown as {
   prisma: PrismaClient;
 };
 
-const adapter = new PrismaMariaDb({
-  host: process.env.DB_HOST,
-  port: 3306,
-  user: process.env.DB_USERNAME,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_DATABASE_NAME,
-  connectionLimit: 5,
-});
+const connectionLimit = Number(process.env.DB_CONNECTION_LIMIT) || 5;
+const adapter = new PrismaMariaDb(
+  {
+    host: process.env.DB_HOST,
+    port: Number(process.env.DB_PORT) || 3306,
+    user: process.env.DB_USERNAME,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_DATABASE_NAME,
+    socketPath: process.env.DB_SOCKET_PATH,
+    connectionLimit,
+    acquireTimeout: Number(process.env.DB_ACQUIRE_TIMEOUT_MS) || 10_000,
+    connectTimeout: Number(process.env.DB_CONNECT_TIMEOUT_MS) || 10_000,
+  },
+  {
+    onConnectionError: (error) => {
+      console.error("Prisma MariaDB connection is error:", error);
+    },
+  }
+);
 
 const prisma =
   globalForPrisma.prisma ||

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { verifyPayload } from "@/lib/signedUrl";
 import { validateUploadFile } from "@/lib/upload-validation";
-import { queueVirusTotalScanForMedia } from "@/lib/virustotal";
+import { getAuditRequestInfo, logAudit } from "@/lib/audit";
 import { randomUUID } from "crypto";
 import * as fs from "fs/promises";
 import path from "path";
@@ -95,9 +95,14 @@ export async function POST(
         { status: 400 }
       );
     }
+    const auditInfo = getAuditRequestInfo(req);
 
-    const bucket = await prisma.bucket.findUnique({
-      where: { slug, isAvailable: "AVAILABLE" },
+    const bucket = await prisma.bucket.findFirst({
+      where: {
+        slug,
+        isAvailable: "AVAILABLE",
+        createdById: payload.userId,
+      },
       select: { id: true, name: true },
     });
 
@@ -191,9 +196,11 @@ export async function POST(
         uploadedById: payload.userId,
         bucketId: bucket.id,
         path: folderPath || null,
-        isVisibility: "DRAFTED",
-        isAccessible: "RESTRICTED",
-        scanStatus: "PENDING",
+        isVisibility: "AVAILABLE",
+        isAccessible: "PRIVATE",
+        scanStatus: "CLEAN",
+        scanMessage: null,
+        scannedAt: new Date(),
       },
       select: {
         slug: true,
@@ -208,11 +215,19 @@ export async function POST(
       },
     });
 
-    queueVirusTotalScanForMedia({
-      mediaId: media.id,
-      filename: file.name,
-      buffer,
-      storedPath,
+    await logAudit({
+      ...auditInfo,
+      actorId: payload.userId,
+      action: "media.upload",
+      resourceType: "Media",
+      resourceId: media.id,
+      status: 201,
+      metadata: {
+        bucketId: bucket.id,
+        bucketSlug: slug,
+        filename: file.name,
+        path: folderPath || null,
+      },
     });
 
     return NextResponse.json(

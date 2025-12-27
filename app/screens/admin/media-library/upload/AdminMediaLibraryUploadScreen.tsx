@@ -14,20 +14,29 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
 import MediaFilters from "@/components/media-library/media-filters";
+import MediaPagination from "@/components/media-library/media-pagination";
 import MediaCreateFolderDialog from "./MediaCreateFolderDialog";
 import MediaViewDrawer from "./MediaViewDrawer";
 import MediaFileGrid from "./MediaFileGrid";
 import MediaFolderGrid from "./MediaFolderGrid";
 import MediaUploadButton from "./MediaUploadButton";
 import MediaBreadcrumb from "./MediaBreadcrumb";
-import { ApiResponse, MediaItem } from "@/app/types/media";
 import MediaRenameFolderDialog from "./MediaRenameFolderDialog";
 import MediaDeleteFolderDialog from "./MediaDeleteFolderDialog";
 import MediaFolderPropertiesDrawer from "./MediaFolderPropertiesDrawer";
-import MediaMoveFolderDialog from "./MediaMoveFolderDialog";
 import { useToast } from "@/hooks/use-toast";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import { FileText, FolderOpen } from "lucide-react";
+import { MediaItem } from "@/app/types/media";
 
-const ITEMS_PER_PAGE = 12;
+const ITEMS_PER_PAGE = 30;
 
 type State = {
   selectedFilter: string;
@@ -79,10 +88,18 @@ export default function AdminMediaLibraryUploadScreen({
 
   /* STATES */
   const [selectedFilter, setSelectedFilter] = useState("all");
-  const [currentPage, setCurrentPage] = useState(1);
+  const [folderPage, setFolderPage] = useState(1);
+  const [mediaPage, setMediaPage] = useState(1);
+  const [searchValue, setSearchValue] = useState("");
+  const [createdAtSort, setCreatedAtSort] = useState("newest");
   const [items, setItems] = useState<MediaItem[]>([]);
   const [medias, setMedias] = useState<MediaItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [canCreateMedia, setCanCreateMedia] = useState(false);
+  const [canCreateFolder, setCanCreateFolder] = useState(false);
+  const [canReadFolder, setCanReadFolder] = useState(false);
+  const [canUpdateFolder, setCanUpdateFolder] = useState(false);
+  const [canDeleteFolder, setCanDeleteFolder] = useState(false);
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selectedMedia, setSelectedMedia] = useState<MediaItem | null>(null);
@@ -94,6 +111,15 @@ export default function AdminMediaLibraryUploadScreen({
   const [activeFolder, setActiveFolder] = useState<MediaItem | null>(null);
   const [moveOpen, setMoveOpen] = useState(false);
   const uploadInputRef = useRef<HTMLInputElement>(null);
+  const [uploadProgress, setUploadProgress] = useState({
+    visible: false,
+    percent: 0,
+    uploadedBytes: 0,
+    totalBytes: 0,
+    totalFiles: 0,
+    status: "idle" as "idle" | "uploading" | "processing" | "error",
+    message: "",
+  });
 
   /* FETCH FOLDERS */
   const loadSpaces = useCallback(
@@ -103,10 +129,19 @@ export default function AdminMediaLibraryUploadScreen({
         ? `/api/buckets/${bucketSlug}/folder?parentSlug=${parentSlug}`
         : `/api/buckets/${bucketSlug}`;
 
-      const res = await fetch(url, { cache: "no-store" });
-      const json = await res.json();
-      setItems(json.folders);
-      setLoading(false);
+      try {
+        const res = await fetch(url, { cache: "no-store" });
+        if (!res.ok) {
+          setItems([]);
+          return;
+        }
+        const json = await res.json();
+        setItems(Array.isArray(json?.folders) ? json.folders : []);
+      } catch {
+        setItems([]);
+      } finally {
+        setLoading(false);
+      }
     },
     [bucketSlug]
   );
@@ -118,9 +153,17 @@ export default function AdminMediaLibraryUploadScreen({
         ? `/api/buckets/${bucketSlug}/folder?parentSlug=${parentSlug}`
         : `/api/buckets/${bucketSlug}`;
 
-      const res = await fetch(url, { cache: "no-store" });
-      const json = await res.json();
-      setMedias(json.media.items ?? []);
+      try {
+        const res = await fetch(url, { cache: "no-store" });
+        if (!res.ok) {
+          setMedias([]);
+          return;
+        }
+        const json = await res.json();
+        setMedias(Array.isArray(json?.media?.items) ? json.media.items : []);
+      } catch {
+        setMedias([]);
+      }
     },
     [bucketSlug]
   );
@@ -156,17 +199,23 @@ export default function AdminMediaLibraryUploadScreen({
             title: "Upload blocked",
             description: `${name} was flagged as malicious.`,
             variant: "destructive",
+            duration: 5000,
           });
           await refreshData();
           return;
         }
 
         if (status === "FAILED") {
+          const description =
+            body.media?.scanMessage ||
+            `Scan failed for ${name}. The file will stay hidden.`;
           toast({
             title: "Virus scan failed",
-            description: body.media?.scanMessage || `${name} is quarantined.`,
+            description,
             variant: "destructive",
+            duration: 5000,
           });
+          await refreshData();
           return;
         }
 
@@ -193,18 +242,137 @@ export default function AdminMediaLibraryUploadScreen({
     return () => controller.abort();
   }, [currentParentSlug, refreshData]);
 
+  useEffect(() => {
+    let active = true;
+    const loadPermissions = async () => {
+      try {
+        const res = await fetch("/api/auth/me", { cache: "no-store" });
+        if (!res.ok) {
+          if (active) {
+            setCanCreateMedia(false);
+            setCanCreateFolder(false);
+          }
+          return;
+        }
+        const data = await res.json();
+        const perms = data?.user?.permissions || {};
+        const mediaCreate = Boolean(perms?.["media-library"]?.create);
+        const folderPerms = perms?.spaces || {};
+        const folderCreate = Boolean(folderPerms.create);
+        const folderRead = Boolean(folderPerms.read);
+        const folderUpdate = Boolean(folderPerms.update);
+        const folderDelete = Boolean(folderPerms.delete);
+        if (active) {
+          setCanCreateMedia(mediaCreate);
+          setCanCreateFolder(folderCreate);
+          setCanReadFolder(folderRead);
+          setCanUpdateFolder(folderUpdate);
+          setCanDeleteFolder(folderDelete);
+        }
+      } catch (error) {
+        console.error("Failed to load media permissions:", error);
+        if (active) {
+          setCanCreateMedia(false);
+          setCanCreateFolder(false);
+          setCanReadFolder(false);
+          setCanUpdateFolder(false);
+          setCanDeleteFolder(false);
+        }
+      }
+    };
+
+    loadPermissions();
+    return () => {
+      active = false;
+    };
+  }, []);
+
   /* FILTER */
   const filteredItems = useMemo(() => {
-    if (selectedFilter === "all") return items;
-    return items.filter((i) => i.type === selectedFilter);
-  }, [selectedFilter, items]);
+    const query = searchValue.trim().toLowerCase();
+    const next = query
+      ? items.filter((item) => item.name.toLowerCase().includes(query))
+      : items.slice();
+    const getCreatedAt = (item: MediaItem) => {
+      const raw = item.createdAtRaw || item.createdAt;
+      const time = raw ? new Date(raw).getTime() : 0;
+      return Number.isNaN(time) ? 0 : time;
+    };
+    return next.sort((a, b) => {
+      const diff = getCreatedAt(a) - getCreatedAt(b);
+      return createdAtSort === "oldest" ? diff : -diff;
+    });
+  }, [createdAtSort, items, searchValue]);
+  const filteredMedias = useMemo(() => {
+    const query = searchValue.trim().toLowerCase();
+    const matchesSearch = (media: MediaItem) => {
+      if (!query) return true;
+      const name = (media.filename || media.name || "").toLowerCase();
+      return name.includes(query);
+    };
+    if (selectedFilter === "all") return medias.filter(matchesSearch);
+    if (selectedFilter === "image") {
+      return medias.filter((m) => m.type === "IMAGE").filter(matchesSearch);
+    }
+    if (selectedFilter === "video") {
+      return medias.filter((m) => m.type === "VIDEO").filter(matchesSearch);
+    }
+    if (selectedFilter === "document") {
+      return medias
+        .filter((m) => m.type === "DOCUMENT" || m.type === "PDF")
+        .filter(matchesSearch);
+    }
+    return medias.filter(matchesSearch);
+  }, [medias, searchValue, selectedFilter]);
+  const sortedMedias = useMemo(() => {
+    const getCreatedAt = (media: MediaItem) => {
+      const raw = media.createdAtRaw || media.createdAt;
+      const time = raw ? new Date(raw).getTime() : 0;
+      return Number.isNaN(time) ? 0 : time;
+    };
+    const next = filteredMedias.slice();
+    next.sort((a, b) => {
+      const diff = getCreatedAt(a) - getCreatedAt(b);
+      return createdAtSort === "oldest" ? diff : -diff;
+    });
+    return next;
+  }, [createdAtSort, filteredMedias]);
+  const showEmptyState = items.length === 0 && medias.length === 0;
 
   /* PAGINATION */
-  const totalPages = Math.ceil(filteredItems.length / ITEMS_PER_PAGE);
-  const currentItems = filteredItems.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
+  const folderTotalPages = Math.max(
+    1,
+    Math.ceil(filteredItems.length / ITEMS_PER_PAGE)
   );
+  const currentItems = filteredItems.slice(
+    (folderPage - 1) * ITEMS_PER_PAGE,
+    folderPage * ITEMS_PER_PAGE
+  );
+  const mediaTotalPages = Math.max(
+    1,
+    Math.ceil(sortedMedias.length / ITEMS_PER_PAGE)
+  );
+  const pagedMedias = sortedMedias.slice(
+    (mediaPage - 1) * ITEMS_PER_PAGE,
+    mediaPage * ITEMS_PER_PAGE
+  );
+
+  useEffect(() => {
+    setFolderPage(1);
+    setMediaPage(1);
+  }, [createdAtSort, currentParentSlug, searchValue, selectedFilter]);
+
+  useEffect(() => {
+    if (folderPage > folderTotalPages) {
+      setFolderPage(folderTotalPages);
+    }
+  }, [folderPage, folderTotalPages]);
+
+  useEffect(() => {
+    if (mediaPage > mediaTotalPages) {
+      setMediaPage(mediaTotalPages);
+    }
+  }, [mediaPage, mediaTotalPages]);
 
   /* UPLOAD HANDLER */
   const handleUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -222,30 +390,159 @@ export default function AdminMediaLibraryUploadScreen({
       formData.append("files", file);
     });
 
-    const res = await fetch(`/api/buckets/${bucketSlug}/upload`, {
-      method: "POST",
-      body: formData, // browser sets multipart boundary; do not override Content-Type
+    const totalBytes = fileArray.reduce((sum, file) => sum + file.size, 0);
+    setUploadProgress({
+      visible: true,
+      percent: 0,
+      uploadedBytes: 0,
+      totalBytes,
+      totalFiles: fileArray.length,
+      status: "uploading",
+      message: "",
     });
 
-    const jsonResponse = await res.json();
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `/api/buckets/${bucketSlug}/upload`, true);
+    xhr.upload.onprogress = (evt) => {
+      if (!evt.lengthComputable && totalBytes === 0) return;
+      const loaded = evt.lengthComputable ? evt.loaded : evt.loaded;
+      const percent = totalBytes
+        ? Math.min(100, Math.round((loaded / totalBytes) * 100))
+        : 0;
+      setUploadProgress((prev) => ({
+        ...prev,
+        percent,
+        uploadedBytes: loaded,
+      }));
+    };
 
-    // Optionally, refresh the media and folder data after uploading
-    await Promise.all([
-      loadSpaces(currentParentSlug),
-      loadMedia(currentParentSlug),
-    ]);
+    xhr.onload = async () => {
+      let jsonResponse: {
+        uploads?: { slug?: string; filename?: string }[];
+        failures?: { filename?: string; reason?: string }[];
+      } = {};
+      try {
+        jsonResponse = xhr.responseText ? JSON.parse(xhr.responseText) : {};
+      } catch {}
 
-    const uploads = Array.isArray(jsonResponse.uploads)
-      ? jsonResponse.uploads
-      : [];
-    uploads.forEach((upload: { slug?: string; filename?: string }) => {
-      if (upload.slug) {
-        void pollScanStatus(upload.slug, upload.filename);
+      if (xhr.status === 401) {
+        router.replace("/auth/login");
+        event.target.value = "";
+        return;
       }
-    });
+      if (xhr.status === 403) {
+        router.replace("/admin/unauthorized");
+        event.target.value = "";
+        return;
+      }
+      if (xhr.status === 404) {
+        router.replace("/admin/not-found");
+        event.target.value = "";
+        return;
+      }
 
-    // Clear the file input
-    event.target.value = "";
+      if (xhr.status >= 200 && xhr.status < 300) {
+        setUploadProgress((prev) => ({
+          ...prev,
+          percent: 100,
+          status: "processing",
+          message: "Upload complete. Processing scans...",
+        }));
+
+        await Promise.all([
+          loadSpaces(currentParentSlug),
+          loadMedia(currentParentSlug),
+        ]);
+
+        const uploads = Array.isArray(jsonResponse.uploads)
+          ? jsonResponse.uploads
+          : [];
+        uploads.forEach((upload) => {
+          if (upload.slug) {
+            void pollScanStatus(upload.slug, upload.filename);
+          }
+        });
+
+        const failures = Array.isArray(jsonResponse.failures)
+          ? jsonResponse.failures
+          : [];
+        if (failures.length) {
+          const malicious = failures.filter((failure) =>
+            (failure.reason || "").toLowerCase().includes("malicious")
+          );
+          const allNames = failures
+            .map((failure) => failure.filename)
+            .filter(Boolean)
+            .join(", ");
+          const maliciousNames = malicious
+            .map((failure) => failure.filename)
+            .filter(Boolean)
+            .join(", ");
+          if (malicious.length) {
+            toast({
+              title: "Malicious file rejected",
+              description:
+                maliciousNames ||
+                "One or more files were rejected as malicious.",
+              variant: "destructive",
+              duration: 6000,
+            });
+          } else {
+            toast({
+              title: "Some files were rejected",
+              description:
+                allNames || "Some files could not be uploaded successfully.",
+              variant: "destructive",
+              duration: 6000,
+            });
+          }
+        }
+
+        setTimeout(() => {
+          setUploadProgress((prev) => ({
+            ...prev,
+            visible: false,
+            status: "idle",
+            message: "",
+          }));
+        }, 5000);
+      } else {
+        setUploadProgress((prev) => ({
+          ...prev,
+          status: "error",
+          message: "Upload failed. Please try again.",
+        }));
+        setTimeout(() => {
+          setUploadProgress((prev) => ({
+            ...prev,
+            visible: false,
+            status: "idle",
+            message: "",
+          }));
+        }, 2000);
+      }
+
+      event.target.value = "";
+    };
+
+    xhr.onerror = () => {
+      setUploadProgress((prev) => ({
+        ...prev,
+        status: "error",
+        message: "Upload failed. Please try again.",
+      }));
+      setTimeout(() => {
+        setUploadProgress((prev) => ({
+          ...prev,
+          visible: false,
+          status: "idle",
+          message: "",
+        }));
+      }, 2000);
+      event.target.value = "";
+    };
+
+    xhr.send(formData);
   };
 
   /* OPEN MEDIA DRAWER */
@@ -256,6 +553,29 @@ export default function AdminMediaLibraryUploadScreen({
 
   return (
     <>
+      {uploadProgress.visible && (
+        <div className="fixed bottom-6 right-6 z-50 w-96 max-w-[90vw] rounded-lg border border-border bg-background shadow-lg">
+          <div className="px-4 pt-3 text-sm font-medium">
+            Uploading {uploadProgress.totalFiles} file
+            {uploadProgress.totalFiles === 1 ? "" : "s"}
+          </div>
+          <div className="px-4 pb-3 pt-2">
+            <div className="h-2 w-full rounded-full bg-muted">
+              <div
+                className={`h-2 rounded-full transition-all ${
+                  uploadProgress.status === "error"
+                    ? "bg-red-500"
+                    : "bg-emerald-500"
+                }`}
+                style={{ width: `${uploadProgress.percent}%` }}
+              />
+            </div>
+            <div className="mt-2 text-xs text-muted-foreground">
+              {uploadProgress.message || `${uploadProgress.percent}%`}
+            </div>
+          </div>
+        </div>
+      )}
       {/* HEADER */}
       <div className="flex justify-between items-center mb-5">
         <div>
@@ -267,19 +587,25 @@ export default function AdminMediaLibraryUploadScreen({
           />
         </div>
 
-        <div className="flex gap-2">
-          <MediaUploadButton
-            inputRef={uploadInputRef}
-            onUpload={handleUpload}
-          />
+        {(canCreateMedia || canCreateFolder) && (
+          <div className="flex gap-2">
+            {canCreateMedia && (
+              <MediaUploadButton
+                inputRef={uploadInputRef}
+                onUpload={handleUpload}
+              />
+            )}
 
-          <Button
-            variant="outline"
-            onClick={() => setCreateFolderDialogOpen(true)}
-          >
-            Create Folder
-          </Button>
-        </div>
+            {canCreateFolder && (
+              <Button
+                variant="outline"
+                onClick={() => setCreateFolderDialogOpen(true)}
+              >
+                Create Folder
+              </Button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* MAIN CARD */}
@@ -288,16 +614,56 @@ export default function AdminMediaLibraryUploadScreen({
           <MediaFilters
             selectedFilter={selectedFilter}
             onFilterChange={setSelectedFilter}
-            itemCount={filteredItems.length}
+            searchValue={searchValue}
+            onSearchChange={setSearchValue}
+            createdAtSort={createdAtSort}
+            onCreatedAtSortChange={setCreatedAtSort}
           />
 
           {loading ? (
             <div className="py-16 text-center">Loading...</div>
+          ) : showEmptyState ? (
+            <Empty>
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <FolderOpen className="size-5" />
+                </EmptyMedia>
+                <EmptyTitle>
+                  {currentParentSlug
+                    ? "This folder is empty"
+                    : "This bucket is empty"}
+                </EmptyTitle>
+                <EmptyDescription>
+                  {currentParentSlug
+                    ? "Upload files or create a folder here."
+                    : "Upload files or create a folder to get started."}
+                </EmptyDescription>
+              </EmptyHeader>
+              {(canCreateMedia || canCreateFolder) && (
+                <EmptyContent>
+                  <div className="flex flex-wrap items-center justify-center gap-2">
+                    {canCreateMedia && (
+                      <Button onClick={() => uploadInputRef.current?.click()}>
+                        Upload Media
+                      </Button>
+                    )}
+                    {canCreateFolder && (
+                      <Button
+                        variant="outline"
+                        onClick={() => setCreateFolderDialogOpen(true)}
+                      >
+                        Create Folder
+                      </Button>
+                    )}
+                  </div>
+                </EmptyContent>
+              )}
+            </Empty>
           ) : (
             <>
               {/* FOLDERS */}
-              <h1 className="text-xl font-bold mt-4">Folders</h1>
-              <hr className="border-border mb-3" />
+              {/* <h1 className="text-xl font-bold mt-4">Folders</h1>
+              <hr className="border-border mb-3" /> */}
 
               <MediaFolderGrid
                 items={currentItems}
@@ -318,31 +684,48 @@ export default function AdminMediaLibraryUploadScreen({
                   setActiveFolder(folder);
                   setPropsOpen(true);
                 }}
+                canReadFolder={canReadFolder}
+                canUpdateFolder={canUpdateFolder}
+                canDeleteFolder={canDeleteFolder}
                 // onMoveFolder={(folder) => {
                 //   setActiveFolder(folder);
                 //   setMoveOpen(true);
                 // }}
               />
+              {folderTotalPages > 1 && (
+                <MediaPagination
+                  currentPage={folderPage}
+                  totalPages={folderTotalPages}
+                  onPageChange={setFolderPage}
+                />
+              )}
 
               {/* FILES inside folder */}
               {currentParentSlug && (
                 <>
-                  <h1 className="text-xl font-bold mt-8">Files</h1>
-                  <hr className="border-border mb-3" />
+                  {/* <h1 className="text-xl font-bold mt-8">Files</h1>
+                  <hr className="border-border mb-3" /> */}
 
                   <MediaFileGrid
-                    items={medias}
+                    items={pagedMedias}
                     bucketSlug={bucketSlug}
                     onOpenMedia={openMedia}
                   />
+                  {mediaTotalPages > 1 && (
+                    <MediaPagination
+                      currentPage={mediaPage}
+                      totalPages={mediaTotalPages}
+                      onPageChange={setMediaPage}
+                    />
+                  )}
                 </>
               )}
 
               {/* ROOT MEDIA FILES */}
               {!currentParentSlug && (
                 <>
-                  <h1 className="text-xl font-bold mt-8">Medias</h1>
-                  <hr className="border-border mb-3" />
+                  {/* <h1 className="text-xl font-bold mt-8">Medias</h1>
+                  <hr className="border-border mb-3" /> */}
 
                   <MediaFileGrid
                     selectedBook={selectedBook}
@@ -350,10 +733,17 @@ export default function AdminMediaLibraryUploadScreen({
                     selectedBookCover={selectedBookCover}
                     setSelectedBookCover={setSelectedBookCover}
                     bucketSlug={bucketSlug}
-                    items={medias}
+                    items={pagedMedias}
                     onOpenMedia={openMedia}
                     isRoot
                   />
+                  {mediaTotalPages > 1 && (
+                    <MediaPagination
+                      currentPage={mediaPage}
+                      totalPages={mediaTotalPages}
+                      onPageChange={setMediaPage}
+                    />
+                  )}
                 </>
               )}
             </>

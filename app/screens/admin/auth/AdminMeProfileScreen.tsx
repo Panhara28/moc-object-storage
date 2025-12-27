@@ -61,7 +61,7 @@ export default function AdminMeProfileScreen({
 
     async function loadMe() {
       try {
-        const res = await fetch("/api/auth/me", { cache: "no-store" });
+        const res = await fetch("/api/auth/profile", { cache: "no-store" });
         const json = await res.json();
 
         if (json?.user) {

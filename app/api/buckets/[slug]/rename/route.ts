@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { authorize } from "@/lib/authorized";
 import * as fs from "fs/promises";
 import path from "path";
+import { getAuditRequestInfo, logAudit } from "@/lib/audit";
 
 function getStorageRoot() {
   if (process.env.STORAGE_ROOT) return process.env.STORAGE_ROOT;
@@ -43,13 +44,21 @@ export async function PATCH(
 
   try {
     // Authorization check
-    const auth = await authorize(req, "media-library", "update");
+    const auth = await authorize(req, "buckets", "update");
     if (!auth.ok) {
       return NextResponse.json(
         { status: "error", message: auth.message },
         { status: auth.status }
       );
     }
+    const user = auth.user;
+    if (!user) {
+      return NextResponse.json(
+        { status: "error", message: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+    const auditInfo = getAuditRequestInfo(req);
 
     const { name } = await req.json();
 
@@ -69,8 +78,8 @@ export async function PATCH(
     }
 
     // Ensure bucket exists
-    const bucketExists = await prisma.bucket.findUnique({
-      where: { slug },
+    const bucketExists = await prisma.bucket.findFirst({
+      where: { slug, createdById: user.id },
     });
 
     if (!bucketExists) {
@@ -79,6 +88,7 @@ export async function PATCH(
         { status: 404 }
       );
     }
+    const oldName = bucketExists.name;
 
     if (!isSafeSegment(bucketExists.name)) {
       return NextResponse.json(
@@ -150,13 +160,12 @@ export async function PATCH(
     // Update bucket name
     const updatedBucket = await prisma.bucket
       .update({
-        where: { slug },
+        where: { id: bucketExists.id },
         data: { name: newName },
         select: {
           id: true,
           name: true,
           slug: true,
-          accessKeyId: true,
           permission: true,
           isAvailable: true,
           updatedAt: true,
@@ -176,6 +185,20 @@ export async function PATCH(
         }
         throw dbErr;
       });
+
+    await logAudit({
+      ...auditInfo,
+      actorId: auth!.user!.id,
+      action: "bucket.rename",
+      resourceType: "Bucket",
+      resourceId: updatedBucket.id,
+      status: 200,
+      metadata: {
+        bucketSlug: slug,
+        oldName,
+        newName,
+      },
+    });
 
     return NextResponse.json({
       status: "ok",

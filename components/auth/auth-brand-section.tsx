@@ -1,97 +1,103 @@
+import { Space_Grotesk } from "next/font/google"
+
+const brandFont = Space_Grotesk({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+})
+
 export function AuthBrandSection() {
   const backgroundPattern =
-    "data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fillRule='evenodd'%3E%3Cg fill='%23ffffff' fillOpacity='0.05'%3E%3Ccircle cx='30' cy='30' r='2'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"
+    "data:image/svg+xml,%3Csvg width='72' height='72' viewBox='0 0 72 72' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fillRule='evenodd'%3E%3Cg fill='%23ffffff' fillOpacity='0.04'%3E%3Cpath d='M36 0v72M0 36h72'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"
 
   return (
-    <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 to-slate-600/20" />
-      <div className="absolute inset-0 opacity-20" style={{ backgroundImage: `url("${backgroundPattern}")` }} />
+    <div
+      className={`hidden lg:flex lg:w-1/2 relative overflow-hidden ${brandFont.className}`}
+    >
+      <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.3),transparent_55%),radial-gradient(circle_at_20%_80%,rgba(14,116,144,0.25),transparent_45%)]" />
+      <div
+        className="absolute inset-0 opacity-30"
+        style={{ backgroundImage: `url("${backgroundPattern}")` }}
+      />
 
-      <div className="relative z-10 flex flex-col justify-center px-12 py-16 text-white">
-        <div className="mb-8">
-          <div className="flex items-center mb-6">
-            <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center mr-4">
-              <span className="text-slate-900 font-bold text-xl">C</span>
+      <div className="relative z-10 flex h-full flex-col justify-between px-12 py-16 text-white">
+        <div>
+          <div className="flex items-center gap-4">
+            <div className="h-12 w-12 rounded-xl border border-white/20 bg-white/10 flex items-center justify-center">
+              <span className="text-lg font-semibold tracking-wide">MOC</span>
             </div>
-            <h1 className="text-2xl font-bold">CMS Full Form</h1>
+            <div>
+              <p className="text-xs uppercase tracking-[0.3em] text-blue-200/80">
+                MOC
+              </p>
+              <h1 className="text-3xl font-semibold">Object Storage</h1>
+            </div>
           </div>
-          <h2 className="text-2xl font-bold mb-6 leading-tight">Powerful Content Management System</h2>
-          <p className="text-xl text-slate-300 mb-8 leading-relaxed">
-            Streamline your content creation, manage multiple websites, and boost your productivity with our
-            comprehensive CMS platform.
+
+          <h2 className="mt-10 text-3xl font-semibold leading-tight">
+            Secure storage, centralized.
+          </h2>
+          <p className="mt-4 text-lg text-slate-200/80 leading-relaxed">
+            Manage buckets, uploads, and access keys with a single, trusted
+            workspace.
           </p>
-        </div>
 
-        <div className="space-y-6">
-          <div className="flex items-start space-x-4">
-            <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                <path
-                  fillRule="evenodd"
-                  d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                  clipRule="evenodd"
-                />
-              </svg>
+          <div className="mt-10 grid grid-cols-2 gap-4">
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <p className="text-xs uppercase tracking-[0.2em] text-blue-200/70">
+                Buckets
+              </p>
+              <p className="mt-2 text-2xl font-semibold">24+</p>
+              <p className="text-xs text-slate-300/70">audited access</p>
             </div>
-            <div>
-              <h3 className="font-semibold text-lg mb-2">Multi-site Management</h3>
-              <p className="text-slate-300">Manage multiple websites from a single dashboard with ease.</p>
-            </div>
-          </div>
-
-          <div className="flex items-start space-x-4">
-            <div className="w-8 h-8 bg-slate-500 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                <path
-                  fillRule="evenodd"
-                  d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            </div>
-            <div>
-              <h3 className="font-semibold text-lg mb-2">Advanced Analytics</h3>
-              <p className="text-slate-300">Track performance with detailed analytics and insights.</p>
-            </div>
-          </div>
-
-          <div className="flex items-start space-x-4">
-            <div className="w-8 h-8 bg-slate-600 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                <path
-                  fillRule="evenodd"
-                  d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            </div>
-            <div>
-              <h3 className="font-semibold text-lg mb-2">Team Collaboration</h3>
-              <p className="text-slate-300">Work together seamlessly with role-based permissions.</p>
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <p className="text-xs uppercase tracking-[0.2em] text-sky-200/70">
+                Media
+              </p>
+              <p className="mt-2 text-2xl font-semibold">10k+</p>
+              <p className="text-xs text-slate-300/70">safe uploads</p>
             </div>
           </div>
         </div>
 
-        <div className="mt-12 pt-8 border-t border-slate-700">
-          <p className="text-slate-400 text-sm">
-            "CMS Full Form has transformed how we manage our content. The intuitive interface and powerful features make
-            it a joy to use."
-          </p>
-          <div className="flex items-center mt-4">
-            <div className="w-10 h-10 bg-slate-600 rounded-full flex items-center justify-center mr-3">
-              <span className="text-sm font-medium">JD</span>
-            </div>
-            <div>
-              <p className="font-medium">John Doe</p>
-              <p className="text-slate-400 text-sm">Content Manager, TechCorp</p>
-            </div>
+        <div className="grid grid-cols-2 gap-6 text-sm text-slate-200/80">
+          <div>
+            <p className="text-xs uppercase tracking-[0.2em] text-slate-300/70">
+              Buckets
+            </p>
+            <p className="mt-2 text-lg font-medium text-white">
+              Centralized controls
+            </p>
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-[0.2em] text-slate-300/70">
+              Analytics
+            </p>
+            <p className="mt-2 text-lg font-medium text-white">
+              Usage visibility
+            </p>
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-[0.2em] text-slate-300/70">
+              Access
+            </p>
+            <p className="mt-2 text-lg font-medium text-white">
+              Role-based policies
+            </p>
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-[0.2em] text-slate-300/70">
+              Security
+            </p>
+            <p className="mt-2 text-lg font-medium text-white">
+              Signed URLs
+            </p>
           </div>
         </div>
       </div>
 
-      {/* Decorative elements */}
-      <div className="absolute top-20 right-20 w-32 h-32 bg-blue-500/10 rounded-full blur-xl" />
-      <div className="absolute bottom-20 left-20 w-40 h-40 bg-slate-500/10 rounded-full blur-xl" />
+      <div className="absolute -top-16 -right-10 h-48 w-48 rounded-full bg-blue-500/12 blur-3xl" />
+      <div className="absolute -bottom-16 left-8 h-56 w-56 rounded-full bg-sky-500/12 blur-3xl" />
     </div>
   )
 }

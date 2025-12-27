@@ -9,7 +9,7 @@ export async function GET(
   try {
     const { slug } = await context.params;
 
-    const auth = await authorize(req, "media-library", "read");
+    const auth = await authorize(req, "spaces", "read");
     if (!auth.ok) {
       return NextResponse.json(
         { error: auth.message },

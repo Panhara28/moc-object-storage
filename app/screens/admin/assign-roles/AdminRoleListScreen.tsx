@@ -21,7 +21,12 @@ interface RoleRow extends Record<string, unknown> {
   slug: string;
   name: string;
   description: string | null;
-  users?: { id?: number; fullNameEn?: string | null; profilePicture?: string | null; slug?: string }[];
+  users?: {
+    id?: number;
+    fullNameEn?: string | null;
+    profilePicture?: string | null;
+    slug?: string;
+  }[];
 }
 
 interface RolesAPIResponse {
@@ -36,6 +41,12 @@ export default function AdminRoleListScreen() {
   const pageSize = 10;
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [canCreateRole, setCanCreateRole] = useState(false);
+  const [canViewRole, setCanViewRole] = useState(false);
+  const [canEditRole, setCanEditRole] = useState(false);
+  const [canDeleteRole, setCanDeleteRole] = useState(false);
+  const [canAssignRole, setCanAssignRole] = useState(false);
+  const [canUpdatePermissions, setCanUpdatePermissions] = useState(false);
 
   const [filters, setFilters] = useState<RoleFilter>({
     search: "",
@@ -84,6 +95,51 @@ export default function AdminRoleListScreen() {
     loadRoles();
   }, [page, filters]);
 
+  useEffect(() => {
+    let active = true;
+    const loadPermissions = async () => {
+      try {
+        const res = await fetch("/api/auth/me", { cache: "no-store" });
+        if (!res.ok) {
+          if (active) {
+            setCanCreateRole(false);
+            setCanViewRole(false);
+            setCanEditRole(false);
+            setCanDeleteRole(false);
+            setCanAssignRole(false);
+            setCanUpdatePermissions(false);
+          }
+          return;
+        }
+        const data = await res.json();
+        const perms = data?.user?.permissions || {};
+        if (active) {
+          setCanCreateRole(Boolean(perms?.roles?.create));
+          setCanViewRole(Boolean(perms?.roles?.read));
+          setCanEditRole(Boolean(perms?.roles?.update));
+          setCanDeleteRole(Boolean(perms?.roles?.delete));
+          setCanAssignRole(Boolean(perms?.roles?.update));
+          setCanUpdatePermissions(Boolean(perms?.roles?.update));
+        }
+      } catch (error) {
+        console.error("Failed to load role permissions:", error);
+        if (active) {
+          setCanCreateRole(false);
+          setCanViewRole(false);
+          setCanEditRole(false);
+          setCanDeleteRole(false);
+          setCanAssignRole(false);
+          setCanUpdatePermissions(false);
+        }
+      }
+    };
+
+    loadPermissions();
+    return () => {
+      active = false;
+    };
+  }, []);
+
   return (
     <>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
@@ -96,14 +152,16 @@ export default function AdminRoleListScreen() {
           </p>
         </div>
 
-        <div className="flex gap-2">
-          <Button
-            onClick={() => setOpen(true)}
-            className="px-4 py-2 border border-border text-foreground rounded-lg hover:bg-accent hover:text-accent-foreground transition-colors text-sm font-medium"
-          >
-            Add New Role
-          </Button>
-        </div>
+        {canCreateRole && (
+          <div className="flex gap-2">
+            <Button
+              onClick={() => setOpen(true)}
+              className="px-4 py-2 rounded-lg bg-black text-white hover:bg-black/90 transition-colors text-sm font-medium"
+            >
+              Add New Role
+            </Button>
+          </div>
+        )}
       </div>
 
       <hr className="border-gray-200 mb-5" />
@@ -128,31 +186,38 @@ export default function AdminRoleListScreen() {
               ...updated,
             }))
           }
-          onDelete={handleDelete}
+          onDelete={canDeleteRole ? handleDelete : undefined}
           onDeleteComplete={loadRoles}
-          onView={onView}
-          onEdit={onEdit}
+          onEdit={canEditRole ? onEdit : undefined}
           customActions={[
-            {
-              icon: <Users className="w-4 h-4" />,
-              label: "Assign Users",
-              dialog: (row) => (
-                <AdminAssignRoleDialog
-                  row={row}
-                  onSuccess={() => loadRoles()}
-                />
-              ),
-            },
-            {
-              icon: <Fingerprint className="w-4 h-4" />,
-              label: "Permission",
-              dialog: (row) => (
-                <AdminAssignPermissionDialog
-                  row={row}
-                  onSuccess={() => loadRoles()}
-                />
-              ),
-            },
+            ...(canAssignRole
+              ? [
+                  {
+                    icon: <Users className="w-4 h-4" />,
+                    label: "Assign Users",
+                    dialog: (row: RoleRow) => (
+                      <AdminAssignRoleDialog
+                        row={row}
+                        onSuccess={() => loadRoles()}
+                      />
+                    ),
+                  },
+                ]
+              : []),
+            ...(canUpdatePermissions
+              ? [
+                  {
+                    icon: <Fingerprint className="w-4 h-4" />,
+                    label: "Permission",
+                    dialog: (row: RoleRow) => (
+                      <AdminAssignPermissionDialog
+                        row={row}
+                        onSuccess={() => loadRoles()}
+                      />
+                    ),
+                  },
+                ]
+              : []),
           ]}
         />
       </div>

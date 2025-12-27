@@ -1,0 +1,292 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+/**
+ * ============================================================
+ * ENUMS
+ * ============================================================
+ */
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+  AUDIO
+  PDF
+  DOCUMENT
+  OTHER
+}
+
+enum Visibility {
+  AVAILABLE
+  PUBLIC
+  PRIVATE
+  RESTRICTED
+  REMOVE
+  RECOVERY
+  DRAFTED
+  PUBLISHED
+  UNPUBLISHED
+}
+
+enum CategoryOf {
+  DEFAULT
+  BOOK
+  NEWS
+}
+
+enum BucketPermission {
+  READ
+  READ_WRITE
+  FULL_ACCESS
+}
+
+/**
+ * ============================================================
+ * USERS
+ * ============================================================
+ */
+
+model User {
+  id             Int      @id @default(autoincrement())
+  email          String   @unique
+  name           String
+  password       String
+  roleId         Int?
+  slug           String   @unique @default(uuid())
+  profilePicture String
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  fullNameKh        String?
+  fullNameEn        String?
+  gender            Gender?
+  generalDepartment String?
+  department        String?
+  office            String?
+  phoneNumber       String?
+  currentRole       String?
+
+  role Role? @relation(fields: [roleId], references: [id])
+
+  mediasUploaded Media[]       @relation("MediaUploadedBy")
+  mediaUploads   MediaUpload[]
+  spaces         Space[]
+  buckets        Bucket[]      @relation("BucketCreatedBy")
+
+  @@index([roleId])
+  @@map("users")
+}
+
+/**
+ * ============================================================
+ * ROLES & PERMISSIONS
+ * ============================================================
+ */
+
+model Role {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?
+  slug        String   @unique @default(uuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users       User[]
+  permissions RolePermission[]
+
+  @@map("roles")
+}
+
+model PermissionModule {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  label       String
+  description String?
+  slug        String   @unique @default(uuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  roles RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId   Int
+  moduleId Int
+
+  create Boolean @default(false)
+  read   Boolean @default(false)
+  update Boolean @default(false)
+  delete Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  slug      String   @unique @default(uuid())
+
+  role   Role             @relation(fields: [roleId], references: [id])
+  module PermissionModule @relation(fields: [moduleId], references: [id])
+
+  @@id([roleId, moduleId])
+  @@map("role_permissions")
+}
+
+/**
+ * ============================================================
+ * BUCKET MODEL (TOP LEVEL STORAGE UNIT)
+ * ============================================================
+ */
+
+model Bucket {
+  id          Int    @id @default(autoincrement())
+  name        String @unique // e.g., "panhara", "uploads"
+  slug        String @unique @default(uuid())
+  createdById Int
+  createdBy   User   @relation("BucketCreatedBy", fields: [createdById], references: [id])
+
+  // NEW SECURITY FIELDS
+  accessKeyName   String
+  accessKeyId     String           @unique
+  secretAccessKey String
+  permission      BucketPermission @default(FULL_ACCESS)
+  isAvailable     Visibility       @default(AVAILABLE)
+
+  medias Media[]
+  spaces Space[] // folder system inside this bucket
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("buckets")
+}
+
+/**
+ * ============================================================
+ * MEDIA MODEL (OBJECT STORAGE CORE)
+ * ============================================================
+ */
+
+model Media {
+  id   Int    @id @default(autoincrement())
+  slug String @unique @default(uuid())
+
+  filename       String
+  storedFilename String
+  url            String
+
+  // ⭐ REQUIRED: Media belongs to a bucket
+  bucketId Int
+  bucket   Bucket @relation(fields: [bucketId], references: [id])
+
+  // ⭐ Optional subfolder path: documents/2025/reports
+  path String?
+
+  fileType  MediaType
+  mimetype  String
+  extension String
+  size      Int
+
+  title       String?
+  altText     String?
+  description String?
+
+  uploadedById Int
+  uploadedBy   User @relation("MediaUploadedBy", fields: [uploadedById], references: [id])
+
+  isVisibility Visibility @default(AVAILABLE)
+
+  isAccessible Visibility @default(PRIVATE)
+
+  width      Int?
+  height     Int?
+  uploadedAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  spaces       Space[]
+  mediaDetails MediaUploadDetail[]
+
+  @@map("medias")
+}
+
+/**
+ * ============================================================
+ * MEDIA UPLOAD SESSION
+ * ============================================================
+ */
+
+model MediaUpload {
+  id        Int      @id @default(autoincrement())
+  slug      String   @unique @default(uuid())
+  userId    Int
+  createdAt DateTime @default(now())
+
+  user    User                @relation(fields: [userId], references: [id])
+  details MediaUploadDetail[]
+
+  @@map("media_uploads")
+}
+
+model MediaUploadDetail {
+  id            Int      @id @default(autoincrement())
+  mediaUploadId Int
+  mediaId       Int
+  spaceId       Int?
+  createdAt     DateTime @default(now())
+
+  media       Media       @relation(fields: [mediaId], references: [id])
+  mediaUpload MediaUpload @relation(fields: [mediaUploadId], references: [id])
+  space       Space?      @relation(fields: [spaceId], references: [id]) // Optional space relation
+
+  @@map("media_upload_details")
+}
+
+/**
+ * ============================================================
+ * SPACE MODEL (FOLDER SYSTEM INSIDE BUCKET)
+ * ============================================================
+ */
+
+model Space {
+  id          Int        @id @default(autoincrement())
+  name        String
+  slug        String     @unique @default(uuid())
+  parentId    Int?
+  isAvailable Visibility @default(AVAILABLE)
+  uploadedAt  DateTime?
+
+  // ⭐ Link folder to a bucket
+  bucketId Int
+  bucket   Bucket @relation(fields: [bucketId], references: [id])
+
+  userId Int
+  user   User @relation(fields: [userId], references: [id])
+
+  parent   Space?  @relation("SpaceHierarchy", fields: [parentId], references: [id])
+  children Space[] @relation("SpaceHierarchy")
+
+  mediaId Int?
+  media   Media? @relation(fields: [mediaId], references: [id])
+
+  uploadDetails MediaUploadDetail[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([parentId])
+  @@map("spaces")
+}

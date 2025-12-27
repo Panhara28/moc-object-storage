@@ -1,6 +1,7 @@
 import { authorize } from "@/lib/authorized";
 import prisma from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
+import { getAuditRequestInfo, logAudit } from "@/lib/audit";
 
 export async function PATCH(
   req: NextRequest,
@@ -18,6 +19,7 @@ export async function PATCH(
         { status: auth.status }
       );
     }
+    const auditInfo = getAuditRequestInfo(req);
 
     /* --------------------------------------------------------------------------
      * 2. GET ROLE SLUG
@@ -51,6 +53,20 @@ export async function PATCH(
       data: {
         ...(data.name && { name: data.name }),
         ...(data.description && { description: data.description }),
+      },
+    });
+
+    await logAudit({
+      ...auditInfo,
+      actorId: auth!.user!.id,
+      action: "role.update",
+      resourceType: "Role",
+      resourceId: updated.id,
+      status: 200,
+      metadata: {
+        roleSlug: slug,
+        name: data.name ?? null,
+        description: data.description ?? null,
       },
     });
 

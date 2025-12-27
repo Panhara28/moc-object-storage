@@ -10,6 +10,9 @@ export default function MediaFolderGrid({
   onFolderProps,
   onRenameFolder,
   onMoveFolder,
+  canReadFolder,
+  canUpdateFolder,
+  canDeleteFolder,
 }: MediaFolderGridProps) {
   return (
     <MediaGrid
@@ -18,6 +21,9 @@ export default function MediaFolderGrid({
       onDeleteFolder={onDeleteFolder}
       onFolderProps={onFolderProps}
       onRenameFolder={onRenameFolder}
+      canReadFolder={canReadFolder}
+      canUpdateFolder={canUpdateFolder}
+      canDeleteFolder={canDeleteFolder}
       // onMoveFolder={onMoveFolder}
     />
   );

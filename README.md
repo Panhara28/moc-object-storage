@@ -1,36 +1,66 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# MOC Object Storage (Next.js + Prisma)
 
-## Getting Started
+Admin UI and API for bucket/media management with signed URLs, virus scanning,
+and audit logging.
 
-First, run the development server:
+## Requirements
+
+- Node.js >= 18
+- MySQL/MariaDB configured via `DATABASE_URL`
+
+## Setup
 
 ```bash
+npm install
+npm run db:migrate
+npm run db:seed
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Seeding now also creates the `api` permission module and an `API Manager` role (full CRUD) so you can immediately work with the API key manager UI.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Database Scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `npm run db:migrate` - apply Prisma migrations
+- `npm run db:reset` - drop and recreate the database (data loss)
+- `npm run db:seed` - seed sample data
 
-## Learn More
+## Security and Audit Logging
 
-To learn more about Next.js, take a look at the following resources:
+Security guardrails, rate limiting, upload validation, and audit logging
+details live in `README-SECURITY.md`.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## API Key Management
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- `/admin/apis/lists` exposes the Spaces API key manager (Generate Key → view bucket API keys) and is visible only when the signed-in role has the `api` module `read` permission.
+- The page loads `/api/buckets/keys` and renders the current user’s keys with pagination; only UI requests from within the admin shell are accepted.
+- Client-side access checks protect `/admin/apis/lists` (see `components/cmsfullform/auth-guard.tsx`), and `authorize(req, "buckets", "read")` gates the backend API.
+- External clients that upload files or create folders call `/api/external/upload` or `/api/external/create-folder`. Each request must include one of:
+  - `x-api-key`, `x-api-signature`, `x-api-timestamp`, and `x-api-body-hash` (HMAC + canonical payload) for the HMAC-based flow.
+  - `x-access-key`, `x-secret-key`, and `x-bucket-slug` for the simple credential flow (better suited to clients that only store the raw key/secret). The server validates the access key, decrypts the stored secret, and ensures the bucket slug matches before performing the action.
+- Timeouts from VirusTotal automatically requeue the scan job (instead of failing) so the upload eventually completes once the service finishes analyzing the file.
 
-## Deploy on Vercel
+## Client-Side Access Guard
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Admin pages are wrapped with a client-side guard that:
+- Fetches `/api/auth/me` to validate session and load permissions.
+- Redirects to `/auth/login` if unauthorized.
+- Blocks pages without the required module/action permission.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Note: this is UX-only. All real enforcement must still happen in API routes.
+
+## Auth Profile Endpoints
+
+- `GET /api/auth/me` returns a minimal session payload (user + role + permissions).
+- `GET /api/auth/profile` returns the full profile (used by the Profile page).
+
+## Dashboard Data Endpoints
+
+- `GET /api/dashboard/stats` summary counts for the overview cards.
+- `GET /api/dashboard/charts` time series + distribution charts.
+- `GET /api/dashboard/activity` audit log stream (system/user activity).
+- `GET /api/dashboard/recent-uploads` recent uploads + folder creation.
+
+## Tests
+
+Run `npm test`. API test coverage details are in `README-TEST.md`.

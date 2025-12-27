@@ -2,17 +2,19 @@ import { NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth";
 import { authorize } from "@/lib/authorized";
 import prisma from "@/lib/prisma";
+import { getAuditRequestInfo, logAudit } from "@/lib/audit";
 
 export async function POST(req: Request) {
   try {
     // Require permission to manage media folders
-    const auth = await authorize(req, "media-library", "create");
+    const auth = await authorize(req, "spaces", "create");
     if (!auth.ok) {
       return NextResponse.json(
         { error: auth.message },
         { status: auth.status }
       );
     }
+    const auditInfo = getAuditRequestInfo(req);
 
     const user = await getAuthUser(req);
 
@@ -46,9 +48,14 @@ export async function POST(req: Request) {
 
     const bucket = await prisma.bucket.findUnique({
       where: { id: numericBucketId },
+      select: { id: true, isAvailable: true, createdById: true },
     });
 
-    if (!bucket || bucket.isAvailable !== "AVAILABLE") {
+    if (
+      !bucket ||
+      bucket.isAvailable !== "AVAILABLE" ||
+      bucket.createdById !== user.id
+    ) {
       return NextResponse.json(
         { error: "Bucket not found or unavailable." },
         { status: 404 }
@@ -110,6 +117,20 @@ export async function POST(req: Request) {
         isAvailable: "AVAILABLE",
         uploadedAt: new Date(), // simple timestamp
         mediaId: null, // ensures it's a folder
+      },
+    });
+
+    await logAudit({
+      ...auditInfo,
+      actorId: user.id,
+      action: "folder.create",
+      resourceType: "Space",
+      resourceId: newFolder.id,
+      status: 200,
+      metadata: {
+        bucketId: bucket.id,
+        parentId: numericParentId,
+        name: newFolder.name,
       },
     });
 

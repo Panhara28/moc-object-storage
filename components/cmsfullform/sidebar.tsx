@@ -13,14 +13,21 @@ import {
   Shield,
   PencilRuler,
   DatabaseIcon,
+  Rocket,
+  ShieldUser,
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 
 type MenuState = "full" | "collapsed" | "hidden";
+type PermissionAction = "create" | "read" | "update" | "delete";
+type PermissionMap = Record<
+  string,
+  { create: boolean; read: boolean; update: boolean; delete: boolean }
+>;
 
 declare global {
   interface Window {
@@ -44,6 +51,7 @@ interface SubMenuItem {
   badge?: string;
   isNew?: boolean;
   children?: SubMenuItem[];
+  permission?: { module: string; action: PermissionAction };
 }
 
 interface MenuItem {
@@ -54,6 +62,7 @@ interface MenuItem {
   badge?: string;
   isNew?: boolean;
   children?: SubMenuItem[];
+  permission?: { module: string; action: PermissionAction };
 }
 
 interface MenuSection {
@@ -73,6 +82,7 @@ const menuData: MenuSection[] = [
         label: "Dashboard",
         href: "/admin/dashboard",
         icon: Home,
+        permission: { module: "media-library", action: "read" },
       },
 
       // Media Library
@@ -86,6 +96,22 @@ const menuData: MenuSection[] = [
             label: "Buckets",
             href: "/admin/buckets/lists",
             icon: PencilRuler,
+            permission: { module: "buckets", action: "read" },
+          },
+        ],
+      },
+      // API
+      {
+        id: "api-space",
+        label: "API",
+        icon: Rocket,
+        children: [
+          {
+            id: "create-api",
+            label: "Generate Key",
+            href: "/admin/apis/lists",
+            icon: ShieldUser,
+            permission: { module: "api", action: "read" },
           },
         ],
       },
@@ -102,12 +128,14 @@ const menuData: MenuSection[] = [
             label: "All Users",
             href: "/admin/users/lists",
             icon: User,
+            permission: { module: "users", action: "read" },
           },
           {
             id: "users-create",
             label: "Create User",
             href: "/admin/users/add",
             icon: EditIcon,
+            permission: { module: "users", action: "create" },
           },
         ],
       },
@@ -118,12 +146,14 @@ const menuData: MenuSection[] = [
         label: "Role & Permission",
         href: "/admin/roles-and-permissions",
         icon: Shield,
+        permission: { module: "roles", action: "read" },
         children: [
           {
             id: "role-assign",
             label: "Assign Role",
             href: "/admin/assign-roles",
             icon: ShieldCheck,
+            permission: { module: "roles", action: "update" },
           },
         ],
       },
@@ -139,6 +169,8 @@ export default function Sidebar() {
     useState<MenuState>("full");
   const [isMobile, setIsMobile] = useState(false);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+  const [permissions, setPermissions] = useState<PermissionMap | null>(null);
+  const [permissionsLoaded, setPermissionsLoaded] = useState(false);
 
   // Cycle through menu states: full -> collapsed -> hidden -> full
   const toggleMenuState = () => {
@@ -192,9 +224,46 @@ export default function Sidebar() {
     return () => window.removeEventListener("resize", handleResize);
   }, [menuState, previousDesktopState]);
 
+  useEffect(() => {
+    let active = true;
+    const loadPermissions = async () => {
+      try {
+        const res = await fetch("/api/auth/me", { cache: "no-store" });
+        if (res.status === 401) {
+          if (active) {
+            setPermissions({});
+          }
+          return;
+        }
+        if (!res.ok) {
+          throw new Error("Failed to load permissions");
+        }
+        const payload = await res.json();
+        if (active) {
+          setPermissions((payload?.user?.permissions as PermissionMap) || {});
+        }
+      } catch (error) {
+        console.error("Failed to load sidebar permissions:", error);
+        if (active) {
+          setPermissions({});
+        }
+      } finally {
+        if (active) {
+          setPermissionsLoaded(true);
+        }
+      }
+    };
+
+    loadPermissions();
+    return () => {
+      active = false;
+    };
+  }, []);
+
   // Export functions to window for TopNav and ThemeCustomizer to access
   useEffect(() => {
     if (typeof window !== "undefined") {
+      window.toggleMenuState = toggleMenuState;
       window.menuState = menuState;
       window.isHovered = isHovered;
       window.isMobile = isMobile;
@@ -221,6 +290,78 @@ export default function Sidebar() {
       return newSet;
     });
   };
+
+  const hasPermission = (
+    permission: { module: string; action: PermissionAction },
+    perms: PermissionMap
+  ) => {
+    const modulePerms = perms[permission.module];
+    return Boolean(modulePerms && modulePerms[permission.action]);
+  };
+
+  const filterSubItems = (
+    items: SubMenuItem[],
+    perms: PermissionMap
+  ): SubMenuItem[] => {
+    return items
+      .map((item) => {
+        const children = item.children
+          ? filterSubItems(item.children, perms)
+          : undefined;
+        const allowedSelf = item.permission
+          ? hasPermission(item.permission, perms)
+          : !item.children;
+        const allowed = allowedSelf || (children && children.length > 0);
+        if (!allowed) {
+          return null;
+        }
+        return {
+          ...item,
+          ...(children ? { children } : {}),
+        };
+      })
+      .filter((item): item is SubMenuItem => Boolean(item));
+  };
+
+  const filterMenuItems = (
+    items: MenuItem[],
+    perms: PermissionMap
+  ): MenuItem[] => {
+    return items
+      .map((item) => {
+        const children = item.children
+          ? filterSubItems(item.children, perms)
+          : undefined;
+        const allowedSelf = item.permission
+          ? hasPermission(item.permission, perms)
+          : !item.children;
+        const allowed = allowedSelf || (children && children.length > 0);
+        if (!allowed) {
+          return null;
+        }
+        return {
+          ...item,
+          ...(children ? { children } : {}),
+        };
+      })
+      .filter((item): item is MenuItem => Boolean(item));
+  };
+
+  const filteredMenuData = useMemo(() => {
+    if (!permissionsLoaded) {
+      return menuData;
+    }
+    const perms = permissions ?? {};
+    return menuData
+      .map((section) => {
+        const items = filterMenuItems(section.items, perms);
+        if (items.length === 0) {
+          return null;
+        }
+        return { ...section, items };
+      })
+      .filter((section): section is MenuSection => Boolean(section));
+  }, [permissions, permissionsLoaded]);
 
   function NavItem({
     item,
@@ -249,7 +390,7 @@ export default function Sidebar() {
     const content = (
       <div
         className={cn(
-          "flex items-center py-2 text-sm rounded-md transition-colors sidebar-menu-item hover:bg-accent hover:text-accent-foreground relative group cursor-pointer",
+          "flex items-center py-2 text-sm rounded-md transition-colors sidebar-menu-item hover:bg-blue-800/70 hover:text-white relative group cursor-pointer",
           paddingLeft
         )}
         onClick={() => {
@@ -358,15 +499,16 @@ export default function Sidebar() {
         {/* Mobile sidebar overlay */}
         <nav
           className={`
-            fixed inset-y-0 left-0 z-[70] w-64 bg-background
-            border-r border-border 
+            fixed inset-y-0 left-0 z-[70] w-64 bg-gradient-to-b from-blue-900 via-blue-800 to-blue-700 text-blue-50
+            dark:from-black dark:via-black dark:to-black
+            border-r border-blue-800/80 dark:border-black/80
             transform transition-transform duration-300 ease-in-out
             ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"}
           `}
         >
           <div className="h-full flex flex-col">
             {/* Header */}
-            <div className="h-16 px-3 flex items-center border-b border-border">
+            <div className="h-16 px-3 flex items-center border-b border-blue-200/60 dark:border-white/10">
               <Link
                 href="/admin/dashboard"
                 target="_blank"
@@ -392,9 +534,9 @@ export default function Sidebar() {
               }}
             >
               <div className="space-y-6">
-                {menuData.map((section) => (
+                {filteredMenuData.map((section) => (
                   <div key={section.id}>
-                    <div className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground sidebar-section-label">
+                    <div className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-blue-200/80 sidebar-section-label">
                       {section.label}
                     </div>
                     <div className="space-y-1">
@@ -411,7 +553,7 @@ export default function Sidebar() {
               </div>
             </div>
 
-            <div className="px-2 py-4 border-t border-border">
+            <div className="px-2 py-4 border-t border-blue-200/60 dark:border-white/10">
               <div className="space-y-1">
                 <NavItem
                   item={{
@@ -449,8 +591,9 @@ export default function Sidebar() {
   return (
     <nav
       className={`
-        fixed inset-y-0 left-0 z-[60] bg-background
-        border-r border-border transition-all duration-300 ease-in-out
+        fixed inset-y-0 left-0 z-[60] bg-gradient-to-b from-blue-900 via-blue-800 to-blue-700 text-blue-50
+        dark:from-black dark:via-black dark:to-black
+        border-r border-blue-800/80 dark:border-black/80 transition-all duration-300 ease-in-out
         ${menuState === "hidden" ? "w-0 border-r-0" : getSidebarWidth()}
       `}
       onMouseEnter={() => setIsHovered(true)}
@@ -462,15 +605,25 @@ export default function Sidebar() {
       {menuState !== "hidden" && (
         <div className="h-full flex flex-col">
           {/* Header */}
-          <div className="h-16 px-3 flex items-center border-b border-border">
+          <div className="h-16 px-3 flex items-center border-b border-blue-200/30 dark:border-white/10">
             {showText ? (
               <Link
                 href="/admin/dashboard"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="gap-3 w-full text-lg text-center"
+                className="flex items-center gap-3 w-full text-blue-50"
               >
-                MOC Object Storage
+                <Image
+                  src="/moc-object-storage-logo.png"
+                  alt="MOC Object Storage"
+                  width={522}
+                  height={142}
+                  className="flex-shrink-0 w-12 h-auto object-contain"
+                  priority
+                />
+                <span className="text-base font-semibold tracking-tight">
+                  MOC Object Storage
+                </span>
               </Link>
             ) : (
               <div className="flex justify-center w-full">
@@ -479,7 +632,7 @@ export default function Sidebar() {
                   alt="MOC Object Storage"
                   width={522}
                   height={142}
-                  className="flex-shrink-0 hidden dark:block h-10 w-auto"
+                  className="flex-shrink-0 hidden dark:block w-16 h-auto object-contain"
                   priority
                 />
                 <Image
@@ -487,7 +640,7 @@ export default function Sidebar() {
                   alt="MOC Object Storage"
                   width={522}
                   height={142}
-                  className="flex-shrink-0 block dark:hidden h-10 w-auto"
+                  className="flex-shrink-0 block dark:hidden w-16 h-auto object-contain"
                   priority
                 />
               </div>
@@ -502,10 +655,10 @@ export default function Sidebar() {
             }}
           >
             <div className="space-y-6">
-              {menuData.map((section) => (
+              {filteredMenuData.map((section) => (
                 <div key={section.id}>
                   {showText && (
-                    <div className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground sidebar-section-label transition-opacity duration-200">
+                    <div className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-blue-200/80 sidebar-section-label transition-opacity duration-200">
                       {section.label}
                     </div>
                   )}
@@ -523,9 +676,11 @@ export default function Sidebar() {
             </div>
           </div>
 
-          <div className="px-2 py-4 border-t border-border">
+          <div className="px-2 py-4 border-t border-blue-200/30 dark:border-white/10">
             <div className="space-y-1  text-center">
-              <span className="text-xs">© 2025 Ministry of Commerce.</span>
+              {showText && (
+                <span className="text-xs">© 2025 Ministry of Commerce.</span>
+              )}
               {/* <NavItem
                 item={{
                   id: "settings",

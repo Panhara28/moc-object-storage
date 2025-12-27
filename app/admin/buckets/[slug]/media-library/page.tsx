@@ -2,7 +2,7 @@ import AdminMediaLibraryUploadScreen from "@/app/screens/admin/media-library/upl
 import Layout from "@/components/cmsfullform/layout";
 
 interface Props {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }
 
 export default async function BukcetMediaLibraryPage({ params }: Props) {

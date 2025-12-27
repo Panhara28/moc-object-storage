@@ -15,13 +15,19 @@ function formatDate(input: Date | string | null | undefined) {
 
 export async function GET(req: NextRequest) {
   try {
-    const auth = await authorize(req, "media-library", "read");
-    if (!auth.ok) {
-      return NextResponse.json(
-        { error: auth.message },
-        { status: auth.status }
-      );
+  let auth = await authorize(req, "spaces", "read");
+  if (!auth.ok) {
+    const fallback = await authorize(req, "media-library", "read");
+    if (fallback.ok) {
+      auth = fallback;
     }
+  }
+  if (!auth.ok) {
+    return NextResponse.json(
+      { error: auth.message },
+      { status: auth.status }
+    );
+  }
     const user = auth.user;
     if (!user) {
       return NextResponse.json(

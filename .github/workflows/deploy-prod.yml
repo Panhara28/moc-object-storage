@@ -1,0 +1,70 @@
+name: Deploy (Prod)
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: deploy-main
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: rootpass
+          MYSQL_DATABASE: myapp_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -p$MYSQL_ROOT_PASSWORD"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_USERNAME: root
+      DB_PASSWORD: rootpass
+      DB_DATABASE_NAME: myapp_test
+      DATABASE_URL: mysql://root:rootpass@127.0.0.1:3306/myapp_test
+      JWT_SECRET: ci-jwt-secret
+      SIGNING_SECRET: ci-signing-secret
+      AUDIENCE_JWT_SECRET: ci-audience-secret
+      STORAGE_PUBLIC_BASE_URL: http://localhost:3000/storage
+      VIRUSTOTAL_REQUIRED: "false"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Migrate
+        run: npx prisma migrate deploy
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
+        env:
+          NODE_ENV: production
+
+      - name: Deploy to CapRover (Prod)
+        uses: caprover/deploy-action@v1
+        with:
+          server: ${{ secrets.CAPROVER_SERVER }}
+          app: ${{ secrets.CAPROVER_APP }}
+          token: ${{ secrets.CAPROVER_APP_TOKEN }}
+          branch: main

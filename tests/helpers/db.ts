@@ -9,6 +9,7 @@ export async function resetDb() {
       "media_uploads",
       "spaces",
       "medias",
+      "bucket_api_keys",
       "buckets",
       "users",
       "role_permissions",

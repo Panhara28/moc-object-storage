@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { authorize, getAuthUser } from "@/lib/authorized";
 import { validateUploadFile } from "@/lib/upload-validation";
-import { queueVirusTotalScanForMedia } from "@/lib/virustotal";
+import { getAuditRequestInfo, logAudit } from "@/lib/audit";
 import { randomUUID } from "crypto";
 import * as fs from "fs/promises";
 import path from "path";
@@ -87,6 +87,7 @@ export async function POST(
         { status: 401 }
       );
     }
+    const auditInfo = getAuditRequestInfo(req);
 
     // 2. READ FORM DATA
     const form = await req.formData();
@@ -100,23 +101,11 @@ export async function POST(
       );
     }
 
-    for (const file of files) {
-      if (file.size > MAX_UPLOAD_BYTES) {
-        return NextResponse.json(
-          {
-            status: "error",
-            message: `File "${file.name}" exceeds size limit of ${MAX_UPLOAD_BYTES} bytes.`,
-          },
-          { status: 400 }
-        );
-      }
-    }
-
     // ===============================================================
     // 3. GET BUCKET USING SLUG
     // ===============================================================
-    const bucket = await prisma.bucket.findUnique({
-      where: { slug, isAvailable: "AVAILABLE" },
+    const bucket = await prisma.bucket.findFirst({
+      where: { slug, isAvailable: "AVAILABLE", createdById: user.id },
     });
 
     if (!bucket) {
@@ -187,32 +176,6 @@ export async function POST(
       }
     }
 
-    const validatedFiles = [];
-    for (const file of files) {
-      const buffer = Buffer.from(await file.arrayBuffer());
-      const validation = validateUploadFile({
-        file,
-        buffer,
-        allowedMimePrefixes: ALLOWED_MIME_PREFIXES,
-        allowedMimeTypes: ALLOWED_MIME_TYPES,
-      });
-      if (!validation.ok) {
-        return NextResponse.json(
-          {
-            status: "error",
-            message: `File "${file.name}" ${validation.reason}`,
-          },
-          { status: 400 }
-        );
-      }
-      validatedFiles.push({
-        file,
-        buffer,
-        mime: validation.mime,
-        ext: validation.ext,
-      });
-    }
-
     // ===============================================================
     // 5. CREATE UPLOAD SESSION
     // ===============================================================
@@ -221,103 +184,156 @@ export async function POST(
     });
 
     const uploads = [];
+    const failures: { filename: string; reason: string }[] = [];
 
     // ===============================================================
     // 6. PROCESS EACH FILE
     // ===============================================================
-    for (const entry of validatedFiles) {
-      const { file, buffer, mime, ext } = entry;
-      const extension = ext.toLowerCase();
-      const storedFilename = `${randomUUID()}.${extension}`;
+    for (const file of files) {
+      if (file.size > MAX_UPLOAD_BYTES) {
+        failures.push({
+          filename: file.name,
+          reason: `File exceeds size limit of ${MAX_UPLOAD_BYTES} bytes.`,
+        });
+        continue;
+      }
 
+      let buffer: Buffer;
+      try {
+        buffer = Buffer.from(await file.arrayBuffer());
+      } catch (error) {
+        console.error("Failed to read upload buffer:", error);
+        failures.push({
+          filename: file.name,
+          reason: "Failed to read file data.",
+        });
+        continue;
+      }
+
+      const validation = validateUploadFile({
+        file,
+        buffer,
+        allowedMimePrefixes: ALLOWED_MIME_PREFIXES,
+        allowedMimeTypes: ALLOWED_MIME_TYPES,
+      });
+      if (!validation.ok) {
+        failures.push({
+          filename: file.name,
+          reason: validation.reason,
+        });
+        continue;
+      }
+
+      const extension = validation.ext.toLowerCase();
+      const storedFilename = `${randomUUID()}.${extension}`;
       const storedPath = folderPath
         ? path.join(bucketDir, folderPath, storedFilename)
         : path.join(bucketDir, storedFilename);
       assertPathInsideBase(bucketDir, storedPath);
 
-      await fs.writeFile(storedPath, buffer);
+      try {
+        await fs.writeFile(storedPath, buffer);
 
-      // Extract image metadata (if it's an image)
-      let width: number | undefined = undefined;
-      let height: number | undefined = undefined;
+        // Extract image metadata (if it's an image)
+        let width: number | undefined = undefined;
+        let height: number | undefined = undefined;
 
-      if (mime.startsWith("image/")) {
-        try {
-          const meta = await sharp(buffer).metadata();
-          width = meta.width ?? undefined;
-          height = meta.height ?? undefined;
-        } catch {}
-      }
+        if (validation.mime.startsWith("image/")) {
+          try {
+            const meta = await sharp(buffer).metadata();
+            width = meta.width ?? undefined;
+            height = meta.height ?? undefined;
+          } catch {}
+        }
 
-      const type = detectMediaType(mime, extension);
+        const type = detectMediaType(validation.mime, extension);
 
-      // ===============================================================
-      // CREATE MEDIA RECORD
-      // ===============================================================
-      const publicBaseUrl =
-        process.env.STORAGE_PUBLIC_BASE_URL ||
-        (process.env.NODE_ENV === "production"
-          ? "https://moc-drive.moc.gov.kh"
-          : "http://localhost:3000/storage");
+        // ===============================================================
+        // CREATE MEDIA RECORD
+        // ===============================================================
+        const publicBaseUrl =
+          process.env.STORAGE_PUBLIC_BASE_URL ||
+          (process.env.NODE_ENV === "production"
+            ? "https://moc-drive.moc.gov.kh"
+            : "http://localhost:3000/storage");
 
-      const mediaPath = folderPath
-        ? `${bucket.name}/${folderPath}/${storedFilename}`
-        : `${bucket.name}/${storedFilename}`;
+        const mediaPath = folderPath
+          ? `${bucket.name}/${folderPath}/${storedFilename}`
+          : `${bucket.name}/${storedFilename}`;
 
-      const trimmedBase = publicBaseUrl.endsWith("/")
-        ? publicBaseUrl.slice(0, -1)
-        : publicBaseUrl;
+        const trimmedBase = publicBaseUrl.endsWith("/")
+          ? publicBaseUrl.slice(0, -1)
+          : publicBaseUrl;
 
-      const publicUrl = `${trimmedBase}/${mediaPath}`;
+        const publicUrl = `${trimmedBase}/${mediaPath}`;
 
-      const media = await prisma.media.create({
-        data: {
+        const media = await prisma.media.create({
+          data: {
+            filename: file.name,
+            storedFilename,
+            url: publicUrl,
+            fileType: type,
+            mimetype: validation.mime,
+            extension: extension.toLowerCase(),
+            size: file.size,
+            width,
+            height,
+            uploadedById: user.id,
+            bucketId: bucket.id,
+            path: folderPath,
+            isVisibility: "AVAILABLE",
+            isAccessible: "PRIVATE",
+            scanStatus: "CLEAN",
+            scanMessage: null,
+            scannedAt: new Date(),
+          },
+        });
+
+        // Save upload details (Always create the upload detail)
+        await prisma.mediaUploadDetail.create({
+          data: {
+            mediaUploadId: uploadSession.id,
+            mediaId: media.id,
+            // Pass null for spaceId if no folderSlug is provided
+            spaceId: folderSlug ? (space ? space.id : null) : null,
+          },
+        });
+
+        uploads.push({
+          id: media.slug,
+          slug: media.slug,
+          url: media.url,
+          filename: media.filename,
+          storedFilename: media.storedFilename,
+          type: media.fileType,
+          width: media.width,
+          height: media.height,
+          scanStatus: media.scanStatus,
+        });
+
+        await logAudit({
+          ...auditInfo,
+          actorId: user.id,
+          action: "media.upload",
+          resourceType: "Media",
+          resourceId: media.id,
+          status: 201,
+          metadata: {
+            bucketId: bucket.id,
+            bucketSlug: bucket.slug,
+            filename: file.name,
+            path: folderPath || null,
+          },
+        });
+
+      } catch (error) {
+        console.error("Upload failed for file:", file.name, error);
+        await fs.rm(storedPath, { force: true }).catch(() => {});
+        failures.push({
           filename: file.name,
-          storedFilename,
-          url: publicUrl,
-          fileType: type,
-          mimetype: mime,
-          extension: extension.toLowerCase(),
-          size: file.size,
-          width,
-          height,
-          uploadedById: user.id,
-          bucketId: bucket.id,
-          path: folderPath,
-          isVisibility: "DRAFTED",
-          isAccessible: "RESTRICTED",
-          scanStatus: "PENDING",
-        },
-      });
-
-      // Save upload details (Always create the upload detail)
-      await prisma.mediaUploadDetail.create({
-        data: {
-          mediaUploadId: uploadSession.id,
-          mediaId: media.id,
-          // Pass null for spaceId if no folderSlug is provided
-          spaceId: folderSlug ? (space ? space.id : null) : null,
-        },
-      });
-
-      uploads.push({
-        id: media.slug,
-        slug: media.slug,
-        url: media.url,
-        filename: media.filename,
-        storedFilename: media.storedFilename,
-        type: media.fileType,
-        width: media.width,
-        height: media.height,
-        scanStatus: media.scanStatus,
-      });
-
-      queueVirusTotalScanForMedia({
-        mediaId: media.id,
-        filename: file.name,
-        buffer,
-        storedPath,
-      });
+          reason: "Upload failed. Please try again.",
+        });
+      }
     }
 
     // ===============================================================
@@ -330,6 +346,7 @@ export async function POST(
         folder: folderPath || null,
         uploadSessionId: uploadSession.id,
         uploads,
+        failures,
       },
       { status: 201 }
     );

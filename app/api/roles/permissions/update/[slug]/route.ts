@@ -1,6 +1,7 @@
 import { authorize } from "@/lib/authorized";
 import prisma from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
+import { getAuditRequestInfo, logAudit } from "@/lib/audit";
 
 /* -----------------------------------------------------
    TYPES
@@ -38,6 +39,15 @@ export async function PATCH(
         { status: auth.status }
       );
     }
+    const user = auth.user;
+    if (!user) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    const auditInfo = getAuditRequestInfo(req);
 
     /* ------------------------------ PARAMS ------------------------------ */
     const { slug } = await context.params;
@@ -70,16 +80,54 @@ export async function PATCH(
       );
     }
 
+    const moduleIds = Array.from(
+      new Set(body.permissions.map((perm) => Number(perm.moduleId)))
+    );
+
+    if (moduleIds.some((id) => Number.isNaN(id) || id <= 0)) {
+      return NextResponse.json(
+        { error: "Invalid module ID in permissions payload." },
+        { status: 400 }
+      );
+    }
+
+    const modules = await prisma.permissionModule.findMany({
+      where: { id: { in: moduleIds } },
+      select: { id: true },
+    });
+
+    const existingModuleIds = new Set(modules.map((module) => module.id));
+    const missingModules = moduleIds.filter(
+      (id) => !existingModuleIds.has(id)
+    );
+    if (missingModules.length > 0) {
+      return NextResponse.json(
+        {
+          error: "Some modules were not found.",
+          missingModuleIds: missingModules,
+        },
+        { status: 400 }
+      );
+    }
+
     /* ------------------------------ UPDATE PERMISSIONS ------------------ */
     const updateOps = body.permissions.map((perm) =>
-      prisma.rolePermission.update({
+      prisma.rolePermission.upsert({
         where: {
           roleId_moduleId: {
             roleId,
             moduleId: perm.moduleId,
           },
         },
-        data: {
+        create: {
+          roleId,
+          moduleId: perm.moduleId,
+          create: perm.create,
+          read: perm.read,
+          update: perm.update,
+          delete: perm.delete,
+        },
+        update: {
           create: perm.create,
           read: perm.read,
           update: perm.update,
@@ -89,6 +137,19 @@ export async function PATCH(
     );
 
     await Promise.all(updateOps);
+
+    await logAudit({
+      ...auditInfo,
+      actorId: user.id,
+      action: "role.permissions.update",
+      resourceType: "Role",
+      resourceId: roleId,
+      status: 200,
+      metadata: {
+        roleSlug: role.slug,
+        updatedCount: body.permissions.length,
+      },
+    });
 
     return NextResponse.json({
       message: "Permissions updated successfully.",

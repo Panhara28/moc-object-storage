@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -27,27 +27,40 @@ export default function MediaCreateFolderDialog({
   bucketSlug,
 }: MediaCreateFolderDialogProps) {
   const [folderName, setFolderName] = useState("");
+  const [isCreating, setIsCreating] = useState(false);
+  const isCreatingRef = useRef(false);
 
   const createFolder = async () => {
-    if (!folderName.trim()) return;
+    if (!folderName.trim() || isCreatingRef.current) return;
+    isCreatingRef.current = true;
+    setIsCreating(true);
 
-    let parentId: number | undefined = undefined;
+    try {
+      let parentId: number | undefined = undefined;
 
-    if (parentSlug) {
-      const res = await fetch(`/api/spaces/folders/${parentSlug}`);
-      const json = await res.json();
-      parentId = json?.data?.id;
+      if (parentSlug) {
+        const res = await fetch(`/api/spaces/folders/${parentSlug}`);
+        const json = await res.json();
+        parentId = json?.data?.id;
+      }
+
+      const res = await fetch(`/api/buckets/${bucketSlug}/create-folder/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: folderName.trim(), parentId }),
+      });
+
+      if (!res.ok) {
+        return;
+      }
+
+      setFolderName("");
+      onOpenChange(false);
+      onCreated();
+    } finally {
+      isCreatingRef.current = false;
+      setIsCreating(false);
     }
-
-    await fetch(`/api/buckets/${bucketSlug}/create-folder/`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: folderName.trim(), parentId }),
-    });
-
-    setFolderName("");
-    onOpenChange(false);
-    onCreated();
   };
 
   return (
@@ -67,7 +80,12 @@ export default function MediaCreateFolderDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={createFolder}>Create</Button>
+          <Button
+            onClick={createFolder}
+            disabled={isCreating || !folderName.trim()}
+          >
+            {isCreating ? "Creating..." : "Create"}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

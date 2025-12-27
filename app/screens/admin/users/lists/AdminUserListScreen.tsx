@@ -46,6 +46,11 @@ export default function AdminUserListScreen() {
     status: "",
   });
 
+  const [canViewUser, setCanViewUser] = useState(false);
+  const [canEditUser, setCanEditUser] = useState(false);
+  const [canDeleteUser, setCanDeleteUser] = useState(false);
+  const [canCreateUser, setCanCreateUser] = useState(false);
+
   const [roleOptions, setRoleOptions] = useState<RoleOption[]>([]);
 
   /* ---------------- View ---------------- */
@@ -117,6 +122,44 @@ export default function AdminUserListScreen() {
     loadUsers();
   }, [page, filters]);
 
+  useEffect(() => {
+    let active = true;
+    const loadPermissions = async () => {
+      try {
+        const res = await fetch("/api/auth/me", { cache: "no-store" });
+        if (!res.ok) {
+          if (active) {
+            setCanViewUser(false);
+            setCanEditUser(false);
+            setCanDeleteUser(false);
+          }
+          return;
+        }
+        const data = await res.json();
+        const perms = data?.user?.permissions || {};
+        if (active) {
+          setCanCreateUser(Boolean(perms?.users?.create));
+          setCanViewUser(Boolean(perms?.users?.read));
+          setCanEditUser(Boolean(perms?.users?.update));
+          setCanDeleteUser(Boolean(perms?.users?.delete));
+        }
+      } catch (error) {
+        console.error("Failed to load user permissions:", error);
+        if (active) {
+          setCanCreateUser(false);
+          setCanViewUser(false);
+          setCanEditUser(false);
+          setCanDeleteUser(false);
+        }
+      }
+    };
+
+    loadPermissions();
+    return () => {
+      active = false;
+    };
+  }, []);
+
   return (
     <>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
@@ -129,14 +172,16 @@ export default function AdminUserListScreen() {
           </p>
         </div>
 
-        <div className="flex gap-2">
-          <Link
-            href="/admin/users/add"
-            className="px-4 py-2 border border-border text-foreground rounded-lg hover:bg-accent hover:text-accent-foreground transition-colors text-sm font-medium"
-          >
-            Add New User
-          </Link>
-        </div>
+        {canCreateUser && (
+          <div className="flex gap-2">
+            <Link
+              href="/admin/users/add"
+              className="px-4 py-2 rounded-lg bg-black text-white hover:bg-black/90 transition-colors text-sm font-medium"
+            >
+              Add New User
+            </Link>
+          </div>
+        )}
       </div>
 
       <hr className="border-gray-200 mb-5" />
@@ -172,10 +217,10 @@ export default function AdminUserListScreen() {
             ...updated,
           }))
         }
-        onDelete={handleDelete}
+        onDelete={canDeleteUser ? handleDelete : undefined}
         onDeleteComplete={loadUsers}
-        onView={onView}
-        onEdit={onEdit}
+        onView={canViewUser ? onView : undefined}
+        onEdit={canEditUser ? onEdit : undefined}
       />
     </>
   );

@@ -2,6 +2,7 @@ import prisma from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { authorize } from "@/lib/authorized";
 import { signPayload } from "@/lib/signedUrl";
+import { jsonError, uiContextForbidden } from "@/lib/api-errors";
 
 export async function GET(
   req: NextRequest,
@@ -15,10 +16,7 @@ export async function GET(
     const refererOrigin = referer ? new URL(referer).origin : null;
 
     if (uiHeader?.toLowerCase() !== "true" && refererOrigin !== requestOrigin) {
-      return NextResponse.json(
-        { status: "error", message: "Forbidden" },
-        { status: 403 }
-      );
+      return uiContextForbidden(req);
     }
     // --------------------------------------------------------------------------
     // 1. AUTHORIZATION CHECK
@@ -42,8 +40,8 @@ export async function GET(
     // --------------------------------------------------------------------------
     // 2. FETCH USER BY SLUG
     // --------------------------------------------------------------------------
-    const user = await prisma.user.findFirst({
-      where: { slug, id: authUser.id },
+    const user = await prisma.user.findUnique({
+      where: { slug },
       select: {
         slug: true,
         profilePicture: true,
@@ -161,15 +159,11 @@ export async function GET(
       { status: 200 }
     );
   } catch (error: unknown) {
-    console.error("❌ USER DETAIL ERROR:", error);
-
-    return NextResponse.json(
-      {
-        ok: false,
-        message: "Failed to fetch user details.",
-        error: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 }
-    );
+    return jsonError(req, {
+      status: 500,
+      code: "USER_DETAIL_FAILED",
+      message: "Failed to fetch user details.",
+      error,
+    });
   }
 }

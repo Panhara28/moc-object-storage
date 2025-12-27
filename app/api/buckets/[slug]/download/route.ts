@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import path from "path";
 import * as fs from "fs/promises";
+import { createReadStream } from "fs";
+import { Readable } from "stream";
 import prisma from "@/lib/prisma";
 import { authorize } from "@/lib/authorized";
 import { verifyPayload } from "@/lib/signedUrl";
@@ -140,9 +142,9 @@ export async function GET(
       : path.join(bucketDir, payload.storedFilename);
     assertPathInsideBase(bucketDir, filePath);
 
-    let fileBuffer: Buffer;
+    let stat: { size: number };
     try {
-      fileBuffer = await fs.readFile(filePath);
+      stat = await fs.stat(filePath);
     } catch {
       return NextResponse.json(
         { status: "error", message: "File not found." },
@@ -161,12 +163,14 @@ export async function GET(
       )}"`
     );
 
-    const arrayBuffer = fileBuffer.buffer.slice(
-      fileBuffer.byteOffset,
-      fileBuffer.byteOffset + fileBuffer.byteLength
-    ) as ArrayBuffer;
+    if (Number.isFinite(stat.size)) {
+      headers.set("Content-Length", String(stat.size));
+    }
 
-    return new NextResponse(arrayBuffer, {
+    const nodeStream = createReadStream(filePath);
+    const stream = Readable.toWeb(nodeStream) as ReadableStream;
+
+    return new NextResponse(stream, {
       status: 200,
       headers,
     });

@@ -30,7 +30,6 @@ import { PATCH as deleteBucket } from "@/app/api/buckets/[slug]/delete/route";
 import { GET as downloadBucketFile } from "@/app/api/buckets/[slug]/download/route";
 import { GET as listBucketFolder } from "@/app/api/buckets/[slug]/folder/route";
 import { GET as listBucketMedia } from "@/app/api/buckets/[slug]/media/route";
-import { PATCH as regenerateBucketKey } from "@/app/api/buckets/[slug]/regenerate-access-key/route";
 import { PATCH as renameBucket } from "@/app/api/buckets/[slug]/rename/route";
 import { PATCH as restoreBucket } from "@/app/api/buckets/[slug]/restore/route";
 import { GET as bucketStats } from "@/app/api/buckets/[slug]/stats/route";
@@ -599,36 +598,6 @@ describe("API idempotency and read-only behavior", () => {
         params: Promise.resolve({ slug: bucket.slug }),
       });
       await expectJson(retryRes, 200);
-    });
-
-    it("PATCH /api/buckets/[slug]/regenerate-access-key is safe to repeat", async () => {
-      const { admin, token } = await seedRoleWithPermission("media-library");
-      const bucket = await createBucket(admin.id);
-      const req = new NextRequest(
-        `http://localhost/api/buckets/${bucket.slug}/regenerate-access-key`,
-        { method: "PATCH", headers: authHeaders(token) }
-      );
-      const res = await regenerateBucketKey(req, {
-        params: Promise.resolve({ slug: bucket.slug }),
-      });
-      const first = (await expectJson(res, 200)) as {
-        bucket: { accessKeyId: string; secretAccessKey: string };
-      };
-
-      const retry = new NextRequest(
-        `http://localhost/api/buckets/${bucket.slug}/regenerate-access-key`,
-        { method: "PATCH", headers: authHeaders(token) }
-      );
-      const retryRes = await regenerateBucketKey(retry, {
-        params: Promise.resolve({ slug: bucket.slug }),
-      });
-      const second = (await expectJson(retryRes, 200)) as {
-        bucket: { accessKeyId: string; secretAccessKey: string };
-      };
-      expect(second.bucket.accessKeyId).not.toBe(first.bucket.accessKeyId);
-      expect(second.bucket.secretAccessKey).not.toBe(
-        first.bucket.secretAccessKey
-      );
     });
 
     it("PATCH /api/buckets/[slug]/rename accepts repeated name", async () => {
