@@ -390,7 +390,7 @@ export default function Sidebar() {
     const content = (
       <div
         className={cn(
-          "flex items-center py-2 text-sm rounded-md transition-colors sidebar-menu-item hover:bg-accent hover:text-accent-foreground relative group cursor-pointer",
+          "flex items-center py-2 text-sm rounded-md transition-colors sidebar-menu-item hover:bg-blue-800/70 hover:text-white relative group cursor-pointer",
           paddingLeft
         )}
         onClick={() => {
@@ -499,15 +499,16 @@ export default function Sidebar() {
         {/* Mobile sidebar overlay */}
         <nav
           className={`
-            fixed inset-y-0 left-0 z-[70] w-64 bg-background
-            border-r border-border 
+            fixed inset-y-0 left-0 z-[70] w-64 bg-gradient-to-b from-blue-900 via-blue-800 to-blue-700 text-blue-50
+            dark:from-black dark:via-black dark:to-black
+            border-r border-blue-800/80 dark:border-black/80
             transform transition-transform duration-300 ease-in-out
             ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"}
           `}
         >
           <div className="h-full flex flex-col">
             {/* Header */}
-            <div className="h-16 px-3 flex items-center border-b border-border">
+            <div className="h-16 px-3 flex items-center border-b border-blue-200/60 dark:border-white/10">
               <Link
                 href="/admin/dashboard"
                 target="_blank"
@@ -535,7 +536,7 @@ export default function Sidebar() {
               <div className="space-y-6">
                 {filteredMenuData.map((section) => (
                   <div key={section.id}>
-                    <div className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground sidebar-section-label">
+                    <div className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-blue-200/80 sidebar-section-label">
                       {section.label}
                     </div>
                     <div className="space-y-1">
@@ -552,7 +553,7 @@ export default function Sidebar() {
               </div>
             </div>
 
-            <div className="px-2 py-4 border-t border-border">
+            <div className="px-2 py-4 border-t border-blue-200/60 dark:border-white/10">
               <div className="space-y-1">
                 <NavItem
                   item={{
@@ -590,8 +591,9 @@ export default function Sidebar() {
   return (
     <nav
       className={`
-        fixed inset-y-0 left-0 z-[60] bg-background
-        border-r border-border transition-all duration-300 ease-in-out
+        fixed inset-y-0 left-0 z-[60] bg-gradient-to-b from-blue-900 via-blue-800 to-blue-700 text-blue-50
+        dark:from-black dark:via-black dark:to-black
+        border-r border-blue-800/80 dark:border-black/80 transition-all duration-300 ease-in-out
         ${menuState === "hidden" ? "w-0 border-r-0" : getSidebarWidth()}
       `}
       onMouseEnter={() => setIsHovered(true)}
@@ -603,15 +605,25 @@ export default function Sidebar() {
       {menuState !== "hidden" && (
         <div className="h-full flex flex-col">
           {/* Header */}
-          <div className="h-16 px-3 flex items-center border-b border-border">
+          <div className="h-16 px-3 flex items-center border-b border-blue-200/30 dark:border-white/10">
             {showText ? (
               <Link
                 href="/admin/dashboard"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="gap-3 w-full text-lg text-center"
+                className="flex items-center gap-3 w-full text-blue-50"
               >
-                MOC Object Storage
+                <Image
+                  src="/moc-object-storage-logo.png"
+                  alt="MOC Object Storage"
+                  width={522}
+                  height={142}
+                  className="flex-shrink-0 w-12 h-auto object-contain"
+                  priority
+                />
+                <span className="text-base font-semibold tracking-tight">
+                  MOC Object Storage
+                </span>
               </Link>
             ) : (
               <div className="flex justify-center w-full">
@@ -620,7 +632,7 @@ export default function Sidebar() {
                   alt="MOC Object Storage"
                   width={522}
                   height={142}
-                  className="flex-shrink-0 hidden dark:block w-14 h-auto object-contain"
+                  className="flex-shrink-0 hidden dark:block w-16 h-auto object-contain"
                   priority
                 />
                 <Image
@@ -628,7 +640,7 @@ export default function Sidebar() {
                   alt="MOC Object Storage"
                   width={522}
                   height={142}
-                  className="flex-shrink-0 block dark:hidden w-14 h-auto object-contain"
+                  className="flex-shrink-0 block dark:hidden w-16 h-auto object-contain"
                   priority
                 />
               </div>
@@ -646,7 +658,7 @@ export default function Sidebar() {
               {filteredMenuData.map((section) => (
                 <div key={section.id}>
                   {showText && (
-                    <div className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground sidebar-section-label transition-opacity duration-200">
+                    <div className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-blue-200/80 sidebar-section-label transition-opacity duration-200">
                       {section.label}
                     </div>
                   )}
@@ -664,7 +676,7 @@ export default function Sidebar() {
             </div>
           </div>
 
-          <div className="px-2 py-4 border-t border-border">
+          <div className="px-2 py-4 border-t border-blue-200/30 dark:border-white/10">
             <div className="space-y-1  text-center">
               {showText && (
                 <span className="text-xs">© 2025 Ministry of Commerce.</span>

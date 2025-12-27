@@ -81,7 +81,7 @@ export default function BucketsList({
           {buckets.map((bucket) => (
             <Card
               key={bucket.slug}
-              className="h-full hover:shadow-md hover:border-primary/50 transition-all cursor-pointer group"
+              className="h-full border border-blue-700/80 hover:border-blue-600 hover:shadow-[0_0_12px_rgba(59,130,246,0.4)] transition-all cursor-pointer group"
             >
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
@@ -91,7 +91,9 @@ export default function BucketsList({
                         {bucket.name}
                       </CardTitle>
                       <CardDescription className="text-xs mt-1">
-                        {bucket.keyCount ? `${bucket.keyCount} API keys` : "No API keys"}
+                        {bucket.keyCount
+                          ? `${bucket.keyCount} API keys`
+                          : "No API keys"}
                       </CardDescription>
                     </div>
                   </Link>
