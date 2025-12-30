@@ -3,6 +3,7 @@ import { authorize } from "@/lib/authorized";
 import prisma from "@/lib/prisma";
 import * as fs from "fs/promises";
 import path from "path";
+import { getAuditRequestInfo, logAudit } from "@/lib/audit";
 
 function getStorageRoot() {
   if (process.env.STORAGE_ROOT) return process.env.STORAGE_ROOT;
@@ -78,13 +79,18 @@ async function buildFolderPathSegments(
 
 export async function POST(req: Request) {
   try {
-    const auth = await authorize(req, "media-library", "update");
+    const auth = await authorize(req, "spaces", "update");
     if (!auth.ok) {
       return NextResponse.json(
         { error: auth.message },
         { status: auth.status }
       );
     }
+    const user = auth.user;
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const auditInfo = getAuditRequestInfo(req);
 
     const { folderId, name } = await req.json();
     const numericFolderId =
@@ -99,20 +105,25 @@ export async function POST(req: Request) {
 
     // Fetch folder
     const folder = await prisma.space.findFirst({
-      where: { id: numericFolderId, isAvailable: "AVAILABLE" },
+      where: {
+        id: numericFolderId,
+        isAvailable: "AVAILABLE",
+        bucket: { createdById: user.id },
+      },
       select: {
         id: true,
         name: true,
         parentId: true,
         bucketId: true,
         mediaId: true,
-        bucket: { select: { name: true } },
+        bucket: { select: { name: true, createdById: true } },
       },
     });
 
     if (!folder) {
       return NextResponse.json({ error: "Folder not found" }, { status: 404 });
     }
+    const oldName = folder.name;
 
     // Prevent renaming files
     if (folder.mediaId !== null) {
@@ -221,6 +232,20 @@ export async function POST(req: Request) {
         }
         throw dbErr;
       });
+
+    await logAudit({
+      ...auditInfo,
+      actorId: auth!.user!.id,
+      action: "folder.rename",
+      resourceType: "Space",
+      resourceId: folder.id,
+      status: 200,
+      metadata: {
+        bucketId: folder.bucketId,
+        oldName,
+        newName,
+      },
+    });
 
     return NextResponse.json({
       message: "Folder renamed successfully",

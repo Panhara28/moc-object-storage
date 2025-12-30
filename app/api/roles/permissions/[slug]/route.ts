@@ -39,10 +39,7 @@ export async function GET(
        3. GET ROLE BY SLUG
     -------------------------------------------------------------------------- */
     const role = await prisma.role.findFirst({
-      where: {
-        slug,
-        id: user.roleId ?? -1,
-      },
+      where: { slug },
     });
 
     if (!role) {

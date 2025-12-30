@@ -41,6 +41,13 @@ enum ScanStatus {
   FAILED
 }
 
+enum ScanJobStatus {
+  PENDING
+  PROCESSING
+  DONE
+  FAILED
+}
+
 enum Visibility {
   AVAILABLE
   PUBLIC
@@ -63,6 +70,11 @@ enum BucketPermission {
   READ
   READ_WRITE
   FULL_ACCESS
+}
+
+enum ApiKeyStatus {
+  ACTIVE
+  INACTIVE
 }
 
 /**
@@ -98,6 +110,8 @@ model User {
   mediaUploads   MediaUpload[]
   spaces         Space[]
   buckets        Bucket[]      @relation("BucketCreatedBy")
+  auditLogs      AuditLog[]
+  createdApiKeys BucketApiKey[] @relation("BucketApiKeyCreatedBy")
 
   @@index([roleId])
   @@map("users")
@@ -177,6 +191,36 @@ model LoginAttempt {
 
 /**
  * ============================================================
+ * AUDIT LOGS
+ * ============================================================
+ */
+
+model AuditLog {
+  id           Int      @id @default(autoincrement())
+  createdAt    DateTime @default(now())
+  actorId      Int?
+  action       String   @db.VarChar(64)
+  resourceType String   @db.VarChar(64)
+  resourceId   String?  @db.VarChar(191)
+  method       String   @db.VarChar(12)
+  path         String   @db.VarChar(191)
+  status       Int
+  ip           String?  @db.VarChar(64)
+  userAgent    String?  @db.VarChar(191)
+  requestId    String?  @db.VarChar(64)
+  traceId      String?  @db.VarChar(64)
+  metadata     Json?
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([actorId, createdAt])
+  @@index([resourceType, resourceId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+/**
+ * ============================================================
  * BUCKET MODEL (TOP LEVEL STORAGE UNIT)
  * ============================================================
  */
@@ -188,12 +232,10 @@ model Bucket {
   createdById Int
   createdBy   User   @relation("BucketCreatedBy", fields: [createdById], references: [id])
 
-  // NEW SECURITY FIELDS
-  accessKeyName   String
-  accessKeyId     String           @unique
-  secretAccessKey String
-  permission      BucketPermission @default(FULL_ACCESS)
-  isAvailable     Visibility       @default(AVAILABLE)
+  permission  BucketPermission @default(FULL_ACCESS)
+  isAvailable Visibility       @default(AVAILABLE)
+
+  apiKeys BucketApiKey[]
 
   medias Media[]
   spaces Space[] // folder system inside this bucket
@@ -202,6 +244,25 @@ model Bucket {
   updatedAt DateTime @updatedAt
 
   @@map("buckets")
+}
+
+model BucketApiKey {
+  id               Int          @id @default(autoincrement())
+  bucketId         Int
+  bucket           Bucket       @relation(fields: [bucketId], references: [id])
+  name             String
+  accessKeyId      String       @unique
+  secretAccessKey  String
+  status           ApiKeyStatus @default(ACTIVE)
+  createdById      Int?
+  createdBy        User?        @relation("BucketApiKeyCreatedBy", fields: [createdById], references: [id])
+  lastRotatedAt    DateTime?
+  lastUsedAt       DateTime?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  @@unique([bucketId, name])
+  @@map("bucket_api_keys")
 }
 
 /**
@@ -253,8 +314,35 @@ model Media {
 
   spaces       Space[]
   mediaDetails MediaUploadDetail[]
+  scanJobs     MediaScanJob[]
 
   @@map("medias")
+}
+
+/**
+ * ============================================================
+ * MEDIA SCAN JOBS
+ * ============================================================
+ */
+
+model MediaScanJob {
+  id         Int           @id @default(autoincrement())
+  mediaId    Int
+  filename   String
+  storedPath String        @db.VarChar(1024)
+  status     ScanJobStatus @default(PENDING)
+  attempts   Int           @default(0)
+  lastError  String?
+  lockedAt   DateTime?
+  runAt      DateTime      @default(now())
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  media Media @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@index([status, runAt])
+  @@index([lockedAt])
+  @@map("media_scan_jobs")
 }
 
 /**

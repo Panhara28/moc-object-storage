@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { authorize } from "@/lib/authorized";
+import { getAuditRequestInfo, logAudit } from "@/lib/audit";
 
 export async function PATCH(
   req: NextRequest,
@@ -10,13 +11,21 @@ export async function PATCH(
   const { slug } = await params;
 
   try {
-    const auth = await authorize(req, "media-library", "update");
+    const auth = await authorize(req, "buckets", "update");
     if (!auth.ok) {
       return NextResponse.json(
         { status: "error", message: auth.message },
         { status: auth.status }
       );
     }
+    const user = auth.user;
+    if (!user) {
+      return NextResponse.json(
+        { status: "error", message: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+    const auditInfo = getAuditRequestInfo(req);
 
     const { permission } = await req.json();
 
@@ -27,18 +36,42 @@ export async function PATCH(
       );
     }
 
+    const existingBucket = await prisma.bucket.findFirst({
+      where: { slug, createdById: user.id },
+      select: { id: true, slug: true },
+    });
+
+    if (!existingBucket) {
+      return NextResponse.json(
+        { status: "error", message: "Bucket not found" },
+        { status: 404 }
+      );
+    }
+
     const bucket = await prisma.bucket.update({
-      where: { slug },
+      where: { id: existingBucket.id },
       data: { permission },
       select: {
         id: true,
         name: true,
         slug: true,
-        accessKeyId: true,
         permission: true,
         isAvailable: true,
         updatedAt: true,
         createdAt: true,
+      },
+    });
+
+    await logAudit({
+      ...auditInfo,
+      actorId: auth!.user!.id,
+      action: "bucket.permission.update",
+      resourceType: "Bucket",
+      resourceId: bucket.id,
+      status: 200,
+      metadata: {
+        bucketSlug: bucket.slug,
+        permission,
       },
     });
 

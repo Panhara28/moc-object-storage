@@ -36,8 +36,14 @@ export async function GET(
 
     const { searchParams } = new URL(req.url);
 
-    const page = Number(searchParams.get("page") || 1);
-    const limit = Number(searchParams.get("limit") || 20);
+    const pageParam = Number(searchParams.get("page") ?? 1);
+    const page =
+      Number.isFinite(pageParam) && pageParam > 0 ? Math.floor(pageParam) : 1;
+    const limitParam = Number(searchParams.get("limit") ?? 20);
+    const limit =
+      Number.isFinite(limitParam) && limitParam > 0
+        ? Math.min(Math.floor(limitParam), 100)
+        : 20;
 
     const search = searchParams.get("search") || "";
     const type = searchParams.get("type") || "";
@@ -51,6 +57,9 @@ export async function GET(
       include: {
         spaces: {
           where: { isAvailable: "AVAILABLE" },
+        },
+        apiKeys: {
+          orderBy: { createdAt: "desc" },
         },
       },
     });
@@ -72,7 +81,8 @@ export async function GET(
     // ---------------------------------------
     const where: Prisma.MediaWhereInput = {
       bucket: { slug },
-      isVisibility: "AVAILABLE", // or whatever state represents active
+      isVisibility: { in: ["AVAILABLE", "DRAFTED"] },
+      scanStatus: { in: ["CLEAN", "PENDING"] },
     };
 
     if (search) {
@@ -110,9 +120,15 @@ export async function GET(
         name: bucket.name,
         slug: bucket.slug,
         permission: bucket.permission,
-        accessKeyId: bucket.accessKeyId,
         createdAt: formatDate(bucket.createdAt),
         updatedAt: formatDate(bucket.updatedAt),
+        apiKeys: bucket.apiKeys.map((key) => ({
+          name: key.name,
+          accessKeyId: key.accessKeyId,
+          status: key.status,
+          createdAt: formatDate(key.createdAt),
+          lastUsedAt: key.lastUsedAt ? formatDate(key.lastUsedAt) : null,
+        })),
       },
 
       // 🟦 PARENT FOLDERS (spaces)
@@ -121,6 +137,7 @@ export async function GET(
         name: f.name,
         slug: f.slug,
         createdAt: formatDate(f.createdAt),
+        createdAtRaw: f.createdAt.toISOString(),
       })),
 
       // 🟩 MEDIA RESULT WITH PAGINATION
@@ -135,7 +152,10 @@ export async function GET(
           url: m.url,
           type: m.fileType,
           size: m.size,
+          scanStatus: m.scanStatus,
+          scanMessage: m.scanMessage,
           createdAt: formatDate(m.createdAt),
+          createdAtRaw: m.createdAt.toISOString(),
           //   folderId: m.spaceId,
         })),
       },

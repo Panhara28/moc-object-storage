@@ -1,6 +1,8 @@
 import { authorize } from "@/lib/authorized";
 import prisma from "@/lib/prisma";
+import type { PrismaClient } from "@/app/generated/prisma/client";
 import { NextRequest, NextResponse } from "next/server";
+import { getAuditRequestInfo, logAudit } from "@/lib/audit";
 
 /* -------------------------------------------
    TYPES
@@ -29,6 +31,15 @@ export async function POST(
         { status: auth.status }
       );
     }
+    const user = auth.user;
+    if (!user) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    const auditInfo = getAuditRequestInfo(req);
 
     /* -------------------------------------------
        2. PARAM VALIDATION
@@ -40,6 +51,21 @@ export async function POST(
       return NextResponse.json(
         { error: "Invalid target role ID." },
         { status: 400 }
+      );
+    }
+
+    /* -------------------------------------------
+       3. TARGET ROLE CHECK
+    ------------------------------------------- */
+    const targetRole = await prisma.role.findUnique({
+      where: { id: targetRoleId },
+      select: { id: true, slug: true },
+    });
+
+    if (!targetRole) {
+      return NextResponse.json(
+        { error: "Target role not found." },
+        { status: 404 }
       );
     }
 
@@ -88,24 +114,51 @@ export async function POST(
     /* -------------------------------------------
        5. CLONE PERMISSIONS
     ------------------------------------------- */
-    const updateOperations = sourcePermissions.map((perm) =>
-      prisma.rolePermission.update({
-        where: {
-          roleId_moduleId: {
+    await prisma.$transaction(async (tx) => {
+      const upsertOps = sourcePermissions.map((perm) =>
+        tx.rolePermission.upsert({
+          where: {
+            roleId_moduleId: {
+              roleId: targetRoleId,
+              moduleId: perm.moduleId,
+            },
+          },
+          create: {
             roleId: targetRoleId,
             moduleId: perm.moduleId,
+            create: perm.create,
+            read: perm.read,
+            update: perm.update,
+            delete: perm.delete,
+          },
+          update: {
+            create: perm.create,
+            read: perm.read,
+            update: perm.update,
+            delete: perm.delete,
+          },
+        })
+      );
+
+      await Promise.all(upsertOps);
+
+      await logAudit(
+        {
+          ...auditInfo,
+          actorId: user.id,
+          action: "role.permissions.clone",
+          resourceType: "Role",
+          resourceId: targetRoleId,
+          status: 200,
+          metadata: {
+            fromRoleId,
+            toRoleId: targetRoleId,
+            permissionCount: sourcePermissions.length,
           },
         },
-        data: {
-          create: perm.create,
-          read: perm.read,
-          update: perm.update,
-          delete: perm.delete,
-        },
-      })
-    );
-
-    await Promise.all(updateOperations);
+        tx as PrismaClient
+      );
+    });
 
     /* -------------------------------------------
        6. SUCCESS

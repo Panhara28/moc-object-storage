@@ -32,8 +32,14 @@ export async function GET(
       );
     }
     const { searchParams } = new URL(req.url);
-    const page = Number(searchParams.get("page") || 1);
-    const limit = Number(searchParams.get("limit") || 20);
+    const pageParam = Number(searchParams.get("page") ?? 1);
+    const page =
+      Number.isFinite(pageParam) && pageParam > 0 ? Math.floor(pageParam) : 1;
+    const limitParam = Number(searchParams.get("limit") ?? 20);
+    const limit =
+      Number.isFinite(limitParam) && limitParam > 0
+        ? Math.min(Math.floor(limitParam), 100)
+        : 20;
     const parentSlug = searchParams.get("parentSlug");
     const skip = (page - 1) * limit;
 
@@ -73,6 +79,7 @@ export async function GET(
       type: "folder",
       parentId: folder.parentId,
       createdAt: formatDate(folder.createdAt),
+      createdAtRaw: folder.createdAt.toISOString(),
     }));
 
     const parentSpace = await prisma.space.findUnique({
@@ -88,9 +95,10 @@ export async function GET(
 
     const medias = await prisma.media.findMany({
       where: {
-        bucketId: bucket.id, // Only media from the specified bucket
-        isVisibility: "AVAILABLE", // Only public media
-        path: parentSpace.name, // Only media in this folder (based on folder name)
+        bucketId: bucket.id,
+        isVisibility: { in: ["AVAILABLE", "DRAFTED"] },
+        path: parentSpace.name,
+        scanStatus: { in: ["CLEAN", "PENDING"] },
       },
       skip,
       take: limit,
@@ -100,8 +108,9 @@ export async function GET(
     const totalMedia = await prisma.media.count({
       where: {
         bucketId: bucket.id,
-        isVisibility: "AVAILABLE",
+        isVisibility: { in: ["AVAILABLE", "DRAFTED"] },
         path: parentSpace.name,
+        scanStatus: { in: ["CLEAN", "PENDING"] },
       },
     });
 
@@ -119,7 +128,10 @@ export async function GET(
           url: m.url,
           type: m.fileType,
           size: m.size,
+          scanStatus: m.scanStatus,
+          scanMessage: m.scanMessage,
           createdAt: formatDate(m.createdAt),
+          createdAtRaw: m.createdAt.toISOString(),
           //   folderId: m.spaceId,
         })),
       },

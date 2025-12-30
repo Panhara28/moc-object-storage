@@ -297,128 +297,134 @@ export default function DynamicTable<
 
                   {/* ACTIONS */}
                   <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="!p-2 cursor-pointer"
-                        >
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
+                    {(customActions.length > 0 ||
+                      onView ||
+                      onEdit ||
+                      onDelete ||
+                      (row.isAvailable === "REMOVE" && handleRecovery)) && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="!p-2 cursor-pointer"
+                          >
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
 
-                      <DropdownMenuContent align="end">
-                        {customActions.map((action, index) => {
-                          const slug = String(row.slug || row.id || "");
-                          const key = `custom-${index}`;
+                        <DropdownMenuContent align="end">
+                          {customActions.map((action, index) => {
+                            const slug = String(row.slug || row.id || "");
+                            const key = `custom-${index}`;
 
-                          if (action.href) {
-                            return (
-                              <DropdownMenuItem key={key} asChild>
-                                <a href={action.href.replace("[slug]", slug)}>
-                                  <div className="flex items-center gap-2">
-                                    {action.icon} {action.label}
-                                  </div>
-                                </a>
-                              </DropdownMenuItem>
-                            );
-                          }
-
-                          if (action.onClick && !action.dialog) {
-                            return (
-                              <DropdownMenuItem
-                                key={key}
-                                onSelect={(e) => {
-                                  e.preventDefault();
-                                  action.onClick?.(row);
-                                }}
-                              >
-                                <div className="flex items-center gap-2 cursor-pointer">
-                                  {action.icon} {action.label}
-                                </div>
-                              </DropdownMenuItem>
-                            );
-                          }
-
-                          if (action.dialog) {
-                            return (
-                              <Dialog key={key}>
-                                <DialogTrigger asChild>
-                                  <DropdownMenuItem
-                                    onSelect={(e) => e.preventDefault()}
-                                  >
-                                    <div className="flex items-center gap-2 cursor-pointer">
+                            if (action.href) {
+                              return (
+                                <DropdownMenuItem key={key} asChild>
+                                  <a href={action.href.replace("[slug]", slug)}>
+                                    <div className="flex items-center gap-2">
                                       {action.icon} {action.label}
                                     </div>
-                                  </DropdownMenuItem>
-                                </DialogTrigger>
-                                {action.dialog(row)}
-                              </Dialog>
-                            );
-                          }
+                                  </a>
+                                </DropdownMenuItem>
+                              );
+                            }
 
-                          return null;
-                        })}
-                        {row.isAvailable !== "REMOVE" ? (
-                          <>
-                            {" "}
-                            {onView && (
-                              <DropdownMenuItem
-                                onSelect={(e) => {
-                                  e.preventDefault();
-                                  onView(row);
-                                }}
-                              >
-                                <div className="flex items-center gap-2 cursor-pointer">
-                                  <Eye className="h-4 w-4" /> View
-                                </div>
-                              </DropdownMenuItem>
-                            )}
-                            {onEdit && (
-                              <DropdownMenuItem
-                                onSelect={(e) => {
-                                  e.preventDefault();
-                                  onEdit(row);
-                                }}
-                              >
-                                <div className="flex items-center gap-2 cursor-pointer">
-                                  <Edit className="h-4 w-4" /> Edit
-                                </div>
-                              </DropdownMenuItem>
-                            )}
-                            {onDelete && (
-                              <DropdownMenuItem
-                                onSelect={(e) => {
-                                  e.preventDefault();
-                                  confirmDelete(row);
-                                }}
-                              >
-                                <div className="flex items-center gap-2 text-red-500 cursor-pointer">
-                                  <Trash2 className="h-4 w-4" /> Delete
-                                </div>
-                              </DropdownMenuItem>
-                            )}
-                          </>
-                        ) : (
-                          <></>
-                        )}
+                            if (action.onClick && !action.dialog) {
+                              return (
+                                <DropdownMenuItem
+                                  key={key}
+                                  onSelect={(e) => {
+                                    e.preventDefault();
+                                    action.onClick?.(row);
+                                  }}
+                                >
+                                  <div className="flex items-center gap-2 cursor-pointer">
+                                    {action.icon} {action.label}
+                                  </div>
+                                </DropdownMenuItem>
+                              );
+                            }
 
-                        {/* Recovery action only if book is marked as REMOVE */}
-                        {row.isAvailable === "REMOVE" && handleRecovery && (
-                          <DropdownMenuItem
-                            onSelect={(e) => {
-                              e.preventDefault();
-                              handleRecovery(row);
-                            }}
-                          >
-                            <div className="flex items-center gap-2 text-blue-500 cursor-pointer">
-                              <RefreshCw className="h-4 w-4" /> Recover
-                            </div>
-                          </DropdownMenuItem>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                            if (action.dialog) {
+                              return (
+                                <Dialog key={key}>
+                                  <DialogTrigger asChild>
+                                    <DropdownMenuItem
+                                      onSelect={(e) => e.preventDefault()}
+                                    >
+                                      <div className="flex items-center gap-2 cursor-pointer">
+                                        {action.icon} {action.label}
+                                      </div>
+                                    </DropdownMenuItem>
+                                  </DialogTrigger>
+                                  {action.dialog(row)}
+                                </Dialog>
+                              );
+                            }
+
+                            return null;
+                          })}
+                          {row.isAvailable !== "REMOVE" ? (
+                            <>
+                              {" "}
+                              {onView && (
+                                <DropdownMenuItem
+                                  onSelect={(e) => {
+                                    e.preventDefault();
+                                    onView(row);
+                                  }}
+                                >
+                                  <div className="flex items-center gap-2 cursor-pointer">
+                                    <Eye className="h-4 w-4" /> View
+                                  </div>
+                                </DropdownMenuItem>
+                              )}
+                              {onEdit && (
+                                <DropdownMenuItem
+                                  onSelect={(e) => {
+                                    e.preventDefault();
+                                    onEdit(row);
+                                  }}
+                                >
+                                  <div className="flex items-center gap-2 cursor-pointer">
+                                    <Edit className="h-4 w-4" /> Edit
+                                  </div>
+                                </DropdownMenuItem>
+                              )}
+                              {onDelete && (
+                                <DropdownMenuItem
+                                  onSelect={(e) => {
+                                    e.preventDefault();
+                                    confirmDelete(row);
+                                  }}
+                                >
+                                  <div className="flex items-center gap-2 text-red-500 cursor-pointer">
+                                    <Trash2 className="h-4 w-4" /> Delete
+                                  </div>
+                                </DropdownMenuItem>
+                              )}
+                            </>
+                          ) : (
+                            <></>
+                          )}
+
+                          {/* Recovery action only if book is marked as REMOVE */}
+                          {row.isAvailable === "REMOVE" && handleRecovery && (
+                            <DropdownMenuItem
+                              onSelect={(e) => {
+                                e.preventDefault();
+                                handleRecovery(row);
+                              }}
+                            >
+                              <div className="flex items-center gap-2 text-blue-500 cursor-pointer">
+                                <RefreshCw className="h-4 w-4" /> Recover
+                              </div>
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
                   </TableCell>
                 </TableRow>
               ))

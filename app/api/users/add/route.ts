@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
 import { authorize } from "@/lib/authorized";
+import { getAuditRequestInfo, logAudit } from "@/lib/audit";
 
 export async function POST(req: Request) {
   try {
@@ -13,6 +14,7 @@ export async function POST(req: Request) {
         { status: auth.status }
       );
     }
+    const auditInfo = getAuditRequestInfo(req);
 
     // 2. Parse request
     const data = await req.json();
@@ -40,7 +42,7 @@ export async function POST(req: Request) {
     const hashedPassword = await bcrypt.hash(data.password, 10);
 
     // 5. Create user (no return selection needed)
-    await prisma.user.create({
+    const newUser = await prisma.user.create({
       data: {
         name: data.name,
         email: data.email,
@@ -56,6 +58,24 @@ export async function POST(req: Request) {
         office: data.office ?? null,
         phoneNumber: data.phoneNumber ?? null,
         currentRole: data.currentRole ?? null,
+      },
+      select: {
+        id: true,
+        email: true,
+        slug: true,
+      },
+    });
+
+    await logAudit({
+      ...auditInfo,
+      actorId: auth!.user!.id,
+      action: "user.create",
+      resourceType: "User",
+      resourceId: newUser.id,
+      status: 200,
+      metadata: {
+        email: newUser.email,
+        slug: newUser.slug,
       },
     });
 

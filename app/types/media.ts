@@ -16,6 +16,7 @@ export interface MediaItem {
   type: MediaType;
   parentId?: number | null;
   createdAt?: string;
+  createdAtRaw?: string;
   updatedAt?: string;
   size?: number;
   width?: number | null;
@@ -49,4 +50,7 @@ export type MediaFolderGridProps = {
   onDeleteFolder: (folder: MediaItem) => void;
   onFolderProps: (folder: MediaItem) => void;
   onMoveFolder?: (folder: MediaItem) => void;
+  canReadFolder?: boolean;
+  canUpdateFolder?: boolean;
+  canDeleteFolder?: boolean;
 };

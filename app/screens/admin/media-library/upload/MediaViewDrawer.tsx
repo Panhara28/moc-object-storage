@@ -16,13 +16,14 @@ type MediaDetails = {
   mimetype: string;
   extension: string;
   size: number;
+  scanStatus?: "PENDING" | "CLEAN" | "MALICIOUS" | "FAILED";
+  scanMessage?: string | null;
   width?: number | null;
   height?: number | null;
   uploadedAt?: string | null;
   createdAt?: string | null;
   updatedAt?: string | null;
-  bucketSlug?: string;
-  bucketName?: string;
+  bucket?: { slug: string; name: string };
 };
 
 function formatBytes(bytes?: number) {
@@ -54,6 +55,8 @@ export default function MediaViewDrawer({
   const [details, setDetails] = useState<MediaDetails | null>(null);
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [canDeleteMedia, setCanDeleteMedia] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open || (!media?.slug && !media?.id)) return;
@@ -85,10 +88,107 @@ export default function MediaViewDrawer({
     };
   }, [open, media?.slug]);
 
+  useEffect(() => {
+    if (!open) {
+      setPreviewUrl(null);
+      return;
+    }
+
+    const bucketSlug = details?.bucket?.slug;
+    if (!bucketSlug || !details?.slug) {
+      setPreviewUrl(null);
+      return;
+    }
+
+    const type = details?.fileType || media?.type;
+    const scanStatus = details?.scanStatus ?? media?.scanStatus;
+    const canPreview = scanStatus === "CLEAN" || scanStatus === undefined;
+    if (type !== "IMAGE" || !canPreview) {
+      setPreviewUrl(null);
+      return;
+    }
+
+    let cancelled = false;
+    const controller = new AbortController();
+
+    const loadPreview = async () => {
+      try {
+        const res = await fetch(`/api/buckets/${bucketSlug}/signed-url`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-ui-request": "true",
+          },
+          body: JSON.stringify({
+            action: "download",
+            mediaSlug: details.slug,
+            expiresInSeconds: 300,
+          }),
+          signal: controller.signal,
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!data?.url || typeof data.url !== "string") return;
+        const inlineUrl = data.url.includes("?")
+          ? `${data.url}&inline=true`
+          : `${data.url}?inline=true`;
+        if (!cancelled) setPreviewUrl(inlineUrl);
+      } catch (error) {
+        if (!controller.signal.aborted) {
+          setPreviewUrl(null);
+        }
+      }
+    };
+
+    loadPreview();
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [
+    open,
+    details?.slug,
+    details?.bucket?.slug,
+    details?.fileType,
+    details?.scanStatus,
+    media?.type,
+    media?.scanStatus,
+  ]);
+
+  useEffect(() => {
+    let active = true;
+    const loadPermissions = async () => {
+      try {
+        const res = await fetch("/api/auth/me", { cache: "no-store" });
+        if (!res.ok) {
+          if (active) setCanDeleteMedia(false);
+          return;
+        }
+        const data = await res.json();
+        const perms = data?.user?.permissions || {};
+        if (active) {
+          setCanDeleteMedia(Boolean(perms?.["media-library"]?.delete));
+        }
+      } catch (error) {
+        console.error("Failed to load media permissions:", error);
+        if (active) setCanDeleteMedia(false);
+      }
+    };
+
+    loadPermissions();
+    return () => {
+      active = false;
+    };
+  }, []);
+
   if (!open) return null;
 
   const name = details?.filename || media?.name || "Unknown";
-  const url = details?.url || media?.url || "";
+  const scanStatus = details?.scanStatus ?? media?.scanStatus;
+  const canPreview = scanStatus === "CLEAN" || scanStatus === undefined;
+  const url =
+    previewUrl || (canPreview ? details?.url || media?.url || "" : "");
   const type = details?.fileType || media?.type;
   const sizeLabel = loading ? "..." : formatBytes(details?.size ?? (media as any)?.size);
   const dims =
@@ -260,20 +360,21 @@ export default function MediaViewDrawer({
             </button>
           )}
 
-          {/* Delete button */}
-          <button
-            onClick={handleDelete}
-            className="
-              w-full flex items-center justify-center gap-2
-              bg-destructive hover:bg-destructive/90
-              text-destructive-foreground py-2 rounded-md font-medium
-              transition
-            "
-            disabled={deleting}
-          >
-            <Trash className="w-4" />
-            {deleting ? "Deleting..." : "Delete"}
-          </button>
+          {canDeleteMedia && (
+            <button
+              onClick={handleDelete}
+              className="
+                w-full flex items-center justify-center gap-2
+                bg-destructive hover:bg-destructive/90
+                text-destructive-foreground py-2 rounded-md font-medium
+                transition
+              "
+              disabled={deleting}
+            >
+              <Trash className="w-4" />
+              {deleting ? "Deleting..." : "Delete"}
+            </button>
+          )}
         </div>
       </div>
     </div>

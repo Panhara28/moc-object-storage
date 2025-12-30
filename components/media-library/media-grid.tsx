@@ -18,7 +18,15 @@ export default function MediaGrid({
   onFolderProps,
   onOpenMedia,
   onMoveFolder,
+  canReadFolder,
+  canUpdateFolder,
+  canDeleteFolder,
 }: MediaFolderGridProps) {
+  const allowRead = canReadFolder !== false;
+  const allowUpdate = canUpdateFolder !== false;
+  const allowDelete = canDeleteFolder !== false;
+  const showMenu = allowRead || allowUpdate || allowDelete;
+
   return (
     <>
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-10 gap-6 mb-8">
@@ -29,7 +37,10 @@ export default function MediaGrid({
           return (
             <div key={item.id} className="flex flex-col">
               <div
-                onClick={() => onOpenFolder?.(item)}
+                onClick={() => {
+                  if (!allowRead) return;
+                  onOpenFolder?.(item);
+                }}
                 className="
                     group relative aspect-square rounded-lg overflow-hidden 
                     bg-muted border border-gray-200 dark:border-gray-700 
@@ -42,62 +53,72 @@ export default function MediaGrid({
                 </div>
 
                 {/* ----------------------- MENU ----------------------- */}
-                <DropdownMenu>
-                  <DropdownMenuTrigger
-                    onClick={(e) => e.stopPropagation()}
-                    onPointerDown={(e) => e.stopPropagation()}
-                    className="
+                {showMenu && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger
+                      onClick={(e) => e.stopPropagation()}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      className="
                         absolute top-2 right-2 bg-background/70 rounded-full p-1 
                         hover:bg-accent transition
                       "
-                  >
-                    <MoreHorizontal className="w-4 h-4 cursor-pointer" />
-                  </DropdownMenuTrigger>
-
-                  <DropdownMenuContent
-                    align="start"
-                    onClick={(e) => e.stopPropagation()}
-                    onPointerDown={(e) => e.stopPropagation()}
-                  >
-                    <DropdownMenuItem
-                      onClick={() => onOpenFolder?.(item)}
-                      className="cursor-pointer"
                     >
-                      Open
-                    </DropdownMenuItem>
+                      <MoreHorizontal className="w-4 h-4 cursor-pointer" />
+                    </DropdownMenuTrigger>
 
-                    <DropdownMenuItem
-                      onClick={() => onRenameFolder?.(item)}
-                      className="cursor-pointer"
+                    <DropdownMenuContent
+                      align="start"
+                      onClick={(e) => e.stopPropagation()}
+                      onPointerDown={(e) => e.stopPropagation()}
                     >
-                      Rename
-                    </DropdownMenuItem>
+                      {allowRead && (
+                        <DropdownMenuItem
+                          onClick={() => onOpenFolder?.(item)}
+                          className="cursor-pointer"
+                        >
+                          Open
+                        </DropdownMenuItem>
+                      )}
 
-                    {/* <DropdownMenuItem
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onMoveFolder?.(item);
-                      }}
-                      className="cursor-pointer"
-                    >
-                      Move
-                    </DropdownMenuItem> */}
+                      {allowUpdate && (
+                        <DropdownMenuItem
+                          onClick={() => onRenameFolder?.(item)}
+                          className="cursor-pointer"
+                        >
+                          Rename
+                        </DropdownMenuItem>
+                      )}
 
-                    <DropdownMenuItem
-                      className="text-red-500 cursor-pointer"
-                      onClick={() => onDeleteFolder?.(item)}
-                    >
-                      Delete
-                    </DropdownMenuItem>
+                      {/* <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onMoveFolder?.(item);
+                        }}
+                        className="cursor-pointer"
+                      >
+                        Move
+                      </DropdownMenuItem> */}
 
-                    <DropdownMenuItem
-                      onClick={() => onFolderProps?.(item)}
-                      className="cursor-pointer"
-                    >
-                      Properties
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                      {allowDelete && (
+                        <DropdownMenuItem
+                          className="text-red-500 cursor-pointer"
+                          onClick={() => onDeleteFolder?.(item)}
+                        >
+                          Delete
+                        </DropdownMenuItem>
+                      )}
+
+                      {allowRead && (
+                        <DropdownMenuItem
+                          onClick={() => onFolderProps?.(item)}
+                          className="cursor-pointer"
+                        >
+                          Properties
+                        </DropdownMenuItem>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
               </div>
 
               <p className="mt-2 text-sm font-medium text-center truncate">

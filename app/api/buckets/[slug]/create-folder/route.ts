@@ -3,6 +3,7 @@ import { authorize } from "@/lib/authorized";
 import prisma from "@/lib/prisma";
 import * as fs from "fs/promises";
 import path from "path";
+import { getAuditRequestInfo, logAudit } from "@/lib/audit";
 
 function isSafeSegment(segment: string) {
   return (
@@ -94,7 +95,7 @@ export async function POST(
   context: { params: Promise<{ slug: string }> }
 ) {
   try {
-    const auth = await authorize(req, "media-library", "create");
+    const auth = await authorize(req, "spaces", "create");
     if (!auth.ok) {
       return NextResponse.json(
         { error: auth.message },
@@ -102,6 +103,13 @@ export async function POST(
       );
     }
     const user = auth.user;
+    if (!user) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+    const auditInfo = getAuditRequestInfo(req);
 
     const { slug } = await context.params;
     const body = await req.json();
@@ -135,8 +143,8 @@ export async function POST(
     const folderName = name.trim();
 
     // 1. Verify the bucket exists (by slug)
-    const bucket = await prisma.bucket.findUnique({
-      where: { slug, isAvailable: "AVAILABLE" },
+    const bucket = await prisma.bucket.findFirst({
+      where: { slug, isAvailable: "AVAILABLE", createdById: user.id },
     });
 
     if (!bucket) {
@@ -247,6 +255,22 @@ export async function POST(
 
     // Create the folder on the filesystem (ensure parent directories exist)
     await fs.mkdir(folderFullPath, { recursive: true });
+
+    await logAudit({
+      ...auditInfo,
+      actorId: user!.id,
+      action: "folder.create",
+      resourceType: "Space",
+      resourceId: newFolder.id,
+      status: 200,
+      metadata: {
+        bucketId: bucket.id,
+        bucketSlug: bucket.slug,
+        parentId: numericParentId,
+        name: newFolder.name,
+        path: folderPath,
+      },
+    });
 
     // 5. Response
     return NextResponse.json({

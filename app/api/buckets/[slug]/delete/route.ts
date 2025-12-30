@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { authorize } from "@/lib/authorized";
+import { getAuditRequestInfo, logAudit } from "@/lib/audit";
 import * as fs from "fs/promises";
 import path from "path";
 
@@ -42,16 +43,26 @@ export async function PATCH(
   const { slug } = await params;
 
   try {
-    const auth = await authorize(req, "media-library", "delete");
+    const auth = await authorize(req, "buckets", "delete");
     if (!auth.ok) {
       return NextResponse.json(
         { status: "error", message: auth.message },
         { status: auth.status }
       );
     }
+    const user = auth.user;
+    if (!user) {
+      return NextResponse.json(
+        { status: "error", message: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+    const auditInfo = getAuditRequestInfo(req);
 
     // Ensure bucket exists
-    const bucket = await prisma.bucket.findUnique({ where: { slug } });
+    const bucket = await prisma.bucket.findFirst({
+      where: { slug, createdById: user.id },
+    });
 
     if (!bucket) {
       return NextResponse.json(
@@ -74,13 +85,12 @@ export async function PATCH(
     const [updatedBucket, spacesUpdated, mediaUpdated] =
       await prisma.$transaction([
         prisma.bucket.update({
-          where: { slug },
+          where: { id: bucket.id },
           data: { isAvailable: "REMOVE" },
           select: {
             id: true,
             name: true,
             slug: true,
-            accessKeyId: true,
             permission: true,
             isAvailable: true,
             updatedAt: true,
@@ -106,6 +116,20 @@ export async function PATCH(
         fsErr
       );
     }
+
+    await logAudit({
+      ...auditInfo,
+      actorId: auth!.user!.id,
+      action: "bucket.delete",
+      resourceType: "Bucket",
+      resourceId: updatedBucket.id,
+      status: 200,
+      metadata: {
+        bucketSlug: updatedBucket.slug,
+        spacesUpdated: spacesUpdated.count,
+        mediaUpdated: mediaUpdated.count,
+      },
+    });
 
     return NextResponse.json({
       status: "ok",

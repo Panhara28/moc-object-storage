@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
 import { userUpdateInfovalidation } from "../add/userValidation";
 import { UserInformationForm } from "../add/UserInformationForm";
 import { ValidationError } from "yup";
@@ -131,13 +132,9 @@ export default function AdminUserEditScreen({ user }: { user: EditableUser }) {
               Cancel
             </Link>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md"
-            >
+            <Button type="submit" disabled={loading}>
               {loading ? "Saving..." : "Save Changes"}
-            </button>
+            </Button>
           </div>
         </form>
       </div>

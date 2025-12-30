@@ -2,6 +2,7 @@ import prisma from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { authorize } from "@/lib/authorized";
 import { Gender, Prisma } from "@/app/generated/prisma/client";
+import { getAuditRequestInfo, logAudit } from "@/lib/audit";
 
 type UpdateUserPayload = Partial<{
   name: string;
@@ -30,6 +31,7 @@ export async function PATCH(
         { status: auth.status }
       );
     }
+    const auditInfo = getAuditRequestInfo(req);
 
     // 2) SLUG
     const { slug } = await context.params;
@@ -166,6 +168,19 @@ export async function PATCH(
         isActive: true,
         updatedAt: true,
         createdAt: true,
+      },
+    });
+
+    await logAudit({
+      ...auditInfo,
+      actorId: auth!.user!.id,
+      action: "user.update",
+      resourceType: "User",
+      resourceId: updated.id,
+      status: 200,
+      metadata: {
+        slug,
+        fields: Object.keys(updateData),
       },
     });
 

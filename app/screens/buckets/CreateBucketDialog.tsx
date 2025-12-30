@@ -26,17 +26,11 @@ import {
 interface CreateBucketDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSuccess?: (data: {
-    status: string;
-    bucket: {
-      id: number;
-      name: string;
-      slug?: string;
-      permission: string;
-      accessKeyName: string;
-      accessKeyId: string;
-      secretAccessKey: string;
-    };
+  onSuccess?: (bucket: {
+    id: number;
+    name: string;
+    slug: string;
+    permission: string;
   }) => void;
 }
 
@@ -61,17 +55,17 @@ export default function CreateBucketDialog({
       const res = await fetch("/api/buckets/add", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: bucketName,
-          permission,
-        }),
+      body: JSON.stringify({
+        name: bucketName,
+        permission,
+      }),
       });
 
       const data = await res.json();
 
       if (res.ok) {
         onOpenChange(false);
-        onSuccess?.(data);
+        onSuccess?.(data.bucket);
         setBucketName("");
       } else {
         alert(data.message || "Failed to create bucket");
@@ -118,6 +112,7 @@ export default function CreateBucketDialog({
               </SelectContent>
             </Select>
           </div>
+
         </div>
 
         <DialogFooter>

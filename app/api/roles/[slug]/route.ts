@@ -21,10 +21,7 @@ export async function GET(
     }
 
     const role = await prisma.role.findFirst({
-      where: {
-        slug,
-        id: user.roleId ?? -1,
-      },
+      where: { slug },
     });
 
     if (!role)

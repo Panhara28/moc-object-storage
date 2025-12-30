@@ -1,6 +1,7 @@
 import prisma from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { authorize } from "@/lib/authorized";
+import { getAuditRequestInfo, logAudit } from "@/lib/audit";
 
 export async function PATCH(
   req: NextRequest,
@@ -18,6 +19,7 @@ export async function PATCH(
         { status: auth.status }
       );
     }
+    const auditInfo = getAuditRequestInfo(req);
 
     /* --------------------------------------------------------------------------
      * 2. EXTRACT USER SLUG
@@ -55,6 +57,19 @@ export async function PATCH(
         name: true,
         isActive: true,
         updatedAt: true,
+      },
+    });
+
+    await logAudit({
+      ...auditInfo,
+      actorId: auth!.user!.id,
+      action: "user.status.update",
+      resourceType: "User",
+      resourceId: updatedUser.id,
+      status: 200,
+      metadata: {
+        isActive,
+        email: updatedUser.email,
       },
     });
 

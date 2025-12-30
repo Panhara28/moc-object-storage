@@ -3,17 +3,26 @@
 import { authorize } from "@/lib/authorized";
 import prisma from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
+import { getAuditRequestInfo, logAudit } from "@/lib/audit";
 
 export async function PATCH(
   req: NextRequest,
   context: { params: Promise<{ slug: string }> } // ❌ remove Promise
 ) {
   try {
-    const auth = await authorize(req, "users", "update");
+    const auth = await authorize(req, "roles", "update");
     if (!auth.ok) {
       return NextResponse.json(
         { error: auth.message },
         { status: auth.status }
+      );
+    }
+    const auditInfo = getAuditRequestInfo(req);
+    const user = auth.user;
+    if (!user) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
       );
     }
 
@@ -71,6 +80,20 @@ export async function PATCH(
         data: { roleId: role.id },
       });
     }
+
+    await logAudit({
+      ...auditInfo,
+      actorId: user.id,
+      action: "role.assign",
+      resourceType: "Role",
+      resourceId: role.id,
+      status: 200,
+      metadata: {
+        roleSlug: role.slug,
+        addedUserIds: addIds,
+        removedUserIds: removeIds,
+      },
+    });
 
     return NextResponse.json({ message: "Role assignment updated" });
   } catch (error) {

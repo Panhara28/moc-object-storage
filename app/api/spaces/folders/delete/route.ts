@@ -4,6 +4,7 @@ import { getAuthUser } from "@/lib/auth";
 import { authorize } from "@/lib/authorized";
 import * as fs from "fs/promises";
 import path from "path";
+import { getAuditRequestInfo, logAudit } from "@/lib/audit";
 
 function isSafeSegment(segment: string) {
   return (
@@ -74,13 +75,14 @@ async function buildFolderPathSegments(
 
 export async function POST(req: Request) {
   try {
-    const auth = await authorize(req, "media-library", "delete");
+    const auth = await authorize(req, "spaces", "delete");
     if (!auth.ok) {
       return NextResponse.json(
         { error: auth.message },
         { status: auth.status }
       );
     }
+    const auditInfo = getAuditRequestInfo(req);
 
     const user = await getAuthUser(req);
     if (!user) {
@@ -110,7 +112,7 @@ export async function POST(req: Request) {
         bucketId: true,
         mediaId: true,
         userId: true,
-        bucket: { select: { name: true } },
+        bucket: { select: { name: true, createdById: true } },
       },
     });
 
@@ -125,7 +127,7 @@ export async function POST(req: Request) {
       );
     }
 
-    if (folder.userId !== user.id) {
+    if (folder.userId !== user.id || folder.bucket.createdById !== user.id) {
       return NextResponse.json(
         { error: "Not authorized to delete this folder." },
         { status: 403 }
@@ -195,6 +197,20 @@ export async function POST(req: Request) {
     } catch (fsErr) {
       console.error("Failed to delete folder on filesystem:", fsErr);
     }
+
+    await logAudit({
+      ...auditInfo,
+      actorId: user.id,
+      action: "folder.delete",
+      resourceType: "Space",
+      resourceId: folder.id,
+      status: 200,
+      metadata: {
+        bucketId: folder.bucketId,
+        removedFolderIds: ids,
+        removedMediaIds: mediaIds,
+      },
+    });
 
     return NextResponse.json({
       message: "Folder deleted successfully.",

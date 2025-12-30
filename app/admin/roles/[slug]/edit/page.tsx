@@ -23,9 +23,9 @@ async function getRole(slug: string) {
 export default async function AdminEditRolePage({
   params,
 }: {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }) {
-  const { slug } = params;
+  const { slug } = await params;
 
   const result = await getRole(slug);
   const role = result?.data ?? null;

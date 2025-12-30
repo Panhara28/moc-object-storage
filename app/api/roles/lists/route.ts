@@ -2,6 +2,7 @@ import { Prisma } from "@/app/generated/prisma/client";
 import { authorize } from "@/lib/authorized";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { jsonError, uiContextForbidden } from "@/lib/api-errors";
 
 export async function GET(req: Request) {
   try {
@@ -11,10 +12,7 @@ export async function GET(req: Request) {
     const refererOrigin = referer ? new URL(referer).origin : null;
 
     if (uiHeader?.toLowerCase() !== "true" && refererOrigin !== requestOrigin) {
-      return NextResponse.json(
-        { status: "error", message: "Forbidden" },
-        { status: 403 }
-      );
+      return uiContextForbidden(req);
     }
 
     // --------------------------------------------------------------------------
@@ -39,8 +37,14 @@ export async function GET(req: Request) {
     // --------------------------------------------------------------------------
     const { searchParams } = new URL(req.url);
 
-    const page = Number(searchParams.get("page") || 1);
-    const limit = Number(searchParams.get("limit") || 20);
+    const pageParam = Number(searchParams.get("page") ?? 1);
+    const page =
+      Number.isFinite(pageParam) && pageParam > 0 ? Math.floor(pageParam) : 1;
+    const limitParam = Number(searchParams.get("limit") ?? 20);
+    const limit =
+      Number.isFinite(limitParam) && limitParam > 0
+        ? Math.min(Math.floor(limitParam), 100)
+        : 20;
     const search = searchParams.get("search") || "";
 
     const skip = (page - 1) * limit;
@@ -48,19 +52,7 @@ export async function GET(req: Request) {
     // --------------------------------------------------------------------------
     // 3. WHERE CLAUSE
     // --------------------------------------------------------------------------
-    if (!user.roleId) {
-      return NextResponse.json({
-        status: "ok",
-        page,
-        limit,
-        total: 0,
-        data: [],
-      });
-    }
-
-    const where: Prisma.RoleWhereInput = {
-      id: user.roleId,
-    };
+    const where: Prisma.RoleWhereInput = {};
 
     if (search) {
       where.name = {
@@ -139,14 +131,11 @@ export async function GET(req: Request) {
       })),
     });
   } catch (error: unknown) {
-    console.error("❌ Failed to fetch roles:", error);
-
-    return NextResponse.json(
-      {
-        status: "error",
-        message: "Failed to fetch roles",
-      },
-      { status: 500 }
-    );
+    return jsonError(req, {
+      status: 500,
+      code: "ROLE_LIST_FAILED",
+      message: "Failed to fetch roles.",
+      error,
+    });
   }
 }

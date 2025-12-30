@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { verifyTokenLite } from "@/lib/auth-lite";
+import { uiContextForbidden } from "@/lib/api-errors";
 
 // Admin routes that require auth redirect
 const PROTECTED_ROUTES = ["/admin/dashboard", "/admin", "/settings"];
@@ -50,10 +51,7 @@ export function proxy(request: NextRequest) {
       return NextResponse.next();
     }
 
-    return NextResponse.json(
-      { status: "error", message: "Forbidden" },
-      { status: 403 }
-    );
+    return uiContextForbidden(request);
   }
 
   // Protect admin routes with login redirect

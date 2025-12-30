@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { authorize, getAuthUser } from "@/lib/authorized";
 import { signPayload, SignedPayload } from "@/lib/signedUrl";
+import { getAuditRequestInfo, logAudit } from "@/lib/audit";
 
 const DEFAULT_SIGNED_URL_TTL_SECONDS = 900;
 const MAX_SIGNED_URL_TTL_SECONDS =
@@ -47,8 +48,24 @@ export async function POST(
   { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
+    const auditInfo = getAuditRequestInfo(req);
     const { slug } = await params;
-    const body = (await req.json()) as Body;
+    let body: Body;
+    try {
+      body = (await req.json()) as Body;
+    } catch {
+      return NextResponse.json(
+        { status: "error", message: "Invalid JSON body." },
+        { status: 400 }
+      );
+    }
+
+    if (!body || typeof body !== "object" || !("action" in body)) {
+      return NextResponse.json(
+        { status: "error", message: "Missing action." },
+        { status: 400 }
+      );
+    }
 
     if (body.action === "download") {
       const auth = await authorize(req, "media-library", "read");
@@ -58,13 +75,20 @@ export async function POST(
           { status: auth.status }
         );
       }
+      const authUser = auth.user;
+      if (!authUser) {
+        return NextResponse.json(
+          { status: "error", message: "Unauthorized." },
+          { status: 401 }
+        );
+      }
 
       const bucket = await prisma.bucket.findUnique({
         where: { slug, isAvailable: "AVAILABLE" },
-        select: { id: true, name: true },
+        select: { id: true, name: true, createdById: true },
       });
 
-      if (!bucket) {
+      if (!bucket || bucket.createdById !== authUser.id) {
         return NextResponse.json(
           { status: "error", message: "Bucket not found or unavailable." },
           { status: 404 }
@@ -113,6 +137,18 @@ export async function POST(
       };
 
       const token = signPayload(payload);
+      await logAudit({
+        ...auditInfo,
+        actorId: authUser.id,
+        action: "media.signed-url.download",
+        resourceType: "Media",
+        resourceId: media.slug,
+        status: 200,
+        metadata: {
+          bucketSlug: slug,
+          expiresAt: exp,
+        },
+      });
       return NextResponse.json({
         status: "ok",
         url: `/api/buckets/${slug}/download?token=${token}`,
@@ -140,10 +176,10 @@ export async function POST(
 
       const bucket = await prisma.bucket.findUnique({
         where: { slug, isAvailable: "AVAILABLE" },
-        select: { id: true, name: true },
+        select: { id: true, name: true, createdById: true },
       });
 
-      if (!bucket) {
+      if (!bucket || bucket.createdById !== user.id) {
         return NextResponse.json(
           { status: "error", message: "Bucket not found or unavailable." },
           { status: 404 }
@@ -175,6 +211,20 @@ export async function POST(
       }
 
       const token = signPayload(payload);
+      await logAudit({
+        ...auditInfo,
+        actorId: user.id,
+        action: "media.signed-url.upload",
+        resourceType: "Bucket",
+        resourceId: bucket.id,
+        status: 200,
+        metadata: {
+          bucketSlug: slug,
+          filename: body.filename,
+          path: payload.path ?? null,
+          expiresAt: exp,
+        },
+      });
       return NextResponse.json({
         status: "ok",
         url: `/api/buckets/${slug}/upload-signed?token=${token}`,

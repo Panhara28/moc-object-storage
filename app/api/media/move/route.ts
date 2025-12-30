@@ -3,6 +3,7 @@ import path from "path";
 import * as fs from "fs/promises";
 import prisma from "@/lib/prisma";
 import { authorize } from "@/lib/authorized";
+import { getAuditRequestInfo, logAudit } from "@/lib/audit";
 
 function getStorageRoot() {
   if (process.env.STORAGE_ROOT) return process.env.STORAGE_ROOT;
@@ -57,6 +58,14 @@ export async function POST(req: NextRequest) {
         { status: auth.status }
       );
     }
+    const user = auth.user;
+    if (!user) {
+      return NextResponse.json(
+        { status: "error", message: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+    const auditInfo = getAuditRequestInfo(req);
 
     const body = await req.json();
     const mediaSlug: string | undefined = body.mediaSlug;
@@ -89,13 +98,29 @@ export async function POST(req: NextRequest) {
         size: true,
         fileType: true,
         path: true,
+        uploadedById: true,
         bucket: {
-          select: { id: true, name: true, slug: true, isAvailable: true },
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            isAvailable: true,
+            createdById: true,
+          },
         },
       },
     });
 
     if (!media) {
+      return NextResponse.json(
+        { status: "error", message: "Media not found." },
+        { status: 404 }
+      );
+    }
+    if (
+      media.uploadedById !== user.id ||
+      media.bucket.createdById !== user.id
+    ) {
       return NextResponse.json(
         { status: "error", message: "Media not found." },
         { status: 404 }
@@ -131,7 +156,11 @@ export async function POST(req: NextRequest) {
     const targetBucket =
       targetBucketSlug && targetBucketSlug !== media.bucket.slug
         ? await prisma.bucket.findUnique({
-            where: { slug: targetBucketSlug, isAvailable: "AVAILABLE" },
+            where: {
+              slug: targetBucketSlug,
+              isAvailable: "AVAILABLE",
+              createdById: user.id,
+            },
             select: { id: true, name: true, slug: true },
           })
         : media.bucket;
@@ -183,6 +212,7 @@ export async function POST(req: NextRequest) {
       },
       select: {
         slug: true,
+        id: true,
         filename: true,
         storedFilename: true,
         url: true,
@@ -190,6 +220,20 @@ export async function POST(req: NextRequest) {
         size: true,
         path: true,
         bucketId: true,
+      },
+    });
+
+    await logAudit({
+      ...auditInfo,
+      actorId: auth!.user!.id,
+      action: "media.move",
+      resourceType: "Media",
+      resourceId: updated.id,
+      status: 200,
+      metadata: {
+        sourceBucketSlug: media.bucket.slug,
+        targetBucketSlug: targetBucket.slug,
+        targetPath: normalizedTargetPath || null,
       },
     });
 

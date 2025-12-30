@@ -2,12 +2,13 @@ import "dotenv/config";
 import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
+import { encryptSecret } from "@/lib/secret-encryption";
 
 /* ======================================================
    Key Generators
 ====================================================== */
 function generateAccessKeyId() {
-  return "AKIA-" + crypto.randomBytes(8).toString("hex").toUpperCase();
+  return "MOS-" + crypto.randomBytes(8).toString("hex").toUpperCase();
 }
 
 function generateSecretAccessKey() {
@@ -45,7 +46,9 @@ export async function main() {
     { name: "roles", label: "Roles" },
     { name: "permissions", label: "Permissions" },
     { name: "media-library", label: "Media Library" },
-    { name: "audiences", label: "Audiences" },
+    { name: "spaces", label: "Spaces" },
+    { name: "buckets", label: "Buckets" },
+    { name: "api", label: "API" },
   ];
 
   const seededModules = await Promise.all(
@@ -61,65 +64,122 @@ export async function main() {
   );
 
   /* ======================================================
-     ROLES
+     ROLES + PERMISSIONS
   ====================================================== */
-  const adminRole = await prisma.role.create({
-    data: { name: "Admin", description: "Full system access" },
-  });
+  type PermissionFlags = {
+    create: boolean;
+    read: boolean;
+    update: boolean;
+    delete: boolean;
+  };
 
-  const editorRole = await prisma.role.create({
-    data: { name: "Editor", description: "Can manage selected resources" },
-  });
+  type RoleSpec = {
+    name: string;
+    description: string;
+    mode?: "full" | "read-only" | "none";
+    permissions?: Record<string, Partial<PermissionFlags>>;
+  };
 
-  const viewerRole = await prisma.role.create({
-    data: { name: "Viewer", description: "Read-only access" },
-  });
-
-  /* ======================================================
-     ROLE PERMISSIONS
-  ====================================================== */
-  // Admin → Full access
-  for (const mod of seededModules) {
-    await prisma.rolePermission.create({
-      data: {
-        roleId: adminRole.id,
-        moduleId: mod.id,
-        create: true,
-        read: true,
-        update: true,
-        delete: true,
+  const roleSpecs: RoleSpec[] = [
+    { name: "Admin", description: "Full system access", mode: "full" },
+    {
+      name: "Editor",
+      description: "Can manage selected resources",
+      permissions: {
+        users: { create: true, read: true, update: true },
+        "media-library": { create: true, read: true, update: true },
+        spaces: { create: true, read: true, update: true },
+        buckets: { create: true, read: true, update: true },
       },
-    });
-  }
-
-  // Editor → Limited access
-  const editorAllowed = ["users", "media-library", "audiences"];
-
-  for (const mod of seededModules) {
-    await prisma.rolePermission.create({
-      data: {
-        roleId: editorRole.id,
-        moduleId: mod.id,
-        create: editorAllowed.includes(mod.name),
-        read: editorAllowed.includes(mod.name),
-        update: editorAllowed.includes(mod.name),
-        delete: false,
+    },
+    { name: "Viewer", description: "Read-only access", mode: "read-only" },
+    { name: "No Access", description: "No permissions", mode: "none" },
+    {
+      name: "Media Manager",
+      description: "Full access to media only",
+      permissions: {
+        "media-library": {
+          create: true,
+          read: true,
+          update: true,
+          delete: true,
+        },
+        spaces: { create: true, read: true, update: true, delete: true },
       },
-    });
-  }
-
-  // Viewer → Read only
-  for (const mod of seededModules) {
-    await prisma.rolePermission.create({
-      data: {
-        roleId: viewerRole.id,
-        moduleId: mod.id,
-        create: false,
-        read: true,
-        update: false,
-        delete: false,
+    },
+    {
+      name: "Media Uploader",
+      description: "Upload-only access to media",
+      permissions: {
+        "media-library": { create: true, read: true },
+        spaces: { create: true, read: true },
       },
+    },
+    {
+      name: "User Manager",
+      description: "Full access to users",
+      permissions: {
+        users: { create: true, read: true, update: true, delete: true },
+      },
+    },
+    {
+      name: "Role Manager",
+      description: "Manage roles and permissions",
+      permissions: {
+        roles: { read: true, update: true },
+        permissions: { read: true, update: true },
+      },
+    },
+    {
+      name: "API Manager",
+      description: "Manage API keys for buckets",
+      permissions: {
+        api: { create: true, read: true, update: true, delete: true },
+      },
+    },
+  ];
+
+  const defaultFlags: PermissionFlags = {
+    create: false,
+    read: false,
+    update: false,
+    delete: false,
+  };
+
+  const createRoleWithPermissions = async (spec: RoleSpec) => {
+    const role = await prisma.role.create({
+      data: { name: spec.name, description: spec.description },
     });
+
+    for (const mod of seededModules) {
+      let flags: PermissionFlags = { ...defaultFlags };
+      if (spec.mode === "full") {
+        flags = { create: true, read: true, update: true, delete: true };
+      } else if (spec.mode === "read-only") {
+        flags = { ...defaultFlags, read: true };
+      }
+
+      const overrides = spec.permissions?.[mod.name];
+      if (overrides) {
+        flags = { ...flags, ...overrides };
+      }
+
+      await prisma.rolePermission.create({
+        data: {
+          roleId: role.id,
+          moduleId: mod.id,
+          ...flags,
+        },
+      });
+    }
+
+    return role;
+  };
+
+  const rolesByName: Record<string, { id: number }> = {};
+  for (const spec of roleSpecs) {
+    const role = await createRoleWithPermissions(spec);
+    rolesByName[spec.name] = role;
   }
 
   /* ======================================================
@@ -133,9 +193,33 @@ export async function main() {
       email: "admin@example.com",
       password: hashedPassword,
       profilePicture: "",
-      roleId: adminRole.id,
+      roleId: rolesByName["Admin"].id,
     },
   });
+
+  const seedUsers = [
+    { name: "Editor User", email: "editor@example.com", role: "Editor" },
+    { name: "Viewer User", email: "viewer@example.com", role: "Viewer" },
+    { name: "No Access User", email: "noaccess@example.com", role: "No Access" },
+    { name: "Media Manager", email: "media@example.com", role: "Media Manager" },
+    { name: "Media Uploader", email: "upload@example.com", role: "Media Uploader" },
+    { name: "User Manager", email: "users@example.com", role: "User Manager" },
+    { name: "Role Manager", email: "roles@example.com", role: "Role Manager" },
+  ];
+
+  await Promise.all(
+    seedUsers.map((user) =>
+      prisma.user.create({
+        data: {
+          name: user.name,
+          email: user.email,
+          password: hashedPassword,
+          profilePicture: "",
+          roleId: rolesByName[user.role].id,
+        },
+      })
+    )
+  );
 
   /* ======================================================
      DEFAULT BUCKET
@@ -143,10 +227,18 @@ export async function main() {
   const defaultBucket = await prisma.bucket.create({
     data: {
       name: "uploads",
-      accessKeyName: "uploads-key",
-      accessKeyId: generateAccessKeyId(),
-      secretAccessKey: generateSecretAccessKey(),
       permission: "FULL_ACCESS",
+      createdById: superAdmin.id,
+    },
+  });
+
+  const seedSecret = generateSecretAccessKey();
+  await prisma.bucketApiKey.create({
+    data: {
+      bucketId: defaultBucket.id,
+      name: "uploads-service",
+      accessKeyId: generateAccessKeyId(),
+      secretAccessKey: encryptSecret(seedSecret),
       createdById: superAdmin.id,
     },
   });

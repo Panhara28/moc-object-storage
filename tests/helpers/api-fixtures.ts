@@ -17,9 +17,6 @@ export async function createBucket(createdById: number) {
     data: {
       name: `bucket-${suffix}`,
       createdById,
-      accessKeyName: `access-${suffix}`,
-      accessKeyId: `access-id-${suffix}`,
-      secretAccessKey: `secret-${suffix}`,
       permission: "FULL_ACCESS",
       isAvailable: "AVAILABLE",
     },
